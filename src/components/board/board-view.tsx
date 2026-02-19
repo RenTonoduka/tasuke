@@ -21,9 +21,10 @@ import type { Section, Task } from '@/types';
 interface BoardViewProps {
   initialSections: Section[];
   projectId: string;
+  onSectionsChange?: (sections: Section[]) => void;
 }
 
-export function BoardView({ initialSections, projectId }: BoardViewProps) {
+export function BoardView({ initialSections, projectId, onSectionsChange }: BoardViewProps) {
   const [sections, setSections] = useState<Section[]>(initialSections);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
 
@@ -148,11 +149,13 @@ export function BoardView({ initialSections, projectId }: BoardViewProps) {
       });
       const task = await res.json();
 
-      setSections((prev) =>
-        prev.map((s) =>
+      setSections((prev) => {
+        const next = prev.map((s) =>
           s.id === sectionId ? { ...s, tasks: [...s.tasks, task] } : s
-        )
-      );
+        );
+        onSectionsChange?.(next);
+        return next;
+      });
     } catch (err) {
       console.error('タスク作成エラー:', err);
     }

@@ -69,7 +69,7 @@ export function ProjectPageClient({ project }: ProjectPageClientProps) {
 
       <div className="flex-1 overflow-hidden">
         {view === 'board' ? (
-          <BoardView initialSections={sections} projectId={project.id} />
+          <BoardView initialSections={sections} projectId={project.id} onSectionsChange={setSections} />
         ) : (
           <ListView
             sections={sections}
