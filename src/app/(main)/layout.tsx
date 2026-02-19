@@ -33,6 +33,7 @@ export default async function MainLayout({
       projects={workspace?.projects ?? []}
       workspaceName={workspace?.name ?? 'ワークスペース'}
       currentWorkspaceSlug={workspace?.slug ?? ''}
+      workspaceId={workspace?.id ?? ''}
     >
       {children}
     </AppShell>

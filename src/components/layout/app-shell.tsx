@@ -10,9 +10,10 @@ interface AppShellProps {
   projects?: { id: string; name: string; color: string }[];
   workspaceName?: string;
   currentWorkspaceSlug?: string;
+  workspaceId?: string;
 }
 
-export function AppShell({ children, projects, workspaceName, currentWorkspaceSlug }: AppShellProps) {
+export function AppShell({ children, projects, workspaceName, currentWorkspaceSlug, workspaceId }: AppShellProps) {
   const isOpen = useSidebarStore((s) => s.isOpen);
   const close = useSidebarStore((s) => s.close);
 
@@ -48,6 +49,7 @@ export function AppShell({ children, projects, workspaceName, currentWorkspaceSl
           projects={projects}
           workspaceName={workspaceName}
           currentWorkspaceSlug={currentWorkspaceSlug}
+          workspaceId={workspaceId}
         />
       </aside>
 

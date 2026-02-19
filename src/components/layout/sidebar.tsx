@@ -6,15 +6,14 @@ import { useSession, signOut } from 'next-auth/react';
 import {
   CheckSquare,
   FolderKanban,
-  Plus,
   Settings,
   LogOut,
   ChevronDown,
   LayoutDashboard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ProjectCreateDialog } from '@/components/project/project-create-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,9 +34,10 @@ interface SidebarProps {
   projects?: Project[];
   workspaceName?: string;
   currentWorkspaceSlug?: string;
+  workspaceId?: string;
 }
 
-export function Sidebar({ projects = [], workspaceName = 'マイワークスペース', currentWorkspaceSlug = '' }: SidebarProps) {
+export function Sidebar({ projects = [], workspaceName = 'マイワークスペース', currentWorkspaceSlug = '', workspaceId = '' }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const user = session?.user;
@@ -70,9 +70,9 @@ export function Sidebar({ projects = [], workspaceName = 'マイワークスペ�
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuItem>
+            <DropdownMenuItem disabled>
               <Settings className="mr-2 h-4 w-4" />
-              ワークスペース設定
+              ワークスペース設定（準備中）
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -104,13 +104,7 @@ export function Sidebar({ projects = [], workspaceName = 'マイワークスペ�
             <span className="text-xs font-semibold uppercase tracking-wider text-[#80868B]">
               プロジェクト
             </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5 text-[#80868B] hover:text-[#202124]"
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
+            <ProjectCreateDialog workspaceId={workspaceId} workspaceSlug={currentWorkspaceSlug} />
           </div>
           {projects.map((project) => (
             <Link
