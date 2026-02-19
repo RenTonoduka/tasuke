@@ -56,8 +56,7 @@ const PRIORITY_COLORS: Record<string, string> = {
   P3: '#80868B',
 };
 
-const WORK_HOURS = 9; // 営業時間幅 (9:00-18:00)
-const HOUR_WIDTH = 80; // 1時間あたりのピクセル幅
+const HOUR_WIDTH = 80;
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number);
@@ -68,6 +67,12 @@ function formatDateLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   const days = ['日', '月', '火', '水', '木', '金', '土'];
   return `${d.getMonth() + 1}/${d.getDate()}(${days[d.getDay()]})`;
+}
+
+function isWeekendDate(dateStr: string): boolean {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay();
+  return day === 0 || day === 6;
 }
 
 function formatDueDate(dateStr: string): string {
@@ -89,10 +94,14 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
   const [showSettings, setShowSettings] = useState(false);
   const openPanel = useTaskPanelStore((s) => s.open);
 
+  const workHours = workEnd - workStart;
+  const totalWidth = workHours * HOUR_WIDTH;
+  const workStartMin = workStart * 60;
+  const workEndMin = workEnd * 60;
+
   const fetchSchedule = useCallback(async () => {
     setLoading(true);
     try {
-      // カレンダーイベントとスケジュール提案を並列取得
       const now = new Date();
       const twoWeeksLater = new Date(now);
       twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
@@ -124,25 +133,31 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
     if (!data) return [];
 
     const daysMap = new Map<string, {
+      allDayEvents: string[];
       events: { summary: string; startMin: number; endMin: number }[];
       tasks: { taskId: string; title: string; priority: string; startMin: number; endMin: number; status: string }[];
     }>();
 
-    // カレンダーイベントを日別に振り分け
     for (const ev of events) {
-      if (ev.allDay) continue;
       const date = ev.start.split('T')[0];
-      if (!daysMap.has(date)) daysMap.set(date, { events: [], tasks: [] });
+      if (!daysMap.has(date)) daysMap.set(date, { allDayEvents: [], events: [], tasks: [] });
       const day = daysMap.get(date)!;
+
+      if (ev.allDay) {
+        day.allDayEvents.push(ev.summary);
+        continue;
+      }
+
       const startMin = timeToMinutes(ev.start.split('T')[1]?.substring(0, 5) ?? '09:00');
       const endMin = timeToMinutes(ev.end.split('T')[1]?.substring(0, 5) ?? '10:00');
+      // 営業時間外のイベントはスキップ
+      if (endMin <= workStartMin || startMin >= workEndMin) continue;
       day.events.push({ summary: ev.summary, startMin, endMin });
     }
 
-    // タスクスロットを日別に振り分け
     for (const sug of data.suggestions) {
       for (const slot of sug.scheduledSlots) {
-        if (!daysMap.has(slot.date)) daysMap.set(slot.date, { events: [], tasks: [] });
+        if (!daysMap.has(slot.date)) daysMap.set(slot.date, { allDayEvents: [], events: [], tasks: [] });
         const day = daysMap.get(slot.date)!;
         day.tasks.push({
           taskId: sug.taskId,
@@ -156,12 +171,10 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
     }
 
     return Array.from(daysMap.entries())
+      .filter(([date]) => !skipWeekends || !isWeekendDate(date))
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, dayData]) => ({ date, ...dayData }));
   };
-
-  const workStartMin = workStart * 60;
-  const totalWidth = WORK_HOURS * HOUR_WIDTH;
 
   return (
     <div className="flex-1 overflow-auto p-4">
@@ -211,7 +224,7 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
                 <option key={h} value={h}>{h}:00</option>
               ))}
             </select>
-            <span className="text-xs text-[#80868B]">〜</span>
+            <span className="text-xs text-[#80868B]">~</span>
             <select
               value={workEnd}
               onChange={(e) => setWorkEnd(Number(e.target.value))}
@@ -253,101 +266,122 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
         </div>
       )}
 
-      {/* タイムラインヘッダー */}
+      {/* タイムライン */}
       {data && (
-        <div className="mb-1 overflow-x-auto">
-          <div style={{ minWidth: totalWidth + 100 }}>
+        <div className="overflow-x-auto">
+          <table className="border-collapse" style={{ minWidth: totalWidth + 120 }}>
             {/* 時刻ヘッダー */}
-            <div className="flex">
-              <div className="w-[100px] shrink-0" />
-              <div className="relative flex" style={{ width: totalWidth }}>
-                {Array.from({ length: WORK_HOURS + 1 }, (_, i) => (
-                  <div
-                    key={i}
-                    className="text-[10px] text-[#80868B]"
-                    style={{ position: 'absolute', left: i * HOUR_WIDTH - 10 }}
-                  >
-                    {workStart + i}:00
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 日別タイムライン */}
-            <div className="mt-4 space-y-1">
-              {getDaysData().map(({ date, events: dayEvents, tasks: dayTasks }) => (
-                <div key={date} className="flex items-center">
-                  {/* 日付ラベル */}
-                  <div className="w-[100px] shrink-0 pr-2 text-right text-xs font-medium text-[#202124]">
-                    {formatDateLabel(date)}
-                  </div>
-                  {/* タイムラインバー */}
-                  <div
-                    className="relative h-10 rounded border border-[#E8EAED] bg-white"
-                    style={{ width: totalWidth }}
-                  >
-                    {/* 時刻グリッド線 */}
-                    {Array.from({ length: WORK_HOURS }, (_, i) => (
-                      <div
+            <thead>
+              <tr>
+                <th className="sticky left-0 z-10 w-[110px] min-w-[110px] bg-white" />
+                <th className="p-0">
+                  <div className="relative" style={{ width: totalWidth, height: 20 }}>
+                    {Array.from({ length: workHours + 1 }, (_, i) => (
+                      <span
                         key={i}
-                        className="absolute top-0 h-full border-l border-[#F1F3F4]"
-                        style={{ left: (i + 1) * HOUR_WIDTH }}
-                      />
+                        className="absolute text-[10px] text-[#80868B]"
+                        style={{ left: i * HOUR_WIDTH - 10, top: 0 }}
+                      >
+                        {workStart + i}:00
+                      </span>
                     ))}
-
-                    {/* Googleカレンダー予定（灰色） */}
-                    {dayEvents.map((ev, i) => {
-                      const left = ((ev.startMin - workStartMin) / 60) * HOUR_WIDTH;
-                      const width = ((ev.endMin - ev.startMin) / 60) * HOUR_WIDTH;
-                      if (left < 0 || width <= 0) return null;
-                      return (
-                        <div
-                          key={`ev-${i}`}
-                          className="absolute top-1 flex items-center overflow-hidden rounded px-1.5 text-[10px] text-[#5F6368]"
-                          style={{
-                            left: Math.max(0, left),
-                            width: Math.min(width, totalWidth - left),
-                            height: 32,
-                            backgroundColor: '#E8EAED',
-                          }}
-                          title={ev.summary}
-                        >
-                          <span className="truncate">{ev.summary}</span>
-                        </div>
-                      );
-                    })}
-
-                    {/* タスクスロット（優先度色） */}
-                    {dayTasks.map((task, i) => {
-                      const left = ((task.startMin - workStartMin) / 60) * HOUR_WIDTH;
-                      const width = ((task.endMin - task.startMin) / 60) * HOUR_WIDTH;
-                      if (left < 0 || width <= 0) return null;
-                      const color = PRIORITY_COLORS[task.priority] ?? '#4285F4';
-                      return (
-                        <button
-                          key={`task-${i}`}
-                          onClick={() => openPanel(task.taskId)}
-                          className={cn(
-                            'absolute top-1 flex items-center overflow-hidden rounded px-1.5 text-[10px] font-medium text-white transition-opacity hover:opacity-80',
-                            task.status === 'tight' && 'border-2 border-dashed border-white'
-                          )}
-                          style={{
-                            left: Math.max(0, left),
-                            width: Math.min(width, totalWidth - left),
-                            height: 32,
-                            backgroundColor: color,
-                          }}
-                          title={`${task.title} (${task.priority})`}
-                        >
-                          <span className="truncate">{task.title}</span>
-                        </button>
-                      );
-                    })}
                   </div>
-                </div>
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {getDaysData().map(({ date, allDayEvents, events: dayEvents, tasks: dayTasks }) => (
+                <tr key={date}>
+                  {/* 日付ラベル（sticky） */}
+                  <td className="sticky left-0 z-10 bg-white pr-2 text-right align-middle">
+                    <div className="whitespace-nowrap text-xs font-medium text-[#202124]">
+                      {formatDateLabel(date)}
+                    </div>
+                    {allDayEvents.length > 0 && (
+                      <div className="mt-0.5 space-y-0.5">
+                        {allDayEvents.map((name, i) => (
+                          <div key={i} className="truncate text-[9px] text-[#80868B]" style={{ maxWidth: 100 }}>
+                            {name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+
+                  {/* タイムラインバー */}
+                  <td className="p-0 py-0.5">
+                    <div
+                      className="relative rounded border border-[#E8EAED] bg-white"
+                      style={{ width: totalWidth, height: 40 }}
+                    >
+                      {/* 時刻グリッド線 */}
+                      {Array.from({ length: workHours - 1 }, (_, i) => (
+                        <div
+                          key={i}
+                          className="absolute top-0 h-full border-l border-[#F1F3F4]"
+                          style={{ left: (i + 1) * HOUR_WIDTH }}
+                        />
+                      ))}
+
+                      {/* Googleカレンダー予定（灰色） */}
+                      {dayEvents.map((ev, i) => {
+                        const clampedStart = Math.max(ev.startMin, workStartMin);
+                        const clampedEnd = Math.min(ev.endMin, workEndMin);
+                        if (clampedStart >= clampedEnd) return null;
+                        const left = ((clampedStart - workStartMin) / 60) * HOUR_WIDTH;
+                        const width = ((clampedEnd - clampedStart) / 60) * HOUR_WIDTH;
+                        return (
+                          <div
+                            key={`ev-${i}`}
+                            className="absolute top-1 flex items-center overflow-hidden rounded px-1.5 text-[10px] text-[#5F6368]"
+                            style={{
+                              left,
+                              width,
+                              height: 32,
+                              backgroundColor: '#E8EAED',
+                            }}
+                            title={ev.summary}
+                          >
+                            <span className="truncate">{ev.summary}</span>
+                          </div>
+                        );
+                      })}
+
+                      {/* タスクスロット（優先度色） */}
+                      {dayTasks.map((task, i) => {
+                        const clampedStart = Math.max(task.startMin, workStartMin);
+                        const clampedEnd = Math.min(task.endMin, workEndMin);
+                        if (clampedStart >= clampedEnd) return null;
+                        const left = ((clampedStart - workStartMin) / 60) * HOUR_WIDTH;
+                        const width = ((clampedEnd - clampedStart) / 60) * HOUR_WIDTH;
+                        const color = PRIORITY_COLORS[task.priority] ?? '#4285F4';
+                        return (
+                          <button
+                            key={`task-${i}`}
+                            onClick={() => openPanel(task.taskId)}
+                            className={cn(
+                              'absolute top-1 flex items-center overflow-hidden rounded px-1.5 text-[10px] font-medium text-white transition-opacity hover:opacity-80',
+                              task.status === 'tight' && 'border-2 border-dashed border-white'
+                            )}
+                            style={{
+                              left,
+                              width,
+                              height: 32,
+                              backgroundColor: color,
+                            }}
+                            title={`${task.title} (${task.priority})`}
+                          >
+                            <span className="truncate">{task.title}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </td>
+                </tr>
               ))}
-            </div>
-          </div>
+            </tbody>
+          </table>
         </div>
       )}
 

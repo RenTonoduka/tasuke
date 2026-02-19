@@ -72,7 +72,8 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         });
         googleTaskId = res.data.id!;
       } catch (err: unknown) {
-        if (err instanceof GaxiosError && err.response?.status === 404) {
+        const status = err instanceof GaxiosError ? err.response?.status : 0;
+        if (status === 404 || status === 410) {
           // Googleタスク側で削除済み → 新規作成
           const res = await tasksClient.tasks.insert({
             tasklist: '@default',
@@ -140,8 +141,9 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
           task: task.googleTaskId,
         });
       } catch (err: unknown) {
-        // 404は既に削除済みなので無視
-        if (!(err instanceof GaxiosError && err.response?.status === 404)) {
+        // 404/410は既に削除済みなので無視
+        const delStatus = err instanceof GaxiosError ? err.response?.status : 0;
+        if (!(delStatus === 404 || delStatus === 410)) {
           console.error('Google Tasks delete error:', err);
           return errorResponse('Googleタスクの削除に失敗しました', 502);
         }

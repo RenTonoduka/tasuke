@@ -86,7 +86,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           requestBody: eventBody,
         });
       } catch (err) {
-        if (err instanceof GaxiosError && err.response?.status === 404) {
+        const status = err instanceof GaxiosError ? err.response?.status : 0;
+        if (status === 404 || status === 410) {
           // イベントが削除されていた場合は新規作成
           const inserted = await calendar.events.insert({
             calendarId: 'primary',
@@ -166,7 +167,8 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
         eventId: task.googleCalendarEventId,
       });
     } catch (err) {
-      if (!(err instanceof GaxiosError && err.response?.status === 404)) {
+      const delStatus = err instanceof GaxiosError ? err.response?.status : 0;
+      if (!(delStatus === 404 || delStatus === 410)) {
         throw new Error(getGoogleApiErrorMessage(err));
       }
       // 既に削除済みの場合はそのまま続行
