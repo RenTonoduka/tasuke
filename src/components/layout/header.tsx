@@ -1,6 +1,6 @@
 'use client';
 
-import { Menu, LayoutGrid, List } from 'lucide-react';
+import { Menu, LayoutGrid, List, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebarStore } from '@/stores/sidebar-store';
 import { cn } from '@/lib/utils';
@@ -55,6 +55,16 @@ export function Header({ title = '', view = 'board', onViewChange }: HeaderProps
           </button>
         </div>
       )}
+
+      <div className="ml-auto flex items-center gap-2">
+        <button className="flex items-center gap-2 rounded-md border border-[#E8EAED] px-3 py-1 text-xs text-[#80868B] hover:bg-[#F1F3F4]">
+          <Search className="h-3.5 w-3.5" />
+          <span>検索...</span>
+          <kbd className="ml-1 rounded bg-[#F1F3F4] px-1.5 py-0.5 font-mono text-[10px] font-medium text-[#5F6368]">
+            ⌘K
+          </kbd>
+        </button>
+      </div>
     </header>
   );
 }
