@@ -3,6 +3,7 @@ import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { updateTaskSchema } from '@/lib/validations/task';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { logActivity } from '@/lib/activity';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAuthUser();
+    const user = await requireAuthUser();
     const body = await req.json();
     const data = updateTaskSchema.parse(body);
 
@@ -67,6 +68,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         _count: { select: { subtasks: true } },
       },
     });
+
+    // アクティビティログ
+    if (statusValue === 'DONE') {
+      await logActivity({ type: 'TASK_COMPLETED', userId: user.id, taskId: params.id });
+    } else if (statusValue && statusValue !== 'DONE') {
+      await logActivity({ type: 'TASK_REOPENED', userId: user.id, taskId: params.id });
+    } else if (data.priority !== undefined) {
+      await logActivity({
+        type: 'PRIORITY_CHANGED',
+        userId: user.id,
+        taskId: params.id,
+        metadata: { to: data.priority },
+      });
+    } else if (data.dueDate !== undefined) {
+      await logActivity({ type: 'DUE_DATE_CHANGED', userId: user.id, taskId: params.id });
+    } else {
+      await logActivity({ type: 'TASK_UPDATED', userId: user.id, taskId: params.id });
+    }
 
     return successResponse(task);
   } catch (error) {

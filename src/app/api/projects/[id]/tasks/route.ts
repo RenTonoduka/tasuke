@@ -3,6 +3,7 @@ import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { createTaskSchema } from '@/lib/validations/task';
 import { successResponse, handleApiError } from '@/lib/api-utils';
+import { logActivity } from '@/lib/activity';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -55,6 +56,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         _count: { select: { subtasks: true } },
       },
     });
+
+    await logActivity({ type: 'TASK_CREATED', userId: user.id, taskId: task.id });
 
     return successResponse(task, 201);
   } catch (error) {

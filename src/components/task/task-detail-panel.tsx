@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { cn } from '@/lib/utils';
+import { ActivityLog } from './activity-log';
 
 const priorityOptions = [
   { value: 'P0', label: 'P0 - 緊急', color: '#EA4335' },
@@ -336,6 +337,14 @@ export function TaskDetailPanel() {
                 </div>
               </div>
             )}
+
+            {/* Activity Log */}
+            <div className="border-t border-[#E8EAED]">
+              <label className="block px-4 pt-4 text-xs font-medium text-[#5F6368]">
+                アクティビティ
+              </label>
+              <ActivityLog taskId={task.id} />
+            </div>
           </div>
         )}
       </SheetContent>

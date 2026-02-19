@@ -3,10 +3,11 @@ import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { moveTaskSchema } from '@/lib/validations/task';
 import { successResponse, handleApiError } from '@/lib/api-utils';
+import { logActivity } from '@/lib/activity';
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAuthUser();
+    const user = await requireAuthUser();
     const body = await req.json();
     const data = moveTaskSchema.parse(body);
 
@@ -16,6 +17,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         sectionId: data.sectionId,
         position: data.position,
       },
+    });
+
+    await logActivity({
+      type: 'TASK_MOVED',
+      userId: user.id,
+      taskId: params.id,
+      metadata: { sectionId: data.sectionId },
     });
 
     return successResponse(task);
