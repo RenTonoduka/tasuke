@@ -36,6 +36,7 @@ export interface Task {
   position: number;
   dueDate: string | null;
   startDate: string | null;
+  estimatedHours: number | null;
   completedAt: string | null;
   sectionId: string | null;
   projectId: string;

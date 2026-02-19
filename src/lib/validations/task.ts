@@ -17,6 +17,7 @@ export const updateTaskSchema = z.object({
   status: z.enum(['TODO', 'IN_PROGRESS', 'DONE', 'ARCHIVED']).optional(),
   sectionId: z.string().optional().nullable(),
   dueDate: z.string().datetime().optional().nullable(),
+  estimatedHours: z.number().min(0.5).max(100).multipleOf(0.5).optional().nullable(),
   position: z.number().optional(),
 });
 

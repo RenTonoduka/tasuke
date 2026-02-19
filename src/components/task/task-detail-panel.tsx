@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Calendar, Flag, Tag, Users, CheckSquare } from 'lucide-react';
+import { X, Calendar, Clock, Flag, Tag, Users, CheckSquare } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +42,7 @@ interface TaskDetail {
   priority: string;
   status: string;
   dueDate: string | null;
+  estimatedHours: number | null;
   googleCalendarEventId: string | null;
   googleCalendarSyncedAt: string | null;
   googleTaskId: string | null;
@@ -257,6 +258,34 @@ export function TaskDetailPanel() {
                   googleSyncedAt={task.googleTaskSyncedAt}
                   onSync={() => fetchTask(task.id)}
                 />
+              </div>
+
+              {/* Estimated Hours */}
+              <div className="flex items-center gap-3">
+                <Clock className="h-4 w-4 text-[#80868B]" />
+                <Select
+                  value={task.estimatedHours?.toString() ?? ''}
+                  onValueChange={(v) => updateField('estimatedHours', v ? parseFloat(v) : null)}
+                >
+                  <SelectTrigger className="h-8 w-[160px] text-xs">
+                    <SelectValue placeholder="見積もり時間" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[0.5, 1, 1.5, 2, 3, 4, 5, 6, 8].map((h) => (
+                      <SelectItem key={h} value={h.toString()}>
+                        {h}時間
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {task.estimatedHours && (
+                  <button
+                    onClick={() => updateField('estimatedHours', null)}
+                    className="text-xs text-[#80868B] hover:text-[#EA4335]"
+                  >
+                    クリア
+                  </button>
+                )}
               </div>
 
               {/* Assignees */}

@@ -157,6 +157,7 @@ model Task {
   position    Float      @default(0)
   dueDate     DateTime?
   startDate   DateTime?
+  estimatedHours Float?
   completedAt DateTime?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt

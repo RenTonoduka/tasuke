@@ -1,6 +1,6 @@
 'use client';
 
-import { Menu, LayoutGrid, List, GanttChart, Search, Settings, Zap } from 'lucide-react';
+import { Menu, LayoutGrid, List, GanttChart, CalendarClock, Search, Settings, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,8 +17,8 @@ import { cn } from '@/lib/utils';
 
 interface HeaderProps {
   title?: string;
-  view?: 'board' | 'list' | 'timeline';
-  onViewChange?: (view: 'board' | 'list' | 'timeline') => void;
+  view?: 'board' | 'list' | 'timeline' | 'schedule';
+  onViewChange?: (view: 'board' | 'list' | 'timeline' | 'schedule') => void;
   workspaceSlug?: string;
   projectId?: string;
   projectName?: string;
@@ -78,6 +78,18 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
           >
             <GanttChart className="h-3.5 w-3.5" />
             タイムライン
+          </button>
+          <button
+            onClick={() => onViewChange('schedule')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1 text-xs font-medium',
+              view === 'schedule'
+                ? 'bg-[#E8EAED] text-[#202124]'
+                : 'text-[#5F6368] hover:bg-[#F1F3F4]'
+            )}
+          >
+            <CalendarClock className="h-3.5 w-3.5" />
+            スケジュール
           </button>
         </div>
       )}

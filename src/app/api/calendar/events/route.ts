@@ -1,0 +1,52 @@
+import { NextRequest } from 'next/server';
+import { requireAuthUser } from '@/lib/auth';
+import { getGoogleClient, getCalendarClient } from '@/lib/google';
+import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+
+export async function GET(req: NextRequest) {
+  try {
+    const user = await requireAuthUser();
+    const { searchParams } = new URL(req.url);
+    const timeMin = searchParams.get('timeMin');
+    const timeMax = searchParams.get('timeMax');
+
+    if (!timeMin || !timeMax) {
+      return errorResponse('timeMin と timeMax は必須です', 400);
+    }
+
+    const auth = await getGoogleClient(user.id);
+    const calendar = getCalendarClient(auth);
+
+    const response = await calendar.events.list({
+      calendarId: 'primary',
+      timeMin,
+      timeMax,
+      singleEvents: true,
+      orderBy: 'startTime',
+      maxResults: 250,
+      timeZone: 'Asia/Tokyo',
+      fields: 'items(id,summary,start,end,status,colorId)',
+    });
+
+    const events = (response.data.items ?? [])
+      .filter((e) => e.status !== 'cancelled')
+      .map((e) => {
+        const allDay = !!e.start?.date;
+        return {
+          id: e.id,
+          summary: e.summary ?? '(タイトルなし)',
+          start: e.start?.dateTime ?? e.start?.date ?? '',
+          end: e.end?.dateTime ?? e.end?.date ?? '',
+          allDay,
+          colorId: e.colorId ?? null,
+        };
+      });
+
+    return successResponse(events);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Google')) {
+      return errorResponse(error.message, 401);
+    }
+    return handleApiError(error);
+  }
+}
