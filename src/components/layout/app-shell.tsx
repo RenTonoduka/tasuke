@@ -3,7 +3,10 @@
 import { useEffect } from 'react';
 import { useSidebarStore } from '@/stores/sidebar-store';
 import { Sidebar } from './sidebar';
+import { CommandPalette } from '@/components/shared/command-palette';
 import { cn } from '@/lib/utils';
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
+import { ShortcutsHelp } from '@/components/shared/shortcuts-help';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -16,6 +19,10 @@ interface AppShellProps {
 export function AppShell({ children, projects, workspaceName, currentWorkspaceSlug, workspaceId }: AppShellProps) {
   const isOpen = useSidebarStore((s) => s.isOpen);
   const close = useSidebarStore((s) => s.close);
+
+  useKeyboardShortcuts({
+    workspaceSlug: currentWorkspaceSlug ?? '',
+  });
 
   // モバイルではデフォルトで閉じる
   useEffect(() => {
@@ -57,6 +64,12 @@ export function AppShell({ children, projects, workspaceName, currentWorkspaceSl
       <main className="flex flex-1 flex-col overflow-hidden">
         {children}
       </main>
+
+      <CommandPalette
+        workspaceSlug={currentWorkspaceSlug ?? ''}
+        projects={projects ?? []}
+      />
+      <ShortcutsHelp />
     </div>
   );
 }
