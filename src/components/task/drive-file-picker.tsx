@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, File, X } from 'lucide-react';
 import {
   Dialog,
@@ -49,13 +49,12 @@ export function DriveFilePicker({ open, onOpenChange, onSelect }: DriveFilePicke
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const search = useCallback(async (q: string) => {
+  const search = useCallback(async (q: string, signal: AbortSignal) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/drive/search?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/drive/search?q=${encodeURIComponent(q)}`, { signal });
       if (!res.ok) {
         const data = await res.json();
         setError(data.error ?? 'ファイルの取得に失敗しました');
@@ -64,7 +63,8 @@ export function DriveFilePicker({ open, onOpenChange, onSelect }: DriveFilePicke
       }
       const data = await res.json();
       setFiles(data);
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       setError('ファイルの取得に失敗しました');
       setFiles([]);
     } finally {
@@ -74,10 +74,11 @@ export function DriveFilePicker({ open, onOpenChange, onSelect }: DriveFilePicke
 
   useEffect(() => {
     if (!open) return;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => search(query), 300);
+    const controller = new AbortController();
+    const timer = setTimeout(() => search(query, controller.signal), 300);
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      clearTimeout(timer);
+      controller.abort();
     };
   }, [query, open, search]);
 

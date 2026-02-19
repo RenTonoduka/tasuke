@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Calendar, RefreshCw, Unlink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,6 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useGoogleSync } from '@/hooks/use-google-sync';
 
 interface CalendarSyncButtonProps {
   taskId: string;
@@ -35,51 +35,10 @@ export function CalendarSyncButton({
   dueDate,
   onSync,
 }: CalendarSyncButtonProps) {
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isUnlinking, setIsUnlinking] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { syncing: isSyncing, unlinking: isUnlinking, errorMessage, sync: handleSync, unlink: handleUnlink } =
+    useGoogleSync(taskId, 'sync-calendar', onSync);
 
   const isSynced = !!googleCalendarEventId;
-
-  const handleSync = async () => {
-    setIsSyncing(true);
-    setErrorMessage(null);
-    try {
-      const res = await fetch(`/api/tasks/${taskId}/sync-calendar`, {
-        method: 'POST',
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMessage(data.error ?? '同期に失敗しました');
-        return;
-      }
-      onSync();
-    } catch {
-      setErrorMessage('ネットワークエラーが発生しました');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleUnlink = async () => {
-    setIsUnlinking(true);
-    setErrorMessage(null);
-    try {
-      const res = await fetch(`/api/tasks/${taskId}/sync-calendar`, {
-        method: 'DELETE',
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMessage(data.error ?? '連携解除に失敗しました');
-        return;
-      }
-      onSync();
-    } catch {
-      setErrorMessage('ネットワークエラーが発生しました');
-    } finally {
-      setIsUnlinking(false);
-    }
-  };
 
   return (
     <TooltipProvider>

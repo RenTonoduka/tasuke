@@ -113,22 +113,30 @@ export function TaskDetailPanel() {
 
   const addSubtask = async () => {
     if (!task || !newSubtask.trim()) return;
-    await fetch(`/api/tasks/${task.id}/subtasks`, {
+    const res = await fetch(`/api/tasks/${task.id}/subtasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: newSubtask.trim() }),
     });
+    if (!res.ok) {
+      console.error('サブタスク作成に失敗');
+      return;
+    }
     setNewSubtask('');
     fetchTask(task.id);
   };
 
   const toggleSubtask = async (subtaskId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'DONE' ? 'TODO' : 'DONE';
-    await fetch(`/api/tasks/${subtaskId}`, {
+    const res = await fetch(`/api/tasks/${subtaskId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     });
+    if (!res.ok) {
+      console.error('サブタスク更新に失敗');
+      return;
+    }
     if (task) fetchTask(task.id);
   };
 

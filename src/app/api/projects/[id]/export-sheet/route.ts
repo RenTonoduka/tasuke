@@ -50,7 +50,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     if (!project) return errorResponse('プロジェクトが見つかりません', 404);
 
-    const auth = await getGoogleClient(user.id);
+    let auth;
+    try {
+      auth = await getGoogleClient(user.id);
+    } catch {
+      return errorResponse('Googleアカウントが連携されていません。再ログインしてください。', 400);
+    }
     const sheets = getSheetsClient(auth);
 
     const dateStr = new Date().toLocaleDateString('ja-JP', {
@@ -69,7 +74,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       },
     });
 
-    const spreadsheetId = createRes.data.spreadsheetId!;
+    const spreadsheetId = createRes.data.spreadsheetId;
+    if (!spreadsheetId) return errorResponse('スプレッドシートの作成に失敗しました', 500);
     const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
 
     // ヘッダー行

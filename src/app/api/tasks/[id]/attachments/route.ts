@@ -15,6 +15,7 @@ async function getTaskWithAuth(taskId: string, userId: string) {
       id: taskId,
       project: { workspace: { members: { some: { userId } } } },
     },
+    select: { id: true },
   });
 }
 
