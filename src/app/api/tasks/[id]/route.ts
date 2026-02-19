@@ -7,9 +7,12 @@ import { logActivity } from '@/lib/activity';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAuthUser();
-    const task = await prisma.task.findUnique({
-      where: { id: params.id },
+    const user = await requireAuthUser();
+    const task = await prisma.task.findFirst({
+      where: {
+        id: params.id,
+        project: { workspace: { members: { some: { userId: user.id } } } },
+      },
       include: {
         assignees: {
           include: { user: { select: { id: true, name: true, email: true, image: true } } },
@@ -44,6 +47,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const user = await requireAuthUser();
     const body = await req.json();
     const data = updateTaskSchema.parse(body);
+
+    const existing = await prisma.task.findFirst({
+      where: {
+        id: params.id,
+        project: { workspace: { members: { some: { userId: user.id } } } },
+      },
+    });
+    if (!existing) return errorResponse('タスクが見つかりません', 404);
 
     const updateData: Record<string, unknown> = { ...data };
     if (data.dueDate !== undefined) {
@@ -95,7 +106,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAuthUser();
+    const user = await requireAuthUser();
+    const existing = await prisma.task.findFirst({
+      where: {
+        id: params.id,
+        project: { workspace: { members: { some: { userId: user.id } } } },
+      },
+    });
+    if (!existing) return errorResponse('タスクが見つかりません', 404);
     await prisma.task.delete({ where: { id: params.id } });
     return successResponse({ success: true });
   } catch (error) {

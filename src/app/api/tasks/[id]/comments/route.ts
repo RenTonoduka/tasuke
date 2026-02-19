@@ -6,7 +6,14 @@ import { createNotification, extractMentions } from '@/lib/notifications';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAuthUser();
+    const user = await requireAuthUser();
+    const task = await prisma.task.findFirst({
+      where: {
+        id: params.id,
+        project: { workspace: { members: { some: { userId: user.id } } } },
+      },
+    });
+    if (!task) return errorResponse('タスクが見つかりません', 404);
     const comments = await prisma.comment.findMany({
       where: { taskId: params.id },
       orderBy: { createdAt: 'desc' },
@@ -30,8 +37,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return errorResponse('コメント内容が必要です', 400);
     }
 
-    const task = await prisma.task.findUnique({
-      where: { id: params.id },
+    const task = await prisma.task.findFirst({
+      where: {
+        id: params.id,
+        project: { workspace: { members: { some: { userId: currentUser.id } } } },
+      },
       include: {
         assignees: { include: { user: { select: { id: true, name: true } } } },
         createdBy: { select: { id: true, name: true } },

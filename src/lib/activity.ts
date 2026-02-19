@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 type ActivityType =
   | 'TASK_CREATED'
@@ -25,9 +26,7 @@ export async function logActivity(params: {
       type: params.type,
       userId: params.userId,
       taskId: params.taskId,
-      // Prisma の InputJsonValue に合わせて as any でキャスト
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      metadata: (params.metadata ?? undefined) as any,
+      metadata: (params.metadata ?? undefined) as Prisma.InputJsonValue,
     },
   });
 }

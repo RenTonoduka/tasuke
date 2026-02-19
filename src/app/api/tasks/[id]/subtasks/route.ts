@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
-import { successResponse, handleApiError } from '@/lib/api-utils';
+import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 
 const createSubtaskSchema = z.object({
   title: z.string().min(1).max(200),
@@ -10,7 +10,14 @@ const createSubtaskSchema = z.object({
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAuthUser();
+    const user = await requireAuthUser();
+    const parentTask = await prisma.task.findFirst({
+      where: {
+        id: params.id,
+        project: { workspace: { members: { some: { userId: user.id } } } },
+      },
+    });
+    if (!parentTask) return errorResponse('タスクが見つかりません', 404);
     const subtasks = await prisma.task.findMany({
       where: { parentId: params.id },
       orderBy: { position: 'asc' },
@@ -27,13 +34,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const body = await req.json();
     const data = createSubtaskSchema.parse(body);
 
-    const parentTask = await prisma.task.findUnique({
-      where: { id: params.id },
+    const parentTask = await prisma.task.findFirst({
+      where: {
+        id: params.id,
+        project: { workspace: { members: { some: { userId: user.id } } } },
+      },
       select: { projectId: true, sectionId: true },
     });
 
     if (!parentTask) {
-      return successResponse({ error: '親タスクが見つかりません' }, 404);
+      return errorResponse('親タスクが見つかりません', 404);
     }
 
     const maxPos = await prisma.task.aggregate({

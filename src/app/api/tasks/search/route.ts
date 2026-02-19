@@ -1,12 +1,11 @@
 import { NextRequest } from 'next/server';
-import { getAuthSession } from '@/lib/auth';
+import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getAuthSession();
-    if (!session?.user) return errorResponse('Unauthorized', 401);
+    const user = await requireAuthUser();
 
     const { searchParams } = new URL(req.url);
     const q = searchParams.get('q')?.trim();
@@ -18,7 +17,12 @@ export async function GET(req: NextRequest) {
     const tasks = await prisma.task.findMany({
       where: {
         title: { contains: q, mode: 'insensitive' },
-        project: { workspace: { slug: workspaceSlug } },
+        project: {
+          workspace: {
+            slug: workspaceSlug,
+            members: { some: { userId: user.id } },
+          },
+        },
       },
       take: 10,
       orderBy: { updatedAt: 'desc' },

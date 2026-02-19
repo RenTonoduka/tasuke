@@ -41,9 +41,16 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAuthUser();
+    const user = await requireAuthUser();
     const body = await req.json();
     const data = updateProjectSchema.parse(body);
+    const existing = await prisma.project.findFirst({
+      where: {
+        id: params.id,
+        workspace: { members: { some: { userId: user.id } } },
+      },
+    });
+    if (!existing) return errorResponse('プロジェクトが見つかりません', 404);
     const project = await prisma.project.update({
       where: { id: params.id },
       data,
@@ -56,7 +63,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAuthUser();
+    const user = await requireAuthUser();
+    const existing = await prisma.project.findFirst({
+      where: {
+        id: params.id,
+        workspace: { members: { some: { userId: user.id } } },
+      },
+    });
+    if (!existing) return errorResponse('プロジェクトが見つかりません', 404);
     await prisma.project.delete({ where: { id: params.id } });
     return successResponse({ success: true });
   } catch (error) {
