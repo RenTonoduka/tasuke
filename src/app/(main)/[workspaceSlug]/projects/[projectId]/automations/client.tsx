@@ -15,6 +15,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -23,6 +33,7 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 
 interface AutomationRule {
   id: string;
@@ -110,7 +121,7 @@ const defaultForm: FormState = {
   actionLabelName: '',
 };
 
-function buildPayload(form: FormState) {
+function buildPayload(form: FormState, toast: ReturnType<typeof useToast>['toast']) {
   let trigger: Record<string, unknown>;
   if (form.triggerType === 'STATUS_CHANGE') {
     trigger = { type: 'STATUS_CHANGE', to: form.triggerTo };
@@ -118,7 +129,12 @@ function buildPayload(form: FormState) {
   } else if (form.triggerType === 'PRIORITY_CHANGE') {
     trigger = { type: 'PRIORITY_CHANGE', to: form.triggerTo };
   } else {
-    trigger = { type: 'DUE_DATE_APPROACHING', daysBefore: parseInt(form.triggerDaysBefore) };
+    const days = parseInt(form.triggerDaysBefore, 10);
+    if (isNaN(days) || days < 1 || days > 365) {
+      toast({ variant: 'destructive', title: '日数は1〜365の整数で入力してください' });
+      return null;
+    }
+    trigger = { type: 'DUE_DATE_APPROACHING', daysBefore: days };
   }
 
   let action: Record<string, unknown>;
@@ -137,11 +153,13 @@ function buildPayload(form: FormState) {
 
 export function AutomationsClient({ project, initialRules, workspaceSlug }: AutomationsClientProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [rules, setRules] = useState<AutomationRule[]>(initialRules);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<AutomationRule | null>(null);
   const [form, setForm] = useState<FormState>(defaultForm);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AutomationRule | null>(null);
 
   const baseUrl = `/api/projects/${project.id}/automations`;
 
@@ -175,7 +193,9 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
     if (!form.name.trim()) return;
     setSaving(true);
     try {
-      const payload = buildPayload(form);
+      const payload = buildPayload(form, toast);
+      if (!payload) return;
+
       if (editingRule) {
         const res = await fetch(`${baseUrl}/${editingRule.id}`, {
           method: 'PATCH',
@@ -185,6 +205,9 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
         if (res.ok) {
           const updated = await res.json();
           setRules((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+          setDialogOpen(false);
+        } else {
+          toast({ variant: 'destructive', title: 'ルールの更新に失敗しました' });
         }
       } else {
         const res = await fetch(baseUrl, {
@@ -195,9 +218,11 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
         if (res.ok) {
           const created = await res.json();
           setRules((prev) => [...prev, created]);
+          setDialogOpen(false);
+        } else {
+          toast({ variant: 'destructive', title: 'ルールの追加に失敗しました' });
         }
       }
-      setDialogOpen(false);
     } finally {
       setSaving(false);
     }
@@ -212,14 +237,20 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
     if (res.ok) {
       const updated = await res.json();
       setRules((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    } else {
+      toast({ variant: 'destructive', title: 'ルールの切り替えに失敗しました' });
     }
   }
 
-  async function handleDelete(ruleId: string) {
-    if (!confirm('このルールを削除しますか？')) return;
+  async function handleDeleteConfirmed() {
+    if (!deleteTarget) return;
+    const ruleId = deleteTarget.id;
+    setDeleteTarget(null);
     const res = await fetch(`${baseUrl}/${ruleId}`, { method: 'DELETE' });
     if (res.ok) {
       setRules((prev) => prev.filter((r) => r.id !== ruleId));
+    } else {
+      toast({ variant: 'destructive', title: 'ルールの削除に失敗しました' });
     }
   }
 
@@ -300,7 +331,7 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-[#EA4335]"
-                    onClick={() => handleDelete(rule.id)}
+                    onClick={() => setDeleteTarget(rule)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -310,6 +341,27 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
           </div>
         )}
       </div>
+
+      {/* 削除確認 AlertDialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ルールを削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              「{deleteTarget?.name}」を削除します。この操作は元に戻せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#EA4335] hover:bg-red-600"
+              onClick={handleDeleteConfirmed}
+            >
+              削除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
@@ -395,7 +447,7 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
                 <Input
                   type="number"
                   min={1}
-                  max={30}
+                  max={365}
                   value={form.triggerDaysBefore}
                   onChange={(e) => setF('triggerDaysBefore', e.target.value)}
                   className="w-28"

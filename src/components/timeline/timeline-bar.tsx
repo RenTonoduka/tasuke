@@ -2,14 +2,8 @@
 
 import { useMemo } from 'react';
 import { subDays } from 'date-fns';
+import { PRIORITY_COLORS } from '@/lib/constants';
 import type { Task } from '@/types';
-
-const PRIORITY_COLORS: Record<string, string> = {
-  P0: '#EA4335',
-  P1: '#FBBC04',
-  P2: '#4285F4',
-  P3: '#80868B',
-};
 
 const DAY_WIDTH = 32;
 

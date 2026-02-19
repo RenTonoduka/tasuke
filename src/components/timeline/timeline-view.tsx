@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { subMonths, addMonths, startOfDay } from 'date-fns';
+import { subMonths, addMonths, startOfDay, addDays } from 'date-fns';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { TimelineHeader } from './timeline-header';
@@ -21,6 +21,7 @@ export function TimelineView({ sections }: TimelineViewProps) {
   const openPanel = useTaskPanelStore((s) => s.open);
   const scrollRef = useRef<HTMLDivElement>(null);
   const leftScrollRef = useRef<HTMLDivElement>(null);
+  const isSyncingRef = useRef(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -34,6 +35,36 @@ export function TimelineView({ sections }: TimelineViewProps) {
     return Math.floor((today.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)) * DAY_WIDTH;
   }, [today, rangeStart]);
 
+  // 週末の背景を1回だけ計算
+  const weekendBgStyle = useMemo(() => {
+    const days = Array.from({ length: totalDays }, (_, i) => addDays(rangeStart, i));
+    const weekendSegments = days
+      .map((day, i) => {
+        const dow = day.getDay();
+        return dow === 0 || dow === 6 ? i : -1;
+      })
+      .filter((i) => i >= 0);
+
+    // グラデーションストップを生成: 週末セルのみ #F8F9FA
+    const stops: string[] = [];
+    for (let i = 0; i < totalDays; i++) {
+      const isWeekend = weekendSegments.includes(i);
+      const left = i * DAY_WIDTH;
+      const right = (i + 1) * DAY_WIDTH - 1;
+      const bg = isWeekend ? '#F8F9FA' : 'transparent';
+      stops.push(`${bg} ${left}px`, `${bg} ${right}px`);
+    }
+
+    return {
+      backgroundImage: [
+        // 縦グリッド線
+        `repeating-linear-gradient(to right, transparent 0px, transparent ${DAY_WIDTH - 1}px, #E8EAED ${DAY_WIDTH - 1}px, #E8EAED ${DAY_WIDTH}px)`,
+        // 週末背景
+        `linear-gradient(to right, ${stops.join(', ')})`,
+      ].join(', '),
+    };
+  }, [totalDays, rangeStart]);
+
   // 初期スクロール: 今日を画面中央に
   useEffect(() => {
     if (scrollRef.current) {
@@ -43,17 +74,23 @@ export function TimelineView({ sections }: TimelineViewProps) {
     }
   }, [todayOffset]);
 
-  // 垂直スクロール同期
+  // 垂直スクロール同期（チャタリング防止）
   const handleRightScroll = useCallback(() => {
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
     if (leftScrollRef.current && scrollRef.current) {
       leftScrollRef.current.scrollTop = scrollRef.current.scrollTop;
     }
+    requestAnimationFrame(() => { isSyncingRef.current = false; });
   }, []);
 
   const handleLeftScroll = useCallback(() => {
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
     if (scrollRef.current && leftScrollRef.current) {
       scrollRef.current.scrollTop = leftScrollRef.current.scrollTop;
     }
+    requestAnimationFrame(() => { isSyncingRef.current = false; });
   }, []);
 
   const scrollToToday = useCallback(() => {
@@ -133,7 +170,13 @@ export function TimelineView({ sections }: TimelineViewProps) {
           onScroll={handleRightScroll}
           className="flex-1 overflow-auto"
         >
-          <div style={{ width: totalDays * DAY_WIDTH, minWidth: '100%' }}>
+          <div
+            style={{
+              width: totalDays * DAY_WIDTH,
+              minWidth: '100%',
+              ...weekendBgStyle,
+            }}
+          >
             {/* 日付ヘッダー */}
             <TimelineHeader
               rangeStart={rangeStart}

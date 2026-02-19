@@ -1,20 +1,7 @@
 'use client';
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-
-const STATUS_COLORS: Record<string, string> = {
-  TODO: '#5F6368',
-  IN_PROGRESS: '#FBBC04',
-  DONE: '#34A853',
-  ARCHIVED: '#80868B',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  TODO: '未着手',
-  IN_PROGRESS: '進行中',
-  DONE: '完了',
-  ARCHIVED: 'アーカイブ',
-};
+import { STATUS_COLORS, STATUS_LABELS } from '@/lib/constants';
 
 interface StatusChartProps {
   data: { status: string; count: number }[];
