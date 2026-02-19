@@ -20,6 +20,7 @@ import { ActivityLog } from './activity-log';
 import { CommentSection } from './comment-section';
 import { CalendarSyncButton } from './calendar-sync-button';
 import { GTasksSyncButton } from './gtasks-sync-button';
+import { AttachmentList } from './attachment-list';
 
 const priorityOptions = [
   { value: 'P0', label: 'P0 - 緊急', color: '#EA4335' },
@@ -48,6 +49,7 @@ interface TaskDetail {
   assignees: { id: string; user: { id: string; name: string | null; image: string | null } }[];
   labels: { id: string; label: { id: string; name: string; color: string } }[];
   comments: { id: string; content: string; createdAt: string; user: { id: string; name: string | null; email: string; image: string | null } }[];
+  attachments: { id: string; name: string; mimeType: string; url: string; driveFileId: string; iconUrl: string | null; size: number | null; createdAt: string }[];
 }
 
 export function TaskDetailPanel() {
@@ -353,6 +355,13 @@ export function TaskDetailPanel() {
                 className="mt-2 w-full rounded-md border border-[#E8EAED] px-3 py-1.5 text-sm outline-none focus:border-[#4285F4]"
               />
             </div>
+
+            {/* Attachments */}
+            <AttachmentList
+              taskId={task.id}
+              attachments={task.attachments ?? []}
+              onChanged={() => fetchTask(task.id)}
+            />
 
             {/* Comments */}
             <CommentSection

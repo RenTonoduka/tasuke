@@ -30,6 +30,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
           orderBy: { createdAt: 'asc' },
           include: { user: { select: { id: true, name: true, image: true } } },
         },
+        attachments: {
+          orderBy: { createdAt: 'desc' },
+        },
         section: true,
         createdBy: { select: { id: true, name: true, image: true } },
       },
