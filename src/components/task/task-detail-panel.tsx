@@ -43,8 +43,9 @@ interface TaskDetail {
   status: string;
   dueDate: string | null;
   googleCalendarEventId: string | null;
+  googleCalendarSyncedAt: string | null;
   googleTaskId: string | null;
-  googleSyncedAt: string | null;
+  googleTaskSyncedAt: string | null;
   subtasks: { id: string; title: string; status: string }[];
   assignees: { id: string; user: { id: string; name: string | null; image: string | null } }[];
   labels: { id: string; label: { id: string; name: string; color: string } }[];
@@ -238,14 +239,14 @@ export function TaskDetailPanel() {
                 <CalendarSyncButton
                   taskId={task.id}
                   googleCalendarEventId={task.googleCalendarEventId}
-                  googleSyncedAt={task.googleSyncedAt}
+                  googleSyncedAt={task.googleCalendarSyncedAt}
                   dueDate={task.dueDate}
                   onSync={() => fetchTask(task.id)}
                 />
                 <GTasksSyncButton
                   taskId={task.id}
                   googleTaskId={task.googleTaskId}
-                  googleSyncedAt={task.googleSyncedAt}
+                  googleSyncedAt={task.googleTaskSyncedAt}
                   onSync={() => fetchTask(task.id)}
                 />
               </div>

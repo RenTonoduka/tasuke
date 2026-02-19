@@ -3,6 +3,7 @@ import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { getGoogleClient, getTasksClient } from '@/lib/google';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { GaxiosError } from 'googleapis-common';
 
 type RouteContext = { params: { id: string } };
 
@@ -71,8 +72,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         });
         googleTaskId = res.data.id!;
       } catch (err: unknown) {
-        const apiErr = err as { code?: number };
-        if (apiErr?.code === 404) {
+        if (err instanceof GaxiosError && err.response?.status === 404) {
           // Googleタスク側で削除済み → 新規作成
           const res = await tasksClient.tasks.insert({
             tasklist: '@default',
@@ -102,12 +102,12 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       where: { id: params.id },
       data: {
         googleTaskId,
-        googleSyncedAt: new Date(),
+        googleTaskSyncedAt: new Date(),
       },
       select: {
         id: true,
         googleTaskId: true,
-        googleSyncedAt: true,
+        googleTaskSyncedAt: true,
       },
     });
 
@@ -140,9 +140,8 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
           task: task.googleTaskId,
         });
       } catch (err: unknown) {
-        const apiErr = err as { code?: number };
         // 404は既に削除済みなので無視
-        if (apiErr?.code !== 404) {
+        if (!(err instanceof GaxiosError && err.response?.status === 404)) {
           console.error('Google Tasks delete error:', err);
           return errorResponse('Googleタスクの削除に失敗しました', 502);
         }
@@ -153,7 +152,7 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
       where: { id: params.id },
       data: {
         googleTaskId: null,
-        googleSyncedAt: null,
+        googleTaskSyncedAt: null,
       },
     });
 

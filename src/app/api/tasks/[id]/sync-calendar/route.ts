@@ -111,12 +111,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       where: { id: params.id },
       data: {
         googleCalendarEventId: googleEventId,
-        googleSyncedAt: new Date(),
+        googleCalendarSyncedAt: new Date(),
       },
       select: {
         id: true,
         googleCalendarEventId: true,
-        googleSyncedAt: true,
+        googleCalendarSyncedAt: true,
       },
     });
 
@@ -176,7 +176,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       where: { id: params.id },
       data: {
         googleCalendarEventId: null,
-        googleSyncedAt: null,
+        googleCalendarSyncedAt: null,
       },
     });
 

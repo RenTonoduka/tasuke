@@ -166,9 +166,10 @@ model Task {
   createdById String
 
   // Google sync
-  googleCalendarEventId String?
-  googleTaskId          String?
-  googleSyncedAt        DateTime?
+  googleCalendarEventId   String?
+  googleCalendarSyncedAt  DateTime?
+  googleTaskId            String?
+  googleTaskSyncedAt      DateTime?
 
   section   Section? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
