@@ -13,7 +13,11 @@ export async function DELETE(
     const task = await prisma.task.findFirst({
       where: {
         id: params.id,
-        project: { workspace: { members: { some: { userId: user.id } } } },
+        project: {
+          workspace: {
+            members: { some: { userId: user.id, role: { not: 'VIEWER' } } },
+          },
+        },
       },
     });
     if (!task) return errorResponse('タスクが見つかりません', 404);
@@ -22,6 +26,10 @@ export async function DELETE(
       where: { id: params.attachmentId, taskId: params.id },
     });
     if (!attachment) return errorResponse('添付ファイルが見つかりません', 404);
+
+    if (attachment.userId !== user.id) {
+      return errorResponse('この添付ファイルを削除する権限がありません', 403);
+    }
 
     await prisma.taskAttachment.delete({ where: { id: params.attachmentId } });
     return successResponse({ success: true });

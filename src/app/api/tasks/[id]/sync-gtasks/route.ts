@@ -10,7 +10,11 @@ async function getTaskWithMemberCheck(taskId: string, userId: string) {
   return prisma.task.findFirst({
     where: {
       id: taskId,
-      project: { workspace: { members: { some: { userId } } } },
+      project: {
+        workspace: {
+          members: { some: { userId, role: { not: 'VIEWER' } } },
+        },
+      },
     },
     select: {
       id: true,

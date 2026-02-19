@@ -25,7 +25,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const project = await prisma.project.findFirst({
       where: {
         id: params.id,
-        workspace: { members: { some: { userId: user.id } } },
+        workspace: {
+          members: { some: { userId: user.id, role: { not: 'VIEWER' } } },
+        },
       },
       include: {
         sections: {
@@ -102,7 +104,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
       requestBody: {
-        valueInputOption: 'USER_ENTERED',
+        valueInputOption: 'RAW',
         data: [
           {
             range: `タスク一覧!A1`,

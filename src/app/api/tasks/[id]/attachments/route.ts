@@ -1,14 +1,32 @@
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { getGoogleClient, getDriveClient } from '@/lib/google';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+
+const attachSchema = z.object({
+  driveFileId: z.string().min(10).max(100).regex(/^[a-zA-Z0-9_-]+$/),
+});
 
 async function getTaskWithAuth(taskId: string, userId: string) {
   return prisma.task.findFirst({
     where: {
       id: taskId,
       project: { workspace: { members: { some: { userId } } } },
+    },
+  });
+}
+
+async function getTaskWithWriteAuth(taskId: string, userId: string) {
+  return prisma.task.findFirst({
+    where: {
+      id: taskId,
+      project: {
+        workspace: {
+          members: { some: { userId, role: { not: 'VIEWER' } } },
+        },
+      },
     },
   });
 }
@@ -32,12 +50,15 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = await requireAuthUser();
-    const task = await getTaskWithAuth(params.id, user.id);
+    const task = await getTaskWithWriteAuth(params.id, user.id);
     if (!task) return errorResponse('タスクが見つかりません', 404);
 
     const body = await req.json();
-    const driveFileId: string = body.driveFileId;
-    if (!driveFileId) return errorResponse('driveFileId が必要です', 400);
+    const parsed = attachSchema.safeParse(body);
+    if (!parsed.success) {
+      return errorResponse('driveFileId の形式が不正です', 400);
+    }
+    const { driveFileId } = parsed.data;
 
     let auth;
     try {
@@ -56,13 +77,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       fileData = res.data;
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
+      console.error('Drive file get error:', e);
       if (msg.includes('404') || msg.includes('not found')) {
         return errorResponse('指定されたファイルが見つかりません', 404);
       }
       if (msg.includes('403') || msg.includes('forbidden')) {
         return errorResponse('このファイルへのアクセス権限がありません', 403);
       }
-      return errorResponse(`Googleドライブのファイル取得に失敗しました: ${msg}`, 500);
+      return errorResponse('Googleドライブのファイル取得に失敗しました', 500);
     }
 
     if (!fileData.name || !fileData.mimeType || !fileData.webViewLink) {

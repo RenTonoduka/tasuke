@@ -38,7 +38,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const task = await prisma.task.findFirst({
       where: {
         id: params.id,
-        project: { workspace: { members: { some: { userId: user.id } } } },
+        project: {
+          workspace: {
+            members: { some: { userId: user.id, role: { not: 'VIEWER' } } },
+          },
+        },
       },
       select: {
         id: true,
@@ -136,7 +140,11 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     const task = await prisma.task.findFirst({
       where: {
         id: params.id,
-        project: { workspace: { members: { some: { userId: user.id } } } },
+        project: {
+          workspace: {
+            members: { some: { userId: user.id, role: { not: 'VIEWER' } } },
+          },
+        },
       },
       select: {
         id: true,
