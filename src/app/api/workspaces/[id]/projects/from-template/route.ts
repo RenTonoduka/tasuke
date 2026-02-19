@@ -61,6 +61,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     // セクション名→IDのマップ
     const sectionMap = new Map(project.sections.map((s) => [s.name, s.id]));
 
+    // 修正4: デフォルトセクションIDを取得し、存在しない場合はエラーを返す
+    const defaultSectionId = project.sections[0]?.id;
+    if (!defaultSectionId) return errorResponse('セクションの作成に失敗しました', 500);
+
     // タスクテンプレートからタスクを一括作成
     if (template.taskTemplates.length > 0) {
       await prisma.task.createMany({
@@ -70,7 +74,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           priority: tt.priority,
           position: tt.position,
           projectId: project.id,
-          sectionId: sectionMap.get(tt.section) ?? project.sections[0]?.id ?? '',
+          sectionId: sectionMap.get(tt.section) ?? defaultSectionId,
           createdById: user.id,
         })),
       });

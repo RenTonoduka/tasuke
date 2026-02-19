@@ -74,7 +74,11 @@ async function executeAction(action: ActionDef, taskId: string, projectId: strin
     const section = await prisma.section.findFirst({
       where: { projectId, name: action.sectionName },
     });
-    if (!section) return;
+    // 修正3: セクションが見つからない場合はwarnログ
+    if (!section) {
+      console.warn(`[automation] MOVE_SECTION: セクション「${action.sectionName}」が見つかりません (projectId: ${projectId})`);
+      return;
+    }
     await prisma.task.update({
       where: { id: taskId },
       data: { sectionId: section.id },
@@ -88,6 +92,15 @@ async function executeAction(action: ActionDef, taskId: string, projectId: strin
       include: { project: { select: { workspaceId: true } } },
     });
     if (!task) return;
+
+    // 修正3: ラベル数上限チェック（100件以上なら作成をスキップ）
+    const labelCount = await prisma.label.count({
+      where: { workspaceId: task.project.workspaceId },
+    });
+    if (labelCount >= 100) {
+      console.warn(`[automation] ADD_LABEL: ラベル数上限(100)に達しています (workspaceId: ${task.project.workspaceId})`);
+      return;
+    }
 
     let label = await prisma.label.findFirst({
       where: { workspaceId: task.project.workspaceId, name: action.labelName },

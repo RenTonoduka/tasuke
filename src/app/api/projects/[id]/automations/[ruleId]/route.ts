@@ -1,16 +1,9 @@
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
-
-const patchSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  enabled: z.boolean().optional(),
-  trigger: z.record(z.string(), z.unknown()).optional(),
-  action: z.record(z.string(), z.unknown()).optional(),
-});
+import { patchRuleSchema } from '@/lib/validations/automation';
 
 async function checkAccess(projectId: string, userId: string) {
   const project = await prisma.project.findUnique({
@@ -41,7 +34,7 @@ export async function PATCH(
     if (!existing) return errorResponse('ルールが見つかりません', 404);
 
     const body = await req.json();
-    const data = patchSchema.parse(body);
+    const data = patchRuleSchema.parse(body);
 
     const updateData: Prisma.AutomationRuleUpdateInput = {};
     if (data.name !== undefined) updateData.name = data.name;
@@ -49,8 +42,9 @@ export async function PATCH(
     if (data.trigger !== undefined) updateData.trigger = data.trigger as Prisma.InputJsonValue;
     if (data.action !== undefined) updateData.action = data.action as Prisma.InputJsonValue;
 
+    // 修正5: where条件にprojectIdを含めてTOCTOUを防ぐ
     const rule = await prisma.automationRule.update({
-      where: { id: params.ruleId },
+      where: { id: params.ruleId, projectId: params.id },
       data: updateData,
     });
 
@@ -75,7 +69,8 @@ export async function DELETE(
     });
     if (!existing) return errorResponse('ルールが見つかりません', 404);
 
-    await prisma.automationRule.delete({ where: { id: params.ruleId } });
+    // 修正5: where条件にprojectIdを含めてTOCTOUを防ぐ
+    await prisma.automationRule.delete({ where: { id: params.ruleId, projectId: params.id } });
     return successResponse({ success: true });
   } catch (error) {
     return handleApiError(error);

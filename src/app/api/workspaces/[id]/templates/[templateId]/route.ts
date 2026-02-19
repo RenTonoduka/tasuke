@@ -43,7 +43,8 @@ export async function DELETE(
     });
     if (!template) return errorResponse('テンプレートが見つかりません', 404);
 
-    await prisma.projectTemplate.delete({ where: { id: params.templateId } });
+    // 修正5: where条件にworkspaceIdを含めてTOCTOUを防ぐ
+    await prisma.projectTemplate.delete({ where: { id: params.templateId, workspaceId: params.id } });
     return successResponse({ success: true });
   } catch (error) {
     return handleApiError(error);

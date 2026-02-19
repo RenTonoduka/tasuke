@@ -15,6 +15,7 @@ interface UpcomingDeadline {
   title: string;
   dueDate: string;
   priority: string;
+  projectId: string;
   projectName: string;
   projectColor: string;
 }
@@ -41,7 +42,7 @@ export function UpcomingDeadlines({ data, workspaceSlug }: UpcomingDeadlinesProp
             return (
               <li key={task.id}>
                 <Link
-                  href={`/${workspaceSlug}`}
+                  href={`/${workspaceSlug}/projects/${task.projectId}`}
                   className="flex items-center gap-3 py-3 hover:bg-[#F8F9FA] -mx-5 px-5 transition-colors"
                 >
                   <span

@@ -52,13 +52,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const body = await req.json();
     const data = updateTaskSchema.parse(body);
 
+    // 修正2: project.workspaceId を取得してVIEWERチェックに使う
     const existing = await prisma.task.findFirst({
       where: {
         id: params.id,
         project: { workspace: { members: { some: { userId: user.id } } } },
       },
+      include: { project: { select: { workspaceId: true } } },
     });
     if (!existing) return errorResponse('タスクが見つかりません', 404);
+
+    const member = await prisma.workspaceMember.findFirst({
+      where: { workspaceId: existing.project.workspaceId, userId: user.id },
+    });
+    if (member?.role === 'VIEWER') return errorResponse('閲覧者はタスクを編集できません', 403);
 
     const oldStatus = existing.status;
     const oldPriority = existing.priority;
@@ -133,13 +140,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = await requireAuthUser();
+
+    // 修正2: project.workspaceId を取得してVIEWERチェックに使う
     const existing = await prisma.task.findFirst({
       where: {
         id: params.id,
         project: { workspace: { members: { some: { userId: user.id } } } },
       },
+      include: { project: { select: { workspaceId: true } } },
     });
     if (!existing) return errorResponse('タスクが見つかりません', 404);
+
+    const member = await prisma.workspaceMember.findFirst({
+      where: { workspaceId: existing.project.workspaceId, userId: user.id },
+    });
+    if (member?.role === 'VIEWER') return errorResponse('閲覧者はタスクを削除できません', 403);
+
     await prisma.task.delete({ where: { id: params.id } });
     return successResponse({ success: true });
   } catch (error) {

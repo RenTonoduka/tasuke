@@ -26,10 +26,13 @@ export function PriorityChart({ data }: PriorityChartProps) {
     return { priority: p, label: PRIORITY_LABELS[p], count: found?.count ?? 0 };
   });
 
+  // 修正5: 合計が0かどうかで空状態を判定（data は常に4要素あるため length チェックは不正確）
+  const total = sorted.reduce((sum, d) => sum + d.count, 0);
+
   return (
     <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-[#E8EAED]">
       <h2 className="mb-4 text-sm font-semibold text-[#202124]">優先度別タスク</h2>
-      {data.length === 0 ? (
+      {total === 0 ? (
         <div className="flex h-48 items-center justify-center text-sm text-[#80868B]">データなし</div>
       ) : (
         <ResponsiveContainer width="100%" height={200}>

@@ -1,5 +1,5 @@
 interface ProjectProgressProps {
-  data: { name: string; total: number; completed: number; color: string }[];
+  data: { id: string; name: string; total: number; completed: number; color: string }[];
 }
 
 export function ProjectProgress({ data }: ProjectProgressProps) {
@@ -13,7 +13,7 @@ export function ProjectProgress({ data }: ProjectProgressProps) {
           {data.map((project) => {
             const rate = project.total > 0 ? Math.round((project.completed / project.total) * 100) : 0;
             return (
-              <li key={project.name}>
+              <li key={project.id}>
                 <div className="mb-1.5 flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
                     <span

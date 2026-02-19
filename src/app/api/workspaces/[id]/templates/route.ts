@@ -16,7 +16,7 @@ const createTemplateSchema = z.object({
   name: z.string().min(1, 'テンプレート名は必須です').max(100),
   description: z.string().max(500).optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default('#4285F4'),
-  taskTemplates: z.array(taskTemplateSchema).optional().default([]),
+  taskTemplates: z.array(taskTemplateSchema).max(500).optional().default([]),
 });
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {

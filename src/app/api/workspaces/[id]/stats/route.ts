@@ -57,32 +57,41 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       count: g._count._all,
     }));
 
-    // プロジェクト別進捗
-    const byProject = await Promise.all(
-      projects.map(async (project) => {
-        const [total, completed] = await Promise.all([
-          prisma.task.count({ where: { projectId: project.id } }),
-          prisma.task.count({ where: { projectId: project.id, status: 'DONE' } }),
-        ]);
-        return { name: project.name, total, completed, color: project.color };
-      })
-    );
+    // 修正1: byProject を groupBy で 1クエリに統合
+    const taskStats = await prisma.task.groupBy({
+      by: ['projectId', 'status'],
+      where: { projectId: { in: projectIds } },
+      _count: { _all: true },
+    });
+    const byProject = projects.map((project) => {
+      const rows = taskStats.filter((r) => r.projectId === project.id);
+      const total = rows.reduce((sum, r) => sum + r._count._all, 0);
+      const completed = rows.find((r) => r.status === 'DONE')?._count._all ?? 0;
+      return { id: project.id, name: project.name, total, completed, color: project.color };
+    });
 
-    // 過去14日の日別完了タスク数
-    const recentActivity: { date: string; count: number }[] = [];
-    for (let i = 13; i >= 0; i--) {
-      const date = subDays(now, i);
-      const count = await prisma.task.count({
-        where: {
-          projectId: { in: projectIds },
-          completedAt: {
-            gte: startOfDay(date),
-            lte: endOfDay(date),
-          },
-        },
-      });
-      recentActivity.push({ date: format(date, 'MM/dd'), count });
+    // 修正2: recentActivity を 1クエリ + JS側集計に変更
+    const fourteenDaysAgo = startOfDay(subDays(now, 13));
+    const completedTasksInRange = await prisma.task.findMany({
+      where: {
+        projectId: { in: projectIds },
+        completedAt: { gte: fourteenDaysAgo, lte: endOfDay(now) },
+      },
+      select: { completedAt: true },
+    });
+
+    const countByDate = new Map<string, number>();
+    for (const { completedAt } of completedTasksInRange) {
+      if (!completedAt) continue;
+      const key = format(completedAt, 'MM/dd');
+      countByDate.set(key, (countByDate.get(key) ?? 0) + 1);
     }
+
+    const recentActivity = Array.from({ length: 14 }, (_, i) => {
+      const date = subDays(now, 13 - i);
+      const key = format(date, 'MM/dd');
+      return { date: key, count: countByDate.get(key) ?? 0 };
+    });
 
     // 今後7日以内の期限タスク
     const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -99,14 +108,17 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         title: true,
         dueDate: true,
         priority: true,
+        projectId: true,
         project: { select: { name: true, color: true } },
       },
     });
+    // 修正4: upcomingDeadlines に projectId を追加
     const upcomingDeadlines = upcomingTasks.map((t) => ({
       id: t.id,
       title: t.title,
       dueDate: t.dueDate!.toISOString(),
       priority: t.priority,
+      projectId: t.projectId,
       projectName: t.project.name,
       projectColor: t.project.color,
     }));
