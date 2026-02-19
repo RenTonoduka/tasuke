@@ -41,5 +41,8 @@ export default async function ProjectPage({
 
   if (!project) notFound();
 
-  return <ProjectPageClient project={project} />;
+  // Date → string シリアライズ (Server → Client boundary)
+  const serialized = JSON.parse(JSON.stringify(project));
+
+  return <ProjectPageClient project={serialized} />;
 }

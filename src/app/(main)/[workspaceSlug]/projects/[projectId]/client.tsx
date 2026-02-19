@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/header';
 import { BoardView } from '@/components/board/board-view';
 import { ListView } from '@/components/list/list-view';
 import { TaskDetailPanel } from '@/components/task/task-detail-panel';
+import { FilterBar } from '@/components/shared/filter-bar';
 import type { Project, Section } from '@/types';
 
 interface ProjectPageClientProps {
@@ -63,6 +64,8 @@ export function ProjectPageClient({ project }: ProjectPageClientProps) {
         view={view}
         onViewChange={setView}
       />
+
+      <FilterBar />
 
       <div className="flex-1 overflow-hidden">
         {view === 'board' ? (

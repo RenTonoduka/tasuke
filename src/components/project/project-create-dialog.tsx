@@ -82,7 +82,7 @@ export function ProjectCreateDialog({ workspaceId, workspaceSlug }: ProjectCreat
                 className={`h-7 w-7 rounded-full transition-transform ${
                   color === c ? 'scale-110 ring-2 ring-offset-2' : ''
                 }`}
-                style={{ backgroundColor: c, ringColor: c }}
+                style={{ backgroundColor: c, ['--tw-ring-color' as string]: c } as React.CSSProperties}
               />
             ))}
           </div>

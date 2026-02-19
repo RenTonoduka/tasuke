@@ -49,9 +49,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
     }
 
-    if (data.status === 'DONE') {
+    const statusValue = data.status as string | undefined;
+    if (statusValue === 'DONE') {
       updateData.completedAt = new Date();
-    } else if (data.status && data.status !== 'DONE') {
+    } else if (statusValue) {
       updateData.completedAt = null;
     }
 
