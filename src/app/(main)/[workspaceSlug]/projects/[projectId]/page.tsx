@@ -44,5 +44,5 @@ export default async function ProjectPage({
   // Date → string シリアライズ (Server → Client boundary)
   const serialized = JSON.parse(JSON.stringify(project));
 
-  return <ProjectPageClient project={serialized} />;
+  return <ProjectPageClient project={serialized} workspaceSlug={params.workspaceSlug} />;
 }

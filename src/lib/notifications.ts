@@ -1,0 +1,22 @@
+import prisma from './prisma';
+
+export async function createNotification(params: {
+  userId: string;
+  type: string;
+  message: string;
+  taskId?: string;
+}) {
+  return prisma.notification.create({
+    data: {
+      userId: params.userId,
+      type: params.type,
+      message: params.message,
+      taskId: params.taskId,
+    },
+  });
+}
+
+export function extractMentions(content: string): string[] {
+  const matches = content.match(/@(\S+)/g);
+  return matches ? matches.map((m) => m.slice(1)) : [];
+}

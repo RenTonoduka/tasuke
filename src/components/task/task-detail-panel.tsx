@@ -17,6 +17,7 @@ import {
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { cn } from '@/lib/utils';
 import { ActivityLog } from './activity-log';
+import { CommentSection } from './comment-section';
 
 const priorityOptions = [
   { value: 'P0', label: 'P0 - 緊急', color: '#EA4335' },
@@ -41,7 +42,7 @@ interface TaskDetail {
   subtasks: { id: string; title: string; status: string }[];
   assignees: { id: string; user: { id: string; name: string | null; image: string | null } }[];
   labels: { id: string; label: { id: string; name: string; color: string } }[];
-  comments: { id: string; content: string; createdAt: string; user: { name: string | null } }[];
+  comments: { id: string; content: string; createdAt: string; user: { id: string; name: string | null; email: string; image: string | null } }[];
 }
 
 export function TaskDetailPanel() {
@@ -317,26 +318,11 @@ export function TaskDetailPanel() {
             </div>
 
             {/* Comments */}
-            {task.comments.length > 0 && (
-              <div className="border-t border-[#E8EAED] px-4 py-4">
-                <label className="mb-2 block text-xs font-medium text-[#5F6368]">
-                  コメント
-                </label>
-                <div className="space-y-3">
-                  {task.comments.map((c) => (
-                    <div key={c.id} className="rounded-md bg-[#F8F9FA] p-3">
-                      <div className="flex items-center gap-2 text-xs text-[#5F6368]">
-                        <span className="font-medium">{c.user.name}</span>
-                        <span>
-                          {new Date(c.createdAt).toLocaleDateString('ja-JP')}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm text-[#202124]">{c.content}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <CommentSection
+              taskId={task.id}
+              comments={task.comments}
+              onCommentAdded={() => fetchTask(task.id)}
+            />
 
             {/* Activity Log */}
             <div className="border-t border-[#E8EAED]">

@@ -25,7 +25,7 @@ export default async function WorkspacePage({
 
   return (
     <>
-      <Header title="ダッシュボード" />
+      <Header title="ダッシュボード" workspaceSlug={params.workspaceSlug} />
       <div className="flex-1 overflow-auto p-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {workspace.projects.map((project) => (

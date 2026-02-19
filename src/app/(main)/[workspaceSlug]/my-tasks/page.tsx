@@ -41,7 +41,7 @@ export default async function MyTasksPage({
 
   return (
     <>
-      <Header title="マイタスク" />
+      <Header title="マイタスク" workspaceSlug={params.workspaceSlug} />
       <MyTasksClient tasks={serialized} workspaceSlug={params.workspaceSlug} />
     </>
   );

@@ -37,7 +37,7 @@ export default async function MembersPage({
 
   return (
     <>
-      <Header title="メンバー管理" />
+      <Header title="メンバー管理" workspaceSlug={params.workspaceSlug} />
       <MembersClient
         members={serialized}
         workspaceId={workspace.id}

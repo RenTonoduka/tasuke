@@ -10,9 +10,10 @@ import type { Project, Section } from '@/types';
 
 interface ProjectPageClientProps {
   project: Project;
+  workspaceSlug: string;
 }
 
-export function ProjectPageClient({ project }: ProjectPageClientProps) {
+export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientProps) {
   const [view, setView] = useState<'board' | 'list'>('board');
   const [sections, setSections] = useState<Section[]>(project.sections);
 
@@ -63,6 +64,7 @@ export function ProjectPageClient({ project }: ProjectPageClientProps) {
         title={project.name}
         view={view}
         onViewChange={setView}
+        workspaceSlug={workspaceSlug}
       />
 
       <FilterBar />

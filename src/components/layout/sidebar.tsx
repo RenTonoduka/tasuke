@@ -10,6 +10,7 @@ import {
   LogOut,
   ChevronDown,
   LayoutDashboard,
+  Inbox,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -52,6 +53,11 @@ export function Sidebar({ projects = [], workspaceName = 'マイワークスペ�
       label: 'ダッシュボード',
       href: `/${currentWorkspaceSlug}`,
       icon: LayoutDashboard,
+    },
+    {
+      label: 'インボックス',
+      href: `/${currentWorkspaceSlug}/inbox`,
+      icon: Inbox,
     },
     {
       label: '設定',

@@ -3,15 +3,17 @@
 import { Menu, LayoutGrid, List, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebarStore } from '@/stores/sidebar-store';
+import { NotificationBell } from './notification-bell';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
   title?: string;
   view?: 'board' | 'list';
   onViewChange?: (view: 'board' | 'list') => void;
+  workspaceSlug?: string;
 }
 
-export function Header({ title = '', view = 'board', onViewChange }: HeaderProps) {
+export function Header({ title = '', view = 'board', onViewChange, workspaceSlug = '' }: HeaderProps) {
   const toggle = useSidebarStore((s) => s.toggle);
 
   return (
@@ -64,6 +66,7 @@ export function Header({ title = '', view = 'board', onViewChange }: HeaderProps
             ⌘K
           </kbd>
         </button>
+        {workspaceSlug && <NotificationBell workspaceSlug={workspaceSlug} />}
       </div>
     </header>
   );
