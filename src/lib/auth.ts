@@ -37,31 +37,26 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
     error: '/login',
   },
+  events: {
+    async createUser({ user }) {
+      const slug = `ws-${user.id.slice(0, 8)}`;
+      await prisma.workspace.create({
+        data: {
+          name: 'マイワークスペース',
+          slug,
+          members: {
+            create: {
+              userId: user.id,
+              role: 'OWNER',
+            },
+          },
+        },
+      });
+    },
+  },
   callbacks: {
     async signIn({ user }) {
       if (!user.email) return false;
-
-      // 初回ログイン時にデフォルトワークスペース作成
-      const existingMember = await prisma.workspaceMember.findFirst({
-        where: { userId: user.id },
-      });
-
-      if (!existingMember) {
-        const slug = `ws-${user.id.slice(0, 8)}`;
-        await prisma.workspace.create({
-          data: {
-            name: 'マイワークスペース',
-            slug,
-            members: {
-              create: {
-                userId: user.id,
-                role: 'OWNER',
-              },
-            },
-          },
-        });
-      }
-
       return true;
     },
     async jwt({ token, user }) {
