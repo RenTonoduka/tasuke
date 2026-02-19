@@ -70,8 +70,26 @@ export const authOptions: NextAuthOptions = {
     },
   },
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, account }) {
       if (!user.email) return false;
+      // 再ログイン時にOAuthトークンを更新（スコープ変更対応）
+      if (account?.provider === 'google' && user.id) {
+        const existing = await prisma.account.findFirst({
+          where: { userId: user.id, provider: 'google' },
+        });
+        if (existing && account.access_token) {
+          await prisma.account.update({
+            where: { id: existing.id },
+            data: {
+              access_token: account.access_token,
+              refresh_token: account.refresh_token ?? existing.refresh_token,
+              expires_at: account.expires_at ?? existing.expires_at,
+              scope: account.scope ?? existing.scope,
+              id_token: account.id_token ?? existing.id_token,
+            },
+          });
+        }
+      }
       return true;
     },
     async jwt({ token, user }) {
