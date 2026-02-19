@@ -65,6 +65,7 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
         view={view}
         onViewChange={setView}
         workspaceSlug={workspaceSlug}
+        projectId={project.id}
       />
 
       <FilterBar />

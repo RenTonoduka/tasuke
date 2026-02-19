@@ -4,6 +4,7 @@ import { Menu, LayoutGrid, List, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebarStore } from '@/stores/sidebar-store';
 import { NotificationBell } from './notification-bell';
+import { ExportSheetButton } from '@/components/project/export-sheet-button';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
@@ -11,9 +12,10 @@ interface HeaderProps {
   view?: 'board' | 'list';
   onViewChange?: (view: 'board' | 'list') => void;
   workspaceSlug?: string;
+  projectId?: string;
 }
 
-export function Header({ title = '', view = 'board', onViewChange, workspaceSlug = '' }: HeaderProps) {
+export function Header({ title = '', view = 'board', onViewChange, workspaceSlug = '', projectId }: HeaderProps) {
   const toggle = useSidebarStore((s) => s.toggle);
 
   return (
@@ -59,6 +61,7 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
       )}
 
       <div className="ml-auto flex items-center gap-2">
+        {projectId && <ExportSheetButton projectId={projectId} />}
         <button className="flex items-center gap-2 rounded-md border border-[#E8EAED] px-3 py-1 text-xs text-[#80868B] hover:bg-[#F1F3F4]">
           <Search className="h-3.5 w-3.5" />
           <span>検索...</span>
