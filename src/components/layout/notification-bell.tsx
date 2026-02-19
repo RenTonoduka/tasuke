@@ -12,15 +12,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { cn } from '@/lib/utils';
-
-interface Notification {
-  id: string;
-  type: string;
-  message: string;
-  read: boolean;
-  createdAt: string;
-  taskId: string | null;
-}
+import { AppNotification } from '@/types';
 
 interface NotificationBellProps {
   workspaceSlug: string;
@@ -45,7 +37,7 @@ function formatRelative(dateStr: string) {
 }
 
 export function NotificationBell({ workspaceSlug }: NotificationBellProps) {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [open, setOpen] = useState(false);
   const { open: openPanel } = useTaskPanelStore();
 
@@ -71,7 +63,7 @@ export function NotificationBell({ workspaceSlug }: NotificationBellProps) {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  const handleNotificationClick = async (n: Notification) => {
+  const handleNotificationClick = async (n: AppNotification) => {
     if (!n.read) {
       await fetch(`/api/notifications/${n.id}`, {
         method: 'PATCH',

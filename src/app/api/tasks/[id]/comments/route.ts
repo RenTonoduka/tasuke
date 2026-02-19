@@ -100,7 +100,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const mentions = extractMentions(content);
     if (mentions.length > 0) {
       const mentionedUsers = await prisma.user.findMany({
-        where: { name: { in: mentions } },
+        where: { name: { in: mentions, not: null } },
         select: { id: true, name: true },
       });
 

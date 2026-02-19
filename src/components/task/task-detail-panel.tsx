@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Calendar, Flag, Tag, Users, CheckSquare } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -51,15 +51,18 @@ export function TaskDetailPanel() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [newSubtask, setNewSubtask] = useState('');
+  const isUpdatingRef = useRef(false);
 
   const fetchTask = useCallback(async (id: string) => {
     const res = await fetch(`/api/tasks/${id}`);
-    if (res.ok) {
-      const data = await res.json();
-      setTask(data);
-      setTitle(data.title);
-      setDescription(data.description ?? '');
+    if (!res.ok) {
+      console.error(`タスク取得失敗: ${res.status} ${res.statusText}`);
+      return;
     }
+    const data = await res.json();
+    setTask(data);
+    setTitle(data.title);
+    setDescription(data.description ?? '');
   }, []);
 
   useEffect(() => {
@@ -68,12 +71,24 @@ export function TaskDetailPanel() {
 
   const updateField = async (field: string, value: unknown) => {
     if (!task) return;
-    await fetch(`/api/tasks/${task.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [field]: value }),
-    });
-    fetchTask(task.id);
+    if (isUpdatingRef.current) return;
+    isUpdatingRef.current = true;
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (!res.ok) {
+        console.error(`フィールド更新失敗 (${field}): ${res.status} ${res.statusText}`);
+        return;
+      }
+      await fetchTask(task.id);
+    } catch (error) {
+      console.error(`フィールド更新エラー (${field}):`, error);
+    } finally {
+      isUpdatingRef.current = false;
+    }
   };
 
   const handleTitleBlur = () => {

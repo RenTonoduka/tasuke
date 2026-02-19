@@ -49,7 +49,7 @@ export function AppShell({ children, projects, workspaceName, currentWorkspaceSl
       <aside
         className={cn(
           'fixed inset-y-0 left-0 z-40 transition-transform duration-200 lg:static lg:z-auto',
-          isOpen ? 'translate-x-0' : '-translate-x-full lg:hidden'
+          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
         <Sidebar

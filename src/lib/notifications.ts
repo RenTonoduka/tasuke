@@ -17,6 +17,6 @@ export async function createNotification(params: {
 }
 
 export function extractMentions(content: string): string[] {
-  const matches = content.match(/@(\S+)/g);
-  return matches ? matches.map((m) => m.slice(1)) : [];
+  const simple = content.match(/@(\S+)/g)?.map((m) => m.slice(1)) ?? [];
+  return Array.from(new Set(simple));
 }

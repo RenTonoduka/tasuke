@@ -1,22 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-import { Bell, MessageSquare, AtSign, UserCheck, GitBranch, CheckCheck, Filter } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bell, MessageSquare, AtSign, UserCheck, GitBranch, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { cn } from '@/lib/utils';
-
-interface Notification {
-  id: string;
-  type: string;
-  message: string;
-  read: boolean;
-  createdAt: string;
-  taskId: string | null;
-}
+import { AppNotification } from '@/types';
 
 interface InboxClientProps {
-  initialNotifications: Notification[];
+  initialNotifications: AppNotification[];
 }
 
 const typeIcon: Record<string, React.ReactNode> = {
@@ -43,12 +35,23 @@ function formatDate(dateStr: string) {
   });
 }
 
-type Filter = 'all' | 'unread' | 'read';
+type FilterType = 'all' | 'unread' | 'read';
 
 export function InboxClient({ initialNotifications }: InboxClientProps) {
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
-  const [filter, setFilter] = useState<Filter>('all');
+  const [notifications, setNotifications] = useState<AppNotification[]>(initialNotifications);
+  const [filter, setFilter] = useState<FilterType>('all');
   const { open: openPanel } = useTaskPanelStore();
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const res = await fetch('/api/notifications');
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data);
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -63,7 +66,7 @@ export function InboxClient({ initialNotifications }: InboxClientProps) {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  const handleClick = async (n: Notification) => {
+  const handleClick = async (n: AppNotification) => {
     if (!n.read) {
       await fetch(`/api/notifications/${n.id}`, {
         method: 'PATCH',
@@ -84,7 +87,7 @@ export function InboxClient({ initialNotifications }: InboxClientProps) {
       {/* ツールバー */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1 rounded-lg border border-[#E8EAED] p-0.5">
-          {(['all', 'unread', 'read'] as Filter[]).map((f) => (
+          {(['all', 'unread', 'read'] as FilterType[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}

@@ -1,3 +1,12 @@
+export interface AppNotification {
+  id: string;
+  type: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+  taskId: string | null;
+}
+
 export interface TaskUser {
   id: string;
   name: string | null;

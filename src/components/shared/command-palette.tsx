@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   CommandDialog,
@@ -64,6 +64,7 @@ export function CommandPalette({ workspaceSlug, projects }: CommandPaletteProps)
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchTask[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout>();
   const router = useRouter();
   const openPanel = useTaskPanelStore((s) => s.open);
 
@@ -79,24 +80,27 @@ export function CommandPalette({ workspaceSlug, projects }: CommandPaletteProps)
   }, []);
 
   const handleSearch = useCallback(
-    async (value: string) => {
+    (value: string) => {
       setQuery(value);
+      clearTimeout(timerRef.current);
       if (value.length < 2) {
         setSearchResults([]);
         return;
       }
       setIsSearching(true);
-      try {
-        const res = await fetch(
-          `/api/tasks/search?q=${encodeURIComponent(value)}&workspaceSlug=${encodeURIComponent(workspaceSlug)}`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setSearchResults(data);
+      timerRef.current = setTimeout(async () => {
+        try {
+          const res = await fetch(
+            `/api/tasks/search?q=${encodeURIComponent(value)}&workspaceSlug=${encodeURIComponent(workspaceSlug)}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            setSearchResults(data);
+          }
+        } finally {
+          setIsSearching(false);
         }
-      } finally {
-        setIsSearching(false);
-      }
+      }, 300);
     },
     [workspaceSlug]
   );
