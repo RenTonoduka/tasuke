@@ -18,6 +18,8 @@ import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { cn } from '@/lib/utils';
 import { ActivityLog } from './activity-log';
 import { CommentSection } from './comment-section';
+import { CalendarSyncButton } from './calendar-sync-button';
+import { GTasksSyncButton } from './gtasks-sync-button';
 
 const priorityOptions = [
   { value: 'P0', label: 'P0 - 緊急', color: '#EA4335' },
@@ -39,6 +41,9 @@ interface TaskDetail {
   priority: string;
   status: string;
   dueDate: string | null;
+  googleCalendarEventId: string | null;
+  googleTaskId: string | null;
+  googleSyncedAt: string | null;
   subtasks: { id: string; title: string; status: string }[];
   assignees: { id: string; user: { id: string; name: string | null; image: string | null } }[];
   labels: { id: string; label: { id: string; name: string; color: string } }[];
@@ -223,6 +228,23 @@ export function TaskDetailPanel() {
                     )
                   }
                   className="h-8 rounded-md border border-[#E8EAED] px-2 text-xs text-[#202124]"
+                />
+              </div>
+
+              {/* Google連携ボタン */}
+              <div className="flex flex-wrap items-center gap-2 pl-7">
+                <CalendarSyncButton
+                  taskId={task.id}
+                  googleCalendarEventId={task.googleCalendarEventId}
+                  googleSyncedAt={task.googleSyncedAt}
+                  dueDate={task.dueDate}
+                  onSync={() => fetchTask(task.id)}
+                />
+                <GTasksSyncButton
+                  taskId={task.id}
+                  googleTaskId={task.googleTaskId}
+                  googleSyncedAt={task.googleSyncedAt}
+                  onSync={() => fetchTask(task.id)}
                 />
               </div>
 
