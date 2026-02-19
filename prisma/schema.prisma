@@ -80,9 +80,10 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members  WorkspaceMember[]
-  projects Project[]
-  labels   Label[]
+  members           WorkspaceMember[]
+  projects          Project[]
+  labels            Label[]
+  projectTemplates  ProjectTemplate[]
 }
 
 model WorkspaceMember {
@@ -110,9 +111,10 @@ model Project {
   updatedAt   DateTime @updatedAt
   workspaceId String
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  sections  Section[]
-  tasks     Task[]
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sections        Section[]
+  tasks           Task[]
+  automationRules AutomationRule[]
 }
 
 // ========== Section (カンバンカラム) ==========
@@ -235,6 +237,49 @@ model TaskAttachment {
   userId      String
 
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+// ========== ProjectTemplate ==========
+
+model ProjectTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#4285F4")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspaceId String
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  taskTemplates TaskTemplate[]
+}
+
+model TaskTemplate {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  priority    Priority @default(P3)
+  section     String   @default("Todo")
+  position    Float    @default(0)
+
+  templateId String
+  template   ProjectTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+// ========== AutomationRule ==========
+
+model AutomationRule {
+  id          String   @id @default(cuid())
+  name        String
+  enabled     Boolean  @default(true)
+  trigger     Json
+  action      Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  projectId   String
+  createdById String
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 // ========== Comment ==========

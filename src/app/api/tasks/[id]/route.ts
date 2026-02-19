@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { updateTaskSchema } from '@/lib/validations/task';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { logActivity } from '@/lib/activity';
+import { executeAutomationRules } from '@/lib/automation';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -59,6 +60,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     });
     if (!existing) return errorResponse('タスクが見つかりません', 404);
 
+    const oldStatus = existing.status;
+    const oldPriority = existing.priority;
     const updateData: Record<string, unknown> = { ...data };
     if (data.dueDate !== undefined) {
       updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
@@ -99,6 +102,26 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       await logActivity({ type: 'DUE_DATE_CHANGED', userId: user.id, taskId: params.id });
     } else {
       await logActivity({ type: 'TASK_UPDATED', userId: user.id, taskId: params.id });
+    }
+
+    // 自動化ルール実行（バックグラウンド・ノンブロッキング）
+    if (data.status && data.status !== oldStatus) {
+      executeAutomationRules(existing.projectId, 'STATUS_CHANGE', {
+        taskId: params.id,
+        field: 'status',
+        oldValue: oldStatus,
+        newValue: data.status,
+        userId: user.id,
+      }).catch((e) => console.error('[automation] STATUS_CHANGE エラー:', e));
+    }
+    if (data.priority && data.priority !== oldPriority) {
+      executeAutomationRules(existing.projectId, 'PRIORITY_CHANGE', {
+        taskId: params.id,
+        field: 'priority',
+        oldValue: oldPriority,
+        newValue: data.priority,
+        userId: user.id,
+      }).catch((e) => console.error('[automation] PRIORITY_CHANGE エラー:', e));
     }
 
     return successResponse(task);
