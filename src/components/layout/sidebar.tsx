@@ -53,6 +53,11 @@ export function Sidebar({ projects = [], workspaceName = 'マイワークスペ�
       href: `/${currentWorkspaceSlug}`,
       icon: LayoutDashboard,
     },
+    {
+      label: '設定',
+      href: `/${currentWorkspaceSlug}/settings/members`,
+      icon: Settings,
+    },
   ];
 
   return (
@@ -70,9 +75,11 @@ export function Sidebar({ projects = [], workspaceName = 'マイワークスペ�
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuItem disabled>
-              <Settings className="mr-2 h-4 w-4" />
-              ワークスペース設定（準備中）
+            <DropdownMenuItem asChild>
+              <Link href={`/${currentWorkspaceSlug}/settings/members`}>
+                <Settings className="mr-2 h-4 w-4" />
+                メンバー管理
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
