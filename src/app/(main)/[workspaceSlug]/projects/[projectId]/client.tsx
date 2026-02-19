@@ -72,16 +72,20 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
 
       <FilterBar />
 
-      <div className="flex-1 overflow-hidden">
-        {view === 'board' ? (
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {view === 'board' && (
           <BoardView initialSections={sections} projectId={project.id} onSectionsChange={setSections} />
-        ) : (
+        )}
+        {view === 'list' && (
           <ListView
             sections={sections}
             projectId={project.id}
             onAddTask={handleAddTask}
             onToggleTask={handleToggleTask}
           />
+        )}
+        {view === 'timeline' && (
+          <TimelineView sections={sections} projectId={project.id} />
         )}
       </div>
 
