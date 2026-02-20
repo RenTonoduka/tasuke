@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Menu, LayoutGrid, List, GanttChart, CalendarClock, Search, Settings, Zap, Pencil } from 'lucide-react';
+import { Menu, LayoutGrid, List, GanttChart, CalendarClock, BarChart3, Search, Settings, Zap, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -19,8 +19,8 @@ import { cn } from '@/lib/utils';
 
 interface HeaderProps {
   title?: string;
-  view?: 'board' | 'list' | 'timeline' | 'schedule';
-  onViewChange?: (view: 'board' | 'list' | 'timeline' | 'schedule') => void;
+  view?: 'board' | 'list' | 'timeline' | 'schedule' | 'dashboard';
+  onViewChange?: (view: 'board' | 'list' | 'timeline' | 'schedule' | 'dashboard') => void;
   workspaceSlug?: string;
   projectId?: string;
   projectName?: string;
@@ -143,6 +143,18 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
           >
             <CalendarClock className="h-3.5 w-3.5" />
             スケジュール
+          </button>
+          <button
+            onClick={() => onViewChange('dashboard')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1 text-xs font-medium',
+              view === 'dashboard'
+                ? 'bg-g-border text-g-text'
+                : 'text-g-text-secondary hover:bg-g-surface-hover'
+            )}
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            ダッシュボード
           </button>
         </div>
       )}

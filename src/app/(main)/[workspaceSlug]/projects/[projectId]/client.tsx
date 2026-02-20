@@ -6,6 +6,7 @@ import { BoardView } from '@/components/board/board-view';
 import { ListView } from '@/components/list/list-view';
 import { TimelineView } from '@/components/timeline/timeline-view';
 import { ScheduleView } from '@/components/schedule/schedule-view';
+import { ProjectDashboardView } from '@/components/dashboard/project-dashboard-view';
 import { TaskDetailPanel } from '@/components/task/task-detail-panel';
 import { FilterBar } from '@/components/shared/filter-bar';
 import type { Project, Section } from '@/types';
@@ -16,7 +17,7 @@ interface ProjectPageClientProps {
 }
 
 export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientProps) {
-  const [view, setView] = useState<'board' | 'list' | 'timeline' | 'schedule'>('board');
+  const [view, setView] = useState<'board' | 'list' | 'timeline' | 'schedule' | 'dashboard'>('board');
   const [sections, setSections] = useState<Section[]>(project.sections);
 
   const handleAddTask = async (sectionId: string, title: string) => {
@@ -90,6 +91,9 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
         )}
         {view === 'schedule' && (
           <ScheduleView projectId={project.id} />
+        )}
+        {view === 'dashboard' && (
+          <ProjectDashboardView sections={sections} projectId={project.id} />
         )}
       </div>
 
