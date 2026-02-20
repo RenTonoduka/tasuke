@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Calendar, Clock, Flag, Tag, Users, CheckSquare, GripVertical } from 'lucide-react';
+import { X, Calendar, Clock, Flag, Tag, Users, CheckSquare, GripVertical, UserPlus, Check } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { cn } from '@/lib/utils';
 import { ActivityLog } from './activity-log';
@@ -35,6 +37,12 @@ const statusOptions = [
   { value: 'DONE', label: '完了' },
 ];
 
+interface WorkspaceMember {
+  id: string;
+  userId: string;
+  user: { id: string; name: string | null; email: string; image: string | null };
+}
+
 interface TaskDetail {
   id: string;
   title: string;
@@ -47,6 +55,7 @@ interface TaskDetail {
   googleCalendarSyncedAt: string | null;
   googleTaskId: string | null;
   googleTaskSyncedAt: string | null;
+  project: { workspaceId: string };
   subtasks: { id: string; title: string; status: string }[];
   assignees: { id: string; user: { id: string; name: string | null; image: string | null } }[];
   labels: { id: string; label: { id: string; name: string; color: string } }[];
@@ -67,6 +76,8 @@ export function TaskDetailPanel() {
   const isUpdatingRef = useRef(false);
   const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH);
   const isResizingRef = useRef(false);
+  const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [assigneeOpen, setAssigneeOpen] = useState(false);
 
   const handleResizeStart = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
@@ -106,6 +117,36 @@ export function TaskDetailPanel() {
   useEffect(() => {
     if (activeTaskId) fetchTask(activeTaskId);
   }, [activeTaskId, fetchTask]);
+
+  // メンバー取得（Popover展開時）
+  const fetchMembers = useCallback(async () => {
+    if (!task?.project?.workspaceId) return;
+    try {
+      const res = await fetch(`/api/workspaces/${task.project.workspaceId}/members`);
+      if (res.ok) setMembers(await res.json());
+    } catch {}
+  }, [task?.project?.workspaceId]);
+
+  useEffect(() => {
+    if (assigneeOpen) fetchMembers();
+  }, [assigneeOpen, fetchMembers]);
+
+  const toggleAssignee = async (userId: string) => {
+    if (!task) return;
+    const currentIds = task.assignees.map((a) => a.user.id);
+    const newIds = currentIds.includes(userId)
+      ? currentIds.filter((id) => id !== userId)
+      : [...currentIds, userId];
+
+    try {
+      await fetch(`/api/tasks/${task.id}/assignees`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: newIds }),
+      });
+      fetchTask(task.id);
+    } catch {}
+  };
 
   const updateField = async (field: string, value: unknown) => {
     if (!task) return;
@@ -329,18 +370,55 @@ export function TaskDetailPanel() {
               </div>
 
               {/* Assignees */}
-              {task.assignees.length > 0 && (
-                <div className="flex items-center gap-3">
-                  <Users className="h-4 w-4 text-g-text-muted" />
-                  <div className="flex flex-wrap gap-1">
-                    {task.assignees.map((a) => (
-                      <Badge key={a.id} variant="secondary" className="text-xs">
-                        {a.user.name}
-                      </Badge>
-                    ))}
-                  </div>
+              <div className="flex items-center gap-3">
+                <Users className="h-4 w-4 text-g-text-muted" />
+                <div className="flex flex-1 flex-wrap items-center gap-1">
+                  {task.assignees.map((a) => (
+                    <div key={a.id} className="flex items-center gap-1 rounded-full bg-g-surface-hover py-0.5 pl-0.5 pr-2 text-xs text-g-text">
+                      <Avatar className="h-5 w-5">
+                        <AvatarImage src={a.user.image ?? ''} />
+                        <AvatarFallback className="bg-[#4285F4] text-[10px] text-white">
+                          {a.user.name?.charAt(0) ?? '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      {a.user.name}
+                    </div>
+                  ))}
+                  <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}>
+                    <PopoverTrigger asChild>
+                      <button className="flex h-6 items-center gap-1 rounded-full border border-dashed border-g-border px-2 text-xs text-g-text-muted hover:border-g-text-secondary hover:text-g-text-secondary">
+                        <UserPlus className="h-3 w-3" />
+                        割り当て
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-1" align="start">
+                      <div className="px-2 py-1.5 text-xs font-medium text-g-text-secondary">メンバー</div>
+                      {members.map((m) => {
+                        const isAssigned = task.assignees.some((a) => a.user.id === m.user.id);
+                        return (
+                          <button
+                            key={m.id}
+                            onClick={() => toggleAssignee(m.user.id)}
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-g-surface-hover"
+                          >
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={m.user.image ?? ''} />
+                              <AvatarFallback className="bg-[#4285F4] text-[10px] text-white">
+                                {m.user.name?.charAt(0) ?? '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="flex-1 truncate text-left text-g-text">{m.user.name ?? m.user.email}</span>
+                            {isAssigned && <Check className="h-4 w-4 text-[#34A853]" />}
+                          </button>
+                        );
+                      })}
+                      {members.length === 0 && (
+                        <div className="px-2 py-3 text-center text-xs text-g-text-muted">メンバーなし</div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              )}
+              </div>
 
               {/* Labels */}
               {task.labels.length > 0 && (

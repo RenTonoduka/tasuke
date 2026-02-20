@@ -35,6 +35,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
           orderBy: { createdAt: 'desc' },
         },
         section: true,
+        project: { select: { workspaceId: true } },
         createdBy: { select: { id: true, name: true, image: true } },
       },
     });
