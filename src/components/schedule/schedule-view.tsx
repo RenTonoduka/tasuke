@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { CalendarClock, RefreshCw, AlertTriangle, Clock, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -127,6 +127,10 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
       setLoading(false);
     }
   }, [projectId, workStart, workEnd, skipWeekends]);
+
+  useEffect(() => {
+    fetchSchedule();
+  }, [fetchSchedule]);
 
   // 日ごとにデータを整理
   const getDaysData = () => {
