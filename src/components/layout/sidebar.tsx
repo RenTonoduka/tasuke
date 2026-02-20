@@ -70,32 +70,31 @@ function SortableProjectItem({ project, href, isActive }: SortableProjectItemPro
     isDragging,
   } = useSortable({ id: project.id });
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
+    touchAction: 'none',
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
+      {...listeners}
       className={cn(
-        'group flex items-center rounded-md text-sm text-g-text-secondary hover:bg-g-border hover:text-g-text',
+        'group flex cursor-grab items-center rounded-md text-sm text-g-text-secondary hover:bg-g-border hover:text-g-text active:cursor-grabbing',
         isActive && 'bg-g-border font-medium text-g-text',
-        isDragging && 'opacity-50'
+        isDragging && 'z-50 opacity-50'
       )}
     >
-      <button
-        {...attributes}
-        {...listeners}
-        className="flex h-full shrink-0 cursor-grab items-center pl-1.5 pr-0.5 text-g-text-muted opacity-0 group-hover:opacity-100 active:cursor-grabbing"
-        tabIndex={-1}
-      >
+      <div className="flex shrink-0 items-center pl-1 pr-0 text-g-text-muted opacity-0 group-hover:opacity-100">
         <GripVertical className="h-3.5 w-3.5" />
-      </button>
+      </div>
       <Link
         href={href}
         className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-3"
+        onClick={(e) => { if (isDragging) e.preventDefault(); }}
       >
         <FolderKanban className="h-4 w-4 shrink-0" style={{ color: project.color }} />
         <span className="truncate">{project.name}</span>
@@ -121,7 +120,7 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'ãƒžã‚
   const [activeProject, setActiveProject] = useState<Project | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
 
