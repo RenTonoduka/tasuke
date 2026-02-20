@@ -91,6 +91,40 @@ export default async function WorkspacePage({
     return { date: key, count: countByDate.get(key) ?? 0 };
   });
 
+  // ガントチャート用: 各プロジェクトのタスク（日付あり）を取得
+  const ganttTasks = await prisma.task.findMany({
+    where: {
+      projectId: { in: projectIds },
+      OR: [{ startDate: { not: null } }, { dueDate: { not: null } }],
+    },
+    select: {
+      id: true,
+      title: true,
+      priority: true,
+      status: true,
+      startDate: true,
+      dueDate: true,
+      projectId: true,
+    },
+    orderBy: [{ dueDate: 'asc' }, { startDate: 'asc' }],
+  });
+
+  const ganttProjects = projects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    color: p.color,
+    tasks: ganttTasks
+      .filter((t) => t.projectId === p.id)
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        priority: t.priority,
+        status: t.status,
+        startDate: t.startDate?.toISOString() ?? null,
+        dueDate: t.dueDate?.toISOString() ?? null,
+      })),
+  }));
+
   const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const upcomingTasks = await prisma.task.findMany({
     where: {
@@ -166,6 +200,7 @@ export default async function WorkspacePage({
             byPriority={byPriority}
             recentActivity={recentActivity}
             completionRate={completionRate}
+            ganttProjects={ganttProjects}
           />
 
           {/* プロジェクト別進捗 + 期限迫るタスク */}

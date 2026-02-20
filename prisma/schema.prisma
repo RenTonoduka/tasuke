@@ -180,11 +180,12 @@ model Task {
   subtasks  Task[]   @relation("Subtasks")
   createdBy User     @relation("CreatedBy", fields: [createdById], references: [id])
 
-  assignees    TaskAssignment[]
-  labels       TaskLabel[]
-  comments     Comment[]
-  activities   Activity[]
-  attachments  TaskAttachment[]
+  assignees       TaskAssignment[]
+  labels          TaskLabel[]
+  comments        Comment[]
+  activities      Activity[]
+  attachments     TaskAttachment[]
+  scheduleBlocks  ScheduleBlock[]
 }
 
 model TaskAssignment {
@@ -196,6 +197,22 @@ model TaskAssignment {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, userId])
+}
+
+// ========== ScheduleBlock (カレンダー時間ブロック) ==========
+
+model ScheduleBlock {
+  id                    String   @id @default(cuid())
+  taskId                String
+  googleCalendarEventId String
+  date                  String   // "2026-02-21"
+  startTime             String   // "09:00"
+  endTime               String   // "11:00"
+  createdAt             DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, date, startTime])
 }
 
 // ========== Label ==========
