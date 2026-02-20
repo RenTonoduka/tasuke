@@ -1,7 +1,9 @@
 'use client';
 
-import { Menu, LayoutGrid, List, GanttChart, CalendarClock, Search, Settings, Zap } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Menu, LayoutGrid, List, GanttChart, CalendarClock, Search, Settings, Zap, Pencil } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -27,6 +29,35 @@ interface HeaderProps {
 export function Header({ title = '', view = 'board', onViewChange, workspaceSlug = '', projectId, projectName = '' }: HeaderProps) {
 
   const toggle = useSidebarStore((s) => s.toggle);
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setEditName(title); }, [title]);
+  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
+
+  const saveProjectName = async () => {
+    const trimmed = editName.trim();
+    if (!trimmed || trimmed === title || !projectId) {
+      setEditName(title);
+      setEditing(false);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (res.ok) {
+        router.refresh();
+      }
+    } catch (err) {
+      console.error('プロジェクト名更新エラー:', err);
+    }
+    setEditing(false);
+  };
 
   return (
     <header className="flex h-12 items-center gap-3 border-b border-g-border bg-g-bg px-4">
@@ -39,7 +70,29 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
         <Menu className="h-5 w-5" />
       </Button>
 
-      <h1 className="text-base font-semibold text-g-text">{title}</h1>
+      {editing && projectId ? (
+        <input
+          ref={inputRef}
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+          onBlur={saveProjectName}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') saveProjectName();
+            if (e.key === 'Escape') { setEditName(title); setEditing(false); }
+          }}
+          className="h-8 rounded-md border border-[#4285F4] bg-g-bg px-2 text-base font-semibold text-g-text outline-none"
+          maxLength={100}
+        />
+      ) : (
+        <button
+          className="group flex items-center gap-1.5 rounded-md px-1 py-0.5 text-base font-semibold text-g-text hover:bg-g-surface-hover"
+          onClick={() => projectId && setEditing(true)}
+          title={projectId ? 'クリックして名前を変更' : undefined}
+        >
+          {title}
+          {projectId && <Pencil className="h-3 w-3 text-g-text-muted opacity-0 group-hover:opacity-100" />}
+        </button>
+      )}
 
       {onViewChange && (
         <div className="ml-4 flex rounded-md border border-g-border">
@@ -107,6 +160,10 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setEditing(true)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                名前を変更
+              </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link
                   href={`/${workspaceSlug}/projects/${projectId}/automations`}
