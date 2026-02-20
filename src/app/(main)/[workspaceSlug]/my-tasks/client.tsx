@@ -62,8 +62,8 @@ export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksCli
     <div className="flex-1 overflow-auto">
       {tasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <p className="text-[#5F6368]">担当タスクがありません</p>
-          <p className="mt-1 text-sm text-[#80868B]">
+          <p className="text-g-text-secondary">担当タスクがありません</p>
+          <p className="mt-1 text-sm text-g-text-muted">
             プロジェクト内でタスクをアサインすると表示されます
           </p>
         </div>
@@ -71,9 +71,9 @@ export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksCli
         <>
           {pending.length > 0 && (
             <div>
-              <div className="flex items-center gap-2 bg-[#F8F9FA] px-4 py-2">
-                <span className="text-sm font-semibold text-[#202124]">未完了</span>
-                <span className="rounded-full bg-[#E8EAED] px-2 py-0.5 text-xs text-[#5F6368]">
+              <div className="flex items-center gap-2 bg-g-surface px-4 py-2">
+                <span className="text-sm font-semibold text-g-text">未完了</span>
+                <span className="rounded-full bg-g-border px-2 py-0.5 text-xs text-g-text-secondary">
                   {pending.length}
                 </span>
               </div>
@@ -90,9 +90,9 @@ export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksCli
           )}
           {done.length > 0 && (
             <div>
-              <div className="flex items-center gap-2 bg-[#F8F9FA] px-4 py-2 border-t border-[#E8EAED]">
-                <span className="text-sm font-semibold text-[#202124]">完了</span>
-                <span className="rounded-full bg-[#E8EAED] px-2 py-0.5 text-xs text-[#5F6368]">
+              <div className="flex items-center gap-2 bg-g-surface px-4 py-2 border-t border-g-border">
+                <span className="text-sm font-semibold text-g-text">完了</span>
+                <span className="rounded-full bg-g-border px-2 py-0.5 text-xs text-g-text-secondary">
                   {done.length}
                 </span>
               </div>
@@ -129,7 +129,7 @@ function TaskRow({
 
   return (
     <div
-      className="flex items-center gap-3 border-b border-[#F1F3F4] px-4 py-2 hover:bg-[#F8F9FA] cursor-pointer"
+      className="flex items-center gap-3 border-b border-g-surface-hover px-4 py-2 hover:bg-g-surface cursor-pointer"
       onClick={onOpen}
     >
       <Checkbox
@@ -140,8 +140,8 @@ function TaskRow({
 
       <span
         className={cn(
-          'flex-1 truncate text-sm text-[#202124]',
-          task.status === 'DONE' && 'line-through text-[#80868B]'
+          'flex-1 truncate text-sm text-g-text',
+          task.status === 'DONE' && 'line-through text-g-text-muted'
         )}
       >
         {task.title}
@@ -150,7 +150,7 @@ function TaskRow({
       {/* Project name */}
       <a
         href={`/${workspaceSlug}/projects/${task.section.project.id}`}
-        className="hidden items-center gap-1 text-xs text-[#5F6368] hover:text-[#202124] sm:flex"
+        className="hidden items-center gap-1 text-xs text-g-text-secondary hover:text-g-text sm:flex"
         onClick={(e) => e.stopPropagation()}
       >
         <FolderKanban className="h-3 w-3" style={{ color: task.section.project.color }} />
@@ -159,7 +159,7 @@ function TaskRow({
 
       <div className="hidden items-center gap-1 sm:flex">
         <Flag className="h-3 w-3" style={{ color: p.color }} />
-        <span className="text-xs text-[#5F6368]">{p.label}</span>
+        <span className="text-xs text-g-text-secondary">{p.label}</span>
       </div>
 
       <div className="hidden gap-1 lg:flex">
@@ -176,7 +176,7 @@ function TaskRow({
       </div>
 
       {task.dueDate && (
-        <span className="hidden items-center gap-1 text-xs text-[#5F6368] sm:flex">
+        <span className="hidden items-center gap-1 text-xs text-g-text-secondary sm:flex">
           <Calendar className="h-3 w-3" />
           {new Date(task.dueDate).toLocaleDateString('ja-JP', {
             month: 'short',

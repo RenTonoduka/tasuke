@@ -15,6 +15,18 @@ const config: Config = {
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
+  			g: {
+  				bg: 'var(--g-bg)',
+  				surface: 'var(--g-surface)',
+  				'surface-hover': 'var(--g-surface-hover)',
+  				border: 'var(--g-border)',
+  				text: 'var(--g-text)',
+  				'text-secondary': 'var(--g-text-secondary)',
+  				'text-muted': 'var(--g-text-muted)',
+  				'success-bg': 'var(--g-success-bg)',
+  				'warning-bg': 'var(--g-warning-bg)',
+  				'error-bg': 'var(--g-error-bg)',
+  			},
   			card: {
   				DEFAULT: 'hsl(var(--card))',
   				foreground: 'hsl(var(--card-foreground))'

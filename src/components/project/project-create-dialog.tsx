@@ -70,7 +70,7 @@ export function ProjectCreateDialog({ workspaceId, workspaceSlug }: ProjectCreat
           <Button
             variant="ghost"
             size="icon"
-            className="h-5 w-5 text-[#80868B] hover:text-[#202124]"
+            className="h-5 w-5 text-g-text-muted hover:text-g-text"
           >
             <Plus className="h-3.5 w-3.5" />
           </Button>
@@ -81,20 +81,20 @@ export function ProjectCreateDialog({ workspaceId, workspaceSlug }: ProjectCreat
           </DialogHeader>
 
           {/* タブ */}
-          <div className="flex rounded-md border border-[#E8EAED]">
+          <div className="flex rounded-md border border-g-border">
             <button
               onClick={() => setTab('new')}
               className={`flex-1 py-1.5 text-xs font-medium transition-colors ${
                 tab === 'new'
-                  ? 'bg-[#E8EAED] text-[#202124]'
-                  : 'text-[#5F6368] hover:bg-[#F1F3F4]'
+                  ? 'bg-g-border text-g-text'
+                  : 'text-g-text-secondary hover:bg-g-surface-hover'
               }`}
             >
               新規作成
             </button>
             <button
               onClick={() => { setOpen(false); setTemplateOpen(true); }}
-              className="flex flex-1 items-center justify-center gap-1.5 py-1.5 text-xs font-medium text-[#5F6368] hover:bg-[#F1F3F4]"
+              className="flex flex-1 items-center justify-center gap-1.5 py-1.5 text-xs font-medium text-g-text-secondary hover:bg-g-surface-hover"
             >
               <Layers className="h-3 w-3" />
               テンプレートから

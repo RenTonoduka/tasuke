@@ -86,7 +86,7 @@ export function NotificationBell({ workspaceSlug }: NotificationBellProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="relative h-8 w-8 text-[#5F6368] hover:text-[#202124]"
+          className="relative h-8 w-8 text-g-text-secondary hover:text-g-text"
         >
           <Bell className="h-4 w-4" />
           {unreadCount > 0 && (
@@ -99,8 +99,8 @@ export function NotificationBell({ workspaceSlug }: NotificationBellProps) {
 
       <DropdownMenuContent align="end" className="w-80 p-0" sideOffset={8}>
         {/* ヘッダー */}
-        <div className="flex items-center justify-between border-b border-[#E8EAED] px-4 py-2.5">
-          <span className="text-sm font-semibold text-[#202124]">通知</span>
+        <div className="flex items-center justify-between border-b border-g-border px-4 py-2.5">
+          <span className="text-sm font-semibold text-g-text">通知</span>
           {unreadCount > 0 && (
             <button
               onClick={markAllRead}
@@ -115,7 +115,7 @@ export function NotificationBell({ workspaceSlug }: NotificationBellProps) {
         {/* 通知リスト */}
         <ScrollArea className="max-h-[360px]">
           {preview.length === 0 ? (
-            <div className="py-8 text-center text-sm text-[#80868B]">
+            <div className="py-8 text-center text-sm text-g-text-muted">
               通知はありません
             </div>
           ) : (
@@ -125,18 +125,18 @@ export function NotificationBell({ workspaceSlug }: NotificationBellProps) {
                   key={n.id}
                   onClick={() => handleNotificationClick(n)}
                   className={cn(
-                    'flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-[#F8F9FA]',
+                    'flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-g-surface',
                     !n.read && 'bg-[#EEF3FE]'
                   )}
                 >
-                  <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
-                    {typeIcon[n.type] ?? <Bell className="h-3.5 w-3.5 text-[#80868B]" />}
+                  <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-g-bg shadow-sm">
+                    {typeIcon[n.type] ?? <Bell className="h-3.5 w-3.5 text-g-text-muted" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-[#202124] leading-snug line-clamp-2">
+                    <p className="text-xs text-g-text leading-snug line-clamp-2">
                       {n.message}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-[#80868B]">
+                    <p className="mt-0.5 text-[11px] text-g-text-muted">
                       {formatRelative(n.createdAt)}
                     </p>
                   </div>
@@ -150,7 +150,7 @@ export function NotificationBell({ workspaceSlug }: NotificationBellProps) {
         </ScrollArea>
 
         {/* フッター */}
-        <div className="border-t border-[#E8EAED] px-4 py-2">
+        <div className="border-t border-g-border px-4 py-2">
           <Link
             href={`/${workspaceSlug}/inbox`}
             onClick={() => setOpen(false)}

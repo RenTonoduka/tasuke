@@ -40,13 +40,13 @@ export function TimelineHeader({ rangeStart, totalDays, today }: TimelineHeaderP
   }, [today, rangeStart]);
 
   return (
-    <div className="sticky top-0 z-10 border-b border-[#E8EAED] bg-white">
+    <div className="sticky top-0 z-10 border-b border-g-border bg-g-bg">
       {/* Month row */}
-      <div className="flex border-b border-[#E8EAED]">
+      <div className="flex border-b border-g-border">
         {monthGroups.map((group) => (
           <div
             key={group.label}
-            className="border-r border-[#E8EAED] px-2 py-1 text-xs font-semibold text-[#5F6368]"
+            className="border-r border-g-border px-2 py-1 text-xs font-semibold text-g-text-secondary"
             style={{ width: group.span * DAY_WIDTH, minWidth: group.span * DAY_WIDTH }}
           >
             {group.label}
@@ -64,8 +64,8 @@ export function TimelineHeader({ rangeStart, totalDays, today }: TimelineHeaderP
             <div
               key={i}
               className={cn(
-                'flex flex-col items-center justify-center border-r border-[#E8EAED] py-1 text-[10px]',
-                isWeekend && 'bg-[#F8F9FA]',
+                'flex flex-col items-center justify-center border-r border-g-border py-1 text-[10px]',
+                isWeekend && 'bg-g-surface',
                 isToday && 'bg-[#E8F0FE]'
               )}
               style={{ width: DAY_WIDTH, minWidth: DAY_WIDTH }}
@@ -73,7 +73,7 @@ export function TimelineHeader({ rangeStart, totalDays, today }: TimelineHeaderP
               <span
                 className={cn(
                   'font-medium',
-                  isToday ? 'text-[#1A73E8]' : isWeekend ? 'text-[#80868B]' : 'text-[#5F6368]'
+                  isToday ? 'text-[#1A73E8]' : isWeekend ? 'text-g-text-muted' : 'text-g-text-secondary'
                 )}
               >
                 {format(day, 'd')}

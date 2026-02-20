@@ -91,13 +91,13 @@ export function AttachmentList({ taskId, attachments, onChanged }: AttachmentLis
   };
 
   return (
-    <div className="border-t border-[#E8EAED] px-4 py-4">
+    <div className="border-t border-g-border px-4 py-4">
       <div className="mb-2 flex items-center justify-between">
-        <label className="flex items-center gap-1.5 text-xs font-medium text-[#5F6368]">
+        <label className="flex items-center gap-1.5 text-xs font-medium text-g-text-secondary">
           <Paperclip className="h-3.5 w-3.5" />
           添付ファイル
           {attachments.length > 0 && (
-            <span className="text-[#80868B]">({attachments.length})</span>
+            <span className="text-g-text-muted">({attachments.length})</span>
           )}
         </label>
         <Button
@@ -117,18 +117,18 @@ export function AttachmentList({ taskId, attachments, onChanged }: AttachmentLis
       )}
 
       {attachments.length === 0 ? (
-        <p className="text-xs text-[#80868B]">添付ファイルはありません</p>
+        <p className="text-xs text-g-text-muted">添付ファイルはありません</p>
       ) : (
         <ul className="space-y-1">
           {attachments.map((att) => (
             <li
               key={att.id}
-              className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-[#F8F9FA]"
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-g-surface"
             >
               {att.iconUrl ? (
                 <img src={att.iconUrl} alt="" className="h-4 w-4 shrink-0" />
               ) : (
-                <File className="h-4 w-4 shrink-0 text-[#80868B]" />
+                <File className="h-4 w-4 shrink-0 text-g-text-muted" />
               )}
               <div className="min-w-0 flex-1">
                 <a
@@ -141,13 +141,13 @@ export function AttachmentList({ taskId, attachments, onChanged }: AttachmentLis
                   <ExternalLink className="h-3 w-3 shrink-0" />
                 </a>
                 {att.size !== null && (
-                  <span className="text-xs text-[#80868B]">{formatFileSize(att.size)}</span>
+                  <span className="text-xs text-g-text-muted">{formatFileSize(att.size)}</span>
                 )}
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 shrink-0 text-[#80868B] hover:text-red-500"
+                className="h-6 w-6 shrink-0 text-g-text-muted hover:text-red-500"
                 onClick={() => setDeleteTargetId(att.id)}
               >
                 <Trash2 className="h-3.5 w-3.5" />

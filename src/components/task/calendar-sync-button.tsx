@@ -50,7 +50,7 @@ export function CalendarSyncButton({
                 variant="outline"
                 size="sm"
                 disabled
-                className="h-8 gap-1.5 text-xs text-[#80868B]"
+                className="h-8 gap-1.5 text-xs text-g-text-muted"
               >
                 <Calendar className="h-3.5 w-3.5" />
                 Googleカレンダーに同期
@@ -82,7 +82,7 @@ export function CalendarSyncButton({
               <span>
                 同期済み
                 {googleSyncedAt && (
-                  <span className="text-[#80868B]">
+                  <span className="text-g-text-muted">
                     （最終: {formatSyncedAt(googleSyncedAt)}）
                   </span>
                 )}

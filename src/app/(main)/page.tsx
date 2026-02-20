@@ -17,7 +17,7 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-1 items-center justify-center">
-      <p className="text-[#5F6368]">ワークスペースを作成してください</p>
+      <p className="text-g-text-secondary">ワークスペースを作成してください</p>
     </div>
   );
 }

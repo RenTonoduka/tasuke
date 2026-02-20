@@ -67,10 +67,10 @@ export function CommentSection({ taskId, comments, onCommentAdded }: CommentSect
   };
 
   return (
-    <div className="border-t border-[#E8EAED] px-4 py-4">
+    <div className="border-t border-g-border px-4 py-4">
       <div className="mb-3 flex items-center gap-2">
-        <MessageSquare className="h-4 w-4 text-[#80868B]" />
-        <label className="text-xs font-medium text-[#5F6368]">
+        <MessageSquare className="h-4 w-4 text-g-text-muted" />
+        <label className="text-xs font-medium text-g-text-secondary">
           コメント {comments.length > 0 && `(${comments.length})`}
         </label>
       </div>
@@ -88,12 +88,12 @@ export function CommentSection({ taskId, comments, onCommentAdded }: CommentSect
               </Avatar>
               <div className="flex-1">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-xs font-semibold text-[#202124]">
+                  <span className="text-xs font-semibold text-g-text">
                     {c.user.name ?? c.user.email}
                   </span>
-                  <span className="text-xs text-[#80868B]">{formatDate(c.createdAt)}</span>
+                  <span className="text-xs text-g-text-muted">{formatDate(c.createdAt)}</span>
                 </div>
-                <p className="mt-0.5 whitespace-pre-wrap text-sm text-[#202124]">
+                <p className="mt-0.5 whitespace-pre-wrap text-sm text-g-text">
                   {c.content}
                 </p>
               </div>
@@ -116,7 +116,7 @@ export function CommentSection({ taskId, comments, onCommentAdded }: CommentSect
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="コメントを追加... (@名前 でメンション、Cmd+Enter で送信)"
-            className="min-h-[72px] resize-none border-[#E8EAED] text-sm focus:border-[#4285F4]"
+            className="min-h-[72px] resize-none border-g-border text-sm focus:border-[#4285F4]"
           />
           <div className="flex justify-end">
             <Button

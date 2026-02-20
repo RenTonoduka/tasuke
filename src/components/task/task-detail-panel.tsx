@@ -150,7 +150,7 @@ export function TaskDetailPanel() {
         {task && (
           <div className="flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-[#E8EAED] px-4 py-3">
+            <div className="flex items-center justify-between border-b border-g-border px-4 py-3">
               <div className="flex items-center gap-2">
                 <Checkbox
                   checked={task.status === 'DONE'}
@@ -158,7 +158,7 @@ export function TaskDetailPanel() {
                     updateField('status', checked ? 'DONE' : 'TODO')
                   }
                 />
-                <span className="text-xs text-[#80868B]">
+                <span className="text-xs text-g-text-muted">
                   {task.status === 'DONE' ? '完了' : '未完了'}
                 </span>
               </div>
@@ -174,7 +174,7 @@ export function TaskDetailPanel() {
                 onChange={(e) => setTitle(e.target.value)}
                 onBlur={handleTitleBlur}
                 onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
-                className="w-full resize-none bg-transparent text-lg font-semibold text-[#202124] outline-none"
+                className="w-full resize-none bg-transparent text-lg font-semibold text-g-text outline-none"
                 rows={1}
               />
             </div>
@@ -183,7 +183,7 @@ export function TaskDetailPanel() {
             <div className="space-y-3 px-4 py-4">
               {/* Status */}
               <div className="flex items-center gap-3">
-                <CheckSquare className="h-4 w-4 text-[#80868B]" />
+                <CheckSquare className="h-4 w-4 text-g-text-muted" />
                 <Select
                   value={task.status}
                   onValueChange={(v) => updateField('status', v)}
@@ -203,7 +203,7 @@ export function TaskDetailPanel() {
 
               {/* Priority */}
               <div className="flex items-center gap-3">
-                <Flag className="h-4 w-4 text-[#80868B]" />
+                <Flag className="h-4 w-4 text-g-text-muted" />
                 <Select
                   value={task.priority}
                   onValueChange={(v) => updateField('priority', v)}
@@ -229,7 +229,7 @@ export function TaskDetailPanel() {
 
               {/* Due date */}
               <div className="flex items-center gap-3">
-                <Calendar className="h-4 w-4 text-[#80868B]" />
+                <Calendar className="h-4 w-4 text-g-text-muted" />
                 <input
                   type="date"
                   value={task.dueDate ? task.dueDate.split('T')[0] : ''}
@@ -239,7 +239,7 @@ export function TaskDetailPanel() {
                       e.target.value ? new Date(e.target.value).toISOString() : null
                     )
                   }
-                  className="h-8 rounded-md border border-[#E8EAED] px-2 text-xs text-[#202124]"
+                  className="h-8 rounded-md border border-g-border px-2 text-xs text-g-text"
                 />
               </div>
 
@@ -262,7 +262,7 @@ export function TaskDetailPanel() {
 
               {/* Estimated Hours */}
               <div className="flex items-center gap-3">
-                <Clock className="h-4 w-4 text-[#80868B]" />
+                <Clock className="h-4 w-4 text-g-text-muted" />
                 <Select
                   value={task.estimatedHours?.toString() ?? ''}
                   onValueChange={(v) => updateField('estimatedHours', v ? parseFloat(v) : null)}
@@ -281,7 +281,7 @@ export function TaskDetailPanel() {
                 {task.estimatedHours && (
                   <button
                     onClick={() => updateField('estimatedHours', null)}
-                    className="text-xs text-[#80868B] hover:text-[#EA4335]"
+                    className="text-xs text-g-text-muted hover:text-[#EA4335]"
                   >
                     クリア
                   </button>
@@ -291,7 +291,7 @@ export function TaskDetailPanel() {
               {/* Assignees */}
               {task.assignees.length > 0 && (
                 <div className="flex items-center gap-3">
-                  <Users className="h-4 w-4 text-[#80868B]" />
+                  <Users className="h-4 w-4 text-g-text-muted" />
                   <div className="flex flex-wrap gap-1">
                     {task.assignees.map((a) => (
                       <Badge key={a.id} variant="secondary" className="text-xs">
@@ -305,7 +305,7 @@ export function TaskDetailPanel() {
               {/* Labels */}
               {task.labels.length > 0 && (
                 <div className="flex items-center gap-3">
-                  <Tag className="h-4 w-4 text-[#80868B]" />
+                  <Tag className="h-4 w-4 text-g-text-muted" />
                   <div className="flex flex-wrap gap-1">
                     {task.labels.map((tl) => (
                       <Badge
@@ -326,8 +326,8 @@ export function TaskDetailPanel() {
             </div>
 
             {/* Description */}
-            <div className="border-t border-[#E8EAED] px-4 py-4">
-              <label className="mb-2 block text-xs font-medium text-[#5F6368]">
+            <div className="border-t border-g-border px-4 py-4">
+              <label className="mb-2 block text-xs font-medium text-g-text-secondary">
                 説明
               </label>
               <Textarea
@@ -335,25 +335,25 @@ export function TaskDetailPanel() {
                 onChange={(e) => setDescription(e.target.value)}
                 onBlur={handleDescBlur}
                 placeholder="説明を追加..."
-                className="min-h-[80px] resize-none border-[#E8EAED] text-sm"
+                className="min-h-[80px] resize-none border-g-border text-sm"
               />
             </div>
 
             {/* Subtasks */}
-            <div className="border-t border-[#E8EAED] px-4 py-4">
+            <div className="border-t border-g-border px-4 py-4">
               <div className="mb-2 flex items-center justify-between">
-                <label className="text-xs font-medium text-[#5F6368]">
+                <label className="text-xs font-medium text-g-text-secondary">
                   サブタスク
                 </label>
                 {totalSubtasks > 0 && (
-                  <span className="text-xs text-[#80868B]">
+                  <span className="text-xs text-g-text-muted">
                     {completedSubtasks}/{totalSubtasks}
                   </span>
                 )}
               </div>
 
               {totalSubtasks > 0 && (
-                <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-[#E8EAED]">
+                <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-g-border">
                   <div
                     className="h-full rounded-full bg-[#34A853] transition-all"
                     style={{
@@ -367,7 +367,7 @@ export function TaskDetailPanel() {
                 {task.subtasks.map((sub) => (
                   <div
                     key={sub.id}
-                    className="flex items-center gap-2 rounded px-1 py-1 hover:bg-[#F8F9FA]"
+                    className="flex items-center gap-2 rounded px-1 py-1 hover:bg-g-surface"
                   >
                     <Checkbox
                       checked={sub.status === 'DONE'}
@@ -375,8 +375,8 @@ export function TaskDetailPanel() {
                     />
                     <span
                       className={cn(
-                        'text-sm text-[#202124]',
-                        sub.status === 'DONE' && 'text-[#80868B] line-through'
+                        'text-sm text-g-text',
+                        sub.status === 'DONE' && 'text-g-text-muted line-through'
                       )}
                     >
                       {sub.title}
@@ -390,7 +390,7 @@ export function TaskDetailPanel() {
                 onChange={(e) => setNewSubtask(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addSubtask()}
                 placeholder="サブタスクを追加..."
-                className="mt-2 w-full rounded-md border border-[#E8EAED] px-3 py-1.5 text-sm outline-none focus:border-[#4285F4]"
+                className="mt-2 w-full rounded-md border border-g-border px-3 py-1.5 text-sm outline-none focus:border-[#4285F4]"
               />
             </div>
 
@@ -409,8 +409,8 @@ export function TaskDetailPanel() {
             />
 
             {/* Activity Log */}
-            <div className="border-t border-[#E8EAED]">
-              <label className="block px-4 pt-4 text-xs font-medium text-[#5F6368]">
+            <div className="border-t border-g-border">
+              <label className="block px-4 pt-4 text-xs font-medium text-g-text-secondary">
                 アクティビティ
               </label>
               <ActivityLog taskId={task.id} />

@@ -29,12 +29,12 @@ export const TimelineRow = memo(function TimelineRow({
 
   return (
     <div
-      className="flex hover:bg-[#F8F9FA] cursor-pointer group"
+      className="flex hover:bg-g-surface cursor-pointer group"
       style={{ height: ROW_HEIGHT }}
       onClick={onClick}
     >
       {/* Left panel: task info */}
-      <div className="hidden md:flex w-60 shrink-0 items-center gap-2 border-r border-b border-[#E8EAED] px-3">
+      <div className="hidden md:flex w-60 shrink-0 items-center gap-2 border-r border-b border-g-border px-3">
         <span
           className="h-2 w-2 shrink-0 rounded-full"
           style={{ backgroundColor: color }}
@@ -42,8 +42,8 @@ export const TimelineRow = memo(function TimelineRow({
         />
         <span
           className={cn(
-            'flex-1 truncate text-sm text-[#202124]',
-            isDone && 'line-through text-[#80868B]'
+            'flex-1 truncate text-sm text-g-text',
+            isDone && 'line-through text-g-text-muted'
           )}
         >
           {task.title}
@@ -52,7 +52,7 @@ export const TimelineRow = memo(function TimelineRow({
 
       {/* Right panel: gantt bar area */}
       <div
-        className="relative border-b border-[#E8EAED]"
+        className="relative border-b border-g-border"
         style={{ width: totalDays * DAY_WIDTH }}
       >
         <TimelineBar task={task} rangeStart={rangeStart} today={today} />

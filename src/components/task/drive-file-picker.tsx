@@ -98,18 +98,18 @@ export function DriveFilePicker({ open, onOpenChange, onSelect }: DriveFilePicke
         </DialogHeader>
 
         <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#80868B]" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-g-text-muted" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="ファイル名で検索..."
-            className="w-full rounded-md border border-[#E8EAED] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#4285F4]"
+            className="w-full rounded-md border border-g-border py-2 pl-9 pr-3 text-sm outline-none focus:border-[#4285F4]"
             autoFocus
           />
           {query && (
             <button
               onClick={() => setQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#80868B] hover:text-[#202124]"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-g-text-muted hover:text-g-text"
             >
               <X className="h-4 w-4" />
             </button>
@@ -118,35 +118,35 @@ export function DriveFilePicker({ open, onOpenChange, onSelect }: DriveFilePicke
 
         <div className="max-h-80 overflow-y-auto">
           {loading && (
-            <div className="py-8 text-center text-sm text-[#80868B]">検索中...</div>
+            <div className="py-8 text-center text-sm text-g-text-muted">検索中...</div>
           )}
           {!loading && error && (
             <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
           )}
           {!loading && !error && files.length === 0 && (
-            <div className="py-8 text-center text-sm text-[#80868B]">
+            <div className="py-8 text-center text-sm text-g-text-muted">
               {query ? 'ファイルが見つかりません' : 'ファイルを検索してください'}
             </div>
           )}
           {!loading && !error && files.length > 0 && (
-            <ul className="divide-y divide-[#E8EAED]">
+            <ul className="divide-y divide-g-border">
               {files.map((file) => (
                 <li key={file.id}>
                   <Button
                     variant="ghost"
-                    className="w-full justify-start gap-3 rounded-none px-2 py-2 h-auto text-left hover:bg-[#F8F9FA]"
+                    className="w-full justify-start gap-3 rounded-none px-2 py-2 h-auto text-left hover:bg-g-surface"
                     onClick={() => onSelect(file)}
                   >
                     {file.iconLink ? (
                       <img src={file.iconLink} alt="" className="h-5 w-5 shrink-0" />
                     ) : (
-                      <File className="h-5 w-5 shrink-0 text-[#80868B]" />
+                      <File className="h-5 w-5 shrink-0 text-g-text-muted" />
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium text-[#202124]">
+                      <div className="truncate text-sm font-medium text-g-text">
                         {file.name}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-[#80868B]">
+                      <div className="flex items-center gap-2 text-xs text-g-text-muted">
                         <span>{getMimeTypeLabel(file.mimeType)}</span>
                         {file.modifiedTime && (
                           <span>· {formatModifiedTime(file.modifiedTime)}</span>

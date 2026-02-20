@@ -36,7 +36,7 @@ export function AppShell({ children, projects, workspaceName, currentWorkspaceSl
   }, [close]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
+    <div className="flex h-screen overflow-hidden bg-g-bg">
       {/* Mobile overlay */}
       {isOpen && (
         <div

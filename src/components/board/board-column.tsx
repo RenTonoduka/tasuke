@@ -23,16 +23,16 @@ export function BoardColumn({ section, onAddTask }: BoardColumnProps) {
   const taskIds = section.tasks.map((t) => t.id);
 
   return (
-    <div className="flex h-full w-[280px] flex-shrink-0 flex-col rounded-lg bg-[#F8F9FA]">
+    <div className="flex h-full w-[280px] flex-shrink-0 flex-col rounded-lg bg-g-surface">
       {/* Column header */}
       <div className="flex items-center justify-between px-3 py-2">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-[#202124]">{section.name}</h3>
-          <span className="rounded-full bg-[#E8EAED] px-2 py-0.5 text-xs text-[#5F6368]">
+          <h3 className="text-sm font-semibold text-g-text">{section.name}</h3>
+          <span className="rounded-full bg-g-border px-2 py-0.5 text-xs text-g-text-secondary">
             {section.tasks.length}
           </span>
         </div>
-        <button className="rounded p-1 text-[#80868B] hover:bg-[#E8EAED]">
+        <button className="rounded p-1 text-g-text-muted hover:bg-g-border">
           <MoreHorizontal className="h-4 w-4" />
         </button>
       </div>

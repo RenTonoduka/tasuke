@@ -4,10 +4,10 @@ interface ProjectProgressProps {
 
 export function ProjectProgress({ data }: ProjectProgressProps) {
   return (
-    <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-[#E8EAED]">
-      <h2 className="mb-4 text-sm font-semibold text-[#202124]">プロジェクト別進捗</h2>
+    <div className="rounded-lg bg-g-bg p-5 shadow-sm ring-1 ring-g-border">
+      <h2 className="mb-4 text-sm font-semibold text-g-text">プロジェクト別進捗</h2>
       {data.length === 0 ? (
-        <div className="flex h-32 items-center justify-center text-sm text-[#80868B]">データなし</div>
+        <div className="flex h-32 items-center justify-center text-sm text-g-text-muted">データなし</div>
       ) : (
         <ul className="space-y-4">
           {data.map((project) => {
@@ -20,13 +20,13 @@ export function ProjectProgress({ data }: ProjectProgressProps) {
                       className="h-2.5 w-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: project.color }}
                     />
-                    <span className="truncate text-sm text-[#202124]">{project.name}</span>
+                    <span className="truncate text-sm text-g-text">{project.name}</span>
                   </div>
-                  <span className="shrink-0 text-xs font-medium text-[#5F6368]">
+                  <span className="shrink-0 text-xs font-medium text-g-text-secondary">
                     {project.completed}/{project.total} ({rate}%)
                   </span>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-[#F1F3F4]">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-g-surface-hover">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{ width: `${rate}%`, backgroundColor: project.color }}

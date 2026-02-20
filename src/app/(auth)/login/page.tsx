@@ -5,11 +5,11 @@ import { Button } from '@/components/ui/button';
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white">
+    <div className="flex min-h-screen items-center justify-center bg-g-bg">
       <div className="w-full max-w-sm space-y-8 px-4">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-[#202124]">タス助</h1>
-          <p className="mt-2 text-sm text-[#5F6368]">
+          <h1 className="text-3xl font-bold text-g-text">タス助</h1>
+          <p className="mt-2 text-sm text-g-text-secondary">
             チームのタスク管理をシンプルに
           </p>
         </div>
@@ -17,7 +17,7 @@ export default function LoginPage() {
         <Button
           onClick={() => signIn('google', { callbackUrl: '/' })}
           variant="outline"
-          className="w-full gap-3 border-[#DADCE0] py-6 text-sm font-medium text-[#3C4043] hover:bg-[#F8F9FA]"
+          className="w-full gap-3 border-[#DADCE0] py-6 text-sm font-medium text-[#3C4043] hover:bg-g-surface"
         >
           <svg width="18" height="18" viewBox="0 0 18 18">
             <path

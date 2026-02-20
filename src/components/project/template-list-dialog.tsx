@@ -148,7 +148,7 @@ export function TemplateListDialog({
 
           {selectedTemplate ? (
             <div className="space-y-4 py-2">
-              <p className="text-sm text-[#5F6368]">
+              <p className="text-sm text-g-text-secondary">
                 「{selectedTemplate.name}」からプロジェクトを作成します
               </p>
               <Input
@@ -178,9 +178,9 @@ export function TemplateListDialog({
           ) : (
             <div className="py-2">
               {loading ? (
-                <p className="py-8 text-center text-sm text-[#80868B]">読み込み中...</p>
+                <p className="py-8 text-center text-sm text-g-text-muted">読み込み中...</p>
               ) : templates.length === 0 ? (
-                <p className="py-8 text-center text-sm text-[#80868B]">
+                <p className="py-8 text-center text-sm text-g-text-muted">
                   テンプレートがありません。<br />
                   プロジェクトを「テンプレートとして保存」してください。
                 </p>
@@ -190,21 +190,21 @@ export function TemplateListDialog({
                     {templates.map((template) => (
                       <div
                         key={template.id}
-                        className="flex items-center gap-3 rounded-lg border border-[#E8EAED] p-3 hover:bg-[#F8F9FA]"
+                        className="flex items-center gap-3 rounded-lg border border-g-border p-3 hover:bg-g-surface"
                       >
                         <div
                           className="h-8 w-8 flex-shrink-0 rounded-md"
                           style={{ backgroundColor: template.color }}
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="truncate text-sm font-medium text-[#202124]">
+                          <p className="truncate text-sm font-medium text-g-text">
                             {template.name}
                           </p>
-                          <p className="text-xs text-[#80868B]">
+                          <p className="text-xs text-g-text-muted">
                             タスク {template._count.taskTemplates}件 ・ {formatDate(template.createdAt)}
                           </p>
                           {template.description && (
-                            <p className="mt-0.5 truncate text-xs text-[#5F6368]">
+                            <p className="mt-0.5 truncate text-xs text-g-text-secondary">
                               {template.description}
                             </p>
                           )}
@@ -222,7 +222,7 @@ export function TemplateListDialog({
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-7 w-7 p-0 text-[#80868B] hover:bg-red-50 hover:text-red-500"
+                            className="h-7 w-7 p-0 text-g-text-muted hover:bg-red-50 hover:text-red-500"
                             onClick={() => setDeleteTarget(template)}
                           >
                             <Trash2 className="h-3.5 w-3.5" />

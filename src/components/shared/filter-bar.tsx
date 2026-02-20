@@ -41,11 +41,11 @@ export function FilterBar() {
   const active = hasActiveFilters();
 
   return (
-    <div className="flex items-center gap-2 border-b border-[#E8EAED] px-4 py-1.5">
+    <div className="flex items-center gap-2 border-b border-g-border px-4 py-1.5">
       {/* Filter */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-[#5F6368]">
+          <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-g-text-secondary">
             <Filter className="h-3.5 w-3.5" />
             フィルター
             {priority.length > 0 && (
@@ -85,7 +85,7 @@ export function FilterBar() {
       {/* Sort */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-[#5F6368]">
+          <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-g-text-secondary">
             <ArrowUpDown className="h-3.5 w-3.5" />
             ソート
           </Button>
@@ -95,7 +95,7 @@ export function FilterBar() {
             <DropdownMenuItem
               key={s.value}
               onClick={() => setSortBy(s.value)}
-              className={sortBy === s.value ? 'bg-[#F1F3F4]' : ''}
+              className={sortBy === s.value ? 'bg-g-surface-hover' : ''}
             >
               {s.label}
             </DropdownMenuItem>

@@ -10,10 +10,10 @@ export function ActivityTrend({ data }: ActivityTrendProps) {
   const hasActivity = data.some((d) => d.count > 0);
 
   return (
-    <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-[#E8EAED]">
-      <h2 className="mb-4 text-sm font-semibold text-[#202124]">タスク完了トレンド（過去14日）</h2>
+    <div className="rounded-lg bg-g-bg p-5 shadow-sm ring-1 ring-g-border">
+      <h2 className="mb-4 text-sm font-semibold text-g-text">タスク完了トレンド（過去14日）</h2>
       {!hasActivity ? (
-        <div className="flex h-48 items-center justify-center text-sm text-[#80868B]">
+        <div className="flex h-48 items-center justify-center text-sm text-g-text-muted">
           完了タスクがありません
         </div>
       ) : (
@@ -25,9 +25,9 @@ export function ActivityTrend({ data }: ActivityTrendProps) {
                 <stop offset="95%" stopColor="#4285F4" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#F1F3F4" />
-            <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#5F6368' }} interval={1} />
-            <YAxis tick={{ fontSize: 11, fill: '#5F6368' }} allowDecimals={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--g-surface-hover)" />
+            <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--g-text-secondary)' }} interval={1} />
+            <YAxis tick={{ fontSize: 11, fill: 'var(--g-text-secondary)' }} allowDecimals={false} />
             <Tooltip
               formatter={(value) => [value, '完了タスク数']}
               contentStyle={{ fontSize: 12, borderRadius: 8 }}

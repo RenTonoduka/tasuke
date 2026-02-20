@@ -51,14 +51,14 @@ export function TimelineView({ sections }: TimelineViewProps) {
       const isWeekend = weekendSegments.includes(i);
       const left = i * DAY_WIDTH;
       const right = (i + 1) * DAY_WIDTH - 1;
-      const bg = isWeekend ? '#F8F9FA' : 'transparent';
+      const bg = isWeekend ? 'var(--g-surface)' : 'transparent';
       stops.push(`${bg} ${left}px`, `${bg} ${right}px`);
     }
 
     return {
       backgroundImage: [
         // 縦グリッド線
-        `repeating-linear-gradient(to right, transparent 0px, transparent ${DAY_WIDTH - 1}px, #E8EAED ${DAY_WIDTH - 1}px, #E8EAED ${DAY_WIDTH}px)`,
+        `repeating-linear-gradient(to right, transparent 0px, transparent ${DAY_WIDTH - 1}px, var(--g-border) ${DAY_WIDTH - 1}px, var(--g-border) ${DAY_WIDTH}px)`,
         // 週末背景
         `linear-gradient(to right, ${stops.join(', ')})`,
       ].join(', '),
@@ -108,14 +108,14 @@ export function TimelineView({ sections }: TimelineViewProps) {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* 今日ボタン */}
-      <div className="flex items-center gap-2 border-b border-[#E8EAED] bg-white px-4 py-1.5">
+      <div className="flex items-center gap-2 border-b border-g-border bg-g-bg px-4 py-1.5">
         <button
           onClick={scrollToToday}
-          className="rounded-md border border-[#E8EAED] px-3 py-1 text-xs font-medium text-[#5F6368] hover:bg-[#F1F3F4]"
+          className="rounded-md border border-g-border px-3 py-1 text-xs font-medium text-g-text-secondary hover:bg-g-surface-hover"
         >
           今日
         </button>
-        <span className="text-xs text-[#80868B]">
+        <span className="text-xs text-g-text-muted">
           タイムライン表示
         </span>
       </div>
@@ -126,28 +126,28 @@ export function TimelineView({ sections }: TimelineViewProps) {
         <div
           ref={leftScrollRef}
           onScroll={handleLeftScroll}
-          className="hidden md:flex md:w-60 md:shrink-0 md:flex-col md:overflow-y-auto md:border-r md:border-[#E8EAED]"
+          className="hidden md:flex md:w-60 md:shrink-0 md:flex-col md:overflow-y-auto md:border-r md:border-g-border"
           style={{ scrollbarWidth: 'none' }}
         >
           {/* ヘッダー高さ調整スペース (月行 + 日行) */}
-          <div className="h-[60px] shrink-0 border-b border-[#E8EAED] bg-white" />
+          <div className="h-[60px] shrink-0 border-b border-g-border bg-g-bg" />
 
           {sections.map((section) => (
             <div key={section.id}>
               {/* セクションヘッダー */}
               <button
                 onClick={() => toggleSection(section.id)}
-                className="flex w-full items-center gap-2 bg-[#F8F9FA] px-3 py-2 text-left hover:bg-[#F1F3F4] border-b border-[#E8EAED]"
+                className="flex w-full items-center gap-2 bg-g-surface px-3 py-2 text-left hover:bg-g-surface-hover border-b border-g-border"
               >
                 {collapsed[section.id] ? (
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#5F6368]" />
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-g-text-secondary" />
                 ) : (
-                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[#5F6368]" />
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-g-text-secondary" />
                 )}
-                <span className="truncate text-xs font-semibold text-[#202124]">
+                <span className="truncate text-xs font-semibold text-g-text">
                   {section.name}
                 </span>
-                <span className="ml-auto rounded-full bg-[#E8EAED] px-1.5 py-0.5 text-[10px] text-[#5F6368]">
+                <span className="ml-auto rounded-full bg-g-border px-1.5 py-0.5 text-[10px] text-g-text-secondary">
                   {section.tasks.length}
                 </span>
               </button>
@@ -157,7 +157,7 @@ export function TimelineView({ sections }: TimelineViewProps) {
                 section.tasks.map((task) => (
                   <div
                     key={task.id}
-                    className="h-10 border-b border-[#E8EAED]"
+                    className="h-10 border-b border-g-border"
                   />
                 ))}
             </div>
@@ -196,18 +196,18 @@ export function TimelineView({ sections }: TimelineViewProps) {
                 {/* セクションヘッダー行 */}
                 <button
                   onClick={() => toggleSection(section.id)}
-                  className="flex w-full items-center gap-2 border-b border-[#E8EAED] bg-[#F8F9FA] px-3 py-2 hover:bg-[#F1F3F4]"
+                  className="flex w-full items-center gap-2 border-b border-g-border bg-g-surface px-3 py-2 hover:bg-g-surface-hover"
                   style={{ width: totalDays * DAY_WIDTH }}
                 >
                   {collapsed[section.id] ? (
-                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#5F6368]" />
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-g-text-secondary" />
                   ) : (
-                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[#5F6368]" />
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-g-text-secondary" />
                   )}
-                  <span className="text-xs font-semibold text-[#202124]">
+                  <span className="text-xs font-semibold text-g-text">
                     {section.name}
                   </span>
-                  <span className="ml-2 rounded-full bg-[#E8EAED] px-1.5 py-0.5 text-[10px] text-[#5F6368]">
+                  <span className="ml-2 rounded-full bg-g-border px-1.5 py-0.5 text-[10px] text-g-text-secondary">
                     {section.tasks.length}
                   </span>
                 </button>

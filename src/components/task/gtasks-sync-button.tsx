@@ -89,11 +89,11 @@ export function GTasksSyncButton({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="flex items-center gap-1 rounded-md border border-[#E8EAED] bg-[#F8F9FA] px-2 py-1 text-xs text-[#34A853]">
+              <span className="flex items-center gap-1 rounded-md border border-g-border bg-g-surface px-2 py-1 text-xs text-[#34A853]">
                 <ListTodo className="h-3.5 w-3.5" />
                 同期済み
                 {formattedSyncedAt && (
-                  <span className="ml-1 text-[#80868B]">{formattedSyncedAt}</span>
+                  <span className="ml-1 text-g-text-muted">{formattedSyncedAt}</span>
                 )}
               </span>
             </TooltipTrigger>
@@ -116,7 +116,7 @@ export function GTasksSyncButton({
                 {syncing ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <RefreshCw className="h-3.5 w-3.5 text-[#5F6368]" />
+                  <RefreshCw className="h-3.5 w-3.5 text-g-text-secondary" />
                 )}
               </Button>
             </TooltipTrigger>

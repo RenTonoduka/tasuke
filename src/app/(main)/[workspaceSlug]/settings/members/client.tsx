@@ -168,8 +168,8 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
 
         {/* 招待フォーム */}
         {canManage && (
-          <div className="rounded-lg border border-[#E8EAED] bg-white p-5">
-            <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[#202124]">
+          <div className="rounded-lg border border-g-border bg-g-bg p-5">
+            <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-g-text">
               <UserPlus className="h-4 w-4 text-[#4285F4]" />
               メンバーを招待
             </h2>
@@ -180,7 +180,7 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
                   placeholder="メールアドレスを入力"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  className="border-[#E8EAED] focus-visible:ring-[#4285F4]"
+                  className="border-g-border focus-visible:ring-[#4285F4]"
                   disabled={inviting}
                 />
                 {inviteError && (
@@ -191,7 +191,7 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
                 value={inviteRole}
                 onValueChange={(v) => setInviteRole(v as 'ADMIN' | 'MEMBER' | 'VIEWER')}
               >
-                <SelectTrigger className="w-32 border-[#E8EAED]">
+                <SelectTrigger className="w-32 border-g-border">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -214,14 +214,14 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
         )}
 
         {/* メンバー一覧 */}
-        <div className="rounded-lg border border-[#E8EAED] bg-white">
-          <div className="border-b border-[#E8EAED] px-5 py-3">
-            <h2 className="text-sm font-semibold text-[#202124]">
-              メンバー <span className="ml-1 text-[#5F6368]">({members.length})</span>
+        <div className="rounded-lg border border-g-border bg-g-bg">
+          <div className="border-b border-g-border px-5 py-3">
+            <h2 className="text-sm font-semibold text-g-text">
+              メンバー <span className="ml-1 text-g-text-secondary">({members.length})</span>
             </h2>
           </div>
 
-          <ul className="divide-y divide-[#E8EAED]">
+          <ul className="divide-y divide-g-border">
             {members.map((member) => (
               <li key={member.id} className="flex items-center gap-4 px-5 py-3.5">
                 {/* アバター */}
@@ -234,13 +234,13 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
 
                 {/* 名前・メール */}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-[#202124]">
+                  <p className="truncate text-sm font-medium text-g-text">
                     {member.user.name ?? '名前未設定'}
                     {member.userId === currentUserId && (
-                      <span className="ml-2 text-xs text-[#80868B]">（自分）</span>
+                      <span className="ml-2 text-xs text-g-text-muted">（自分）</span>
                     )}
                   </p>
-                  <p className="truncate text-xs text-[#5F6368]">{member.user.email}</p>
+                  <p className="truncate text-xs text-g-text-secondary">{member.user.email}</p>
                 </div>
 
                 {/* ロールバッジ / ドロップダウン */}
@@ -249,7 +249,7 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
                     value={member.role}
                     onValueChange={(v) => handleRoleChange(member.id, v as Role)}
                   >
-                    <SelectTrigger className="h-7 w-28 border-[#E8EAED] text-xs">
+                    <SelectTrigger className="h-7 w-28 border-g-border text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -273,7 +273,7 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
                 {canDelete(member) ? (
                   <button
                     onClick={() => setDeleteTarget(member)}
-                    className="rounded-md p-1.5 text-[#80868B] transition-colors hover:bg-red-50 hover:text-red-500"
+                    className="rounded-md p-1.5 text-g-text-muted transition-colors hover:bg-red-50 hover:text-red-500"
                     title="メンバーを削除"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -293,7 +293,7 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
           <DialogHeader>
             <DialogTitle>メンバーを削除</DialogTitle>
             <DialogDescription>
-              <span className="font-medium text-[#202124]">
+              <span className="font-medium text-g-text">
                 {deleteTarget?.user.name ?? deleteTarget?.user.email}
               </span>{' '}
               をワークスペースから削除しますか？この操作は取り消せません。

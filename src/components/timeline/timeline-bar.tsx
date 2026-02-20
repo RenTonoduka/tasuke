@@ -45,7 +45,7 @@ export function TimelineBar({ task, rangeStart, today }: TimelineBarProps) {
 
   if (hasNoDates) {
     return (
-      <span className="text-xs text-[#80868B] italic">期限未設定</span>
+      <span className="text-xs text-g-text-muted italic">期限未設定</span>
     );
   }
 

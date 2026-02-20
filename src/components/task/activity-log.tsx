@@ -73,7 +73,7 @@ const typeConfig: Record<
   },
   TASK_UPDATED: {
     icon: Edit,
-    color: '#80868B',
+    color: 'var(--g-text-muted)',
     label: () => 'タスクを更新しました',
   },
 };
@@ -81,7 +81,7 @@ const typeConfig: Record<
 function getConfig(type: string) {
   return typeConfig[type] ?? {
     icon: Edit,
-    color: '#80868B',
+    color: 'var(--g-text-muted)',
     label: () => 'タスクを更新しました',
   };
 }
@@ -118,10 +118,10 @@ export function ActivityLog({ taskId }: ActivityLogProps) {
       <div className="space-y-3 px-4 py-4">
         {[...Array(3)].map((_, i) => (
           <div key={i} className="flex gap-3">
-            <div className="mt-0.5 h-5 w-5 rounded-full bg-[#E8EAED] animate-pulse" />
+            <div className="mt-0.5 h-5 w-5 rounded-full bg-g-border animate-pulse" />
             <div className="flex-1 space-y-1">
-              <div className="h-3 w-32 rounded bg-[#E8EAED] animate-pulse" />
-              <div className="h-3 w-20 rounded bg-[#E8EAED] animate-pulse" />
+              <div className="h-3 w-32 rounded bg-g-border animate-pulse" />
+              <div className="h-3 w-20 rounded bg-g-border animate-pulse" />
             </div>
           </div>
         ))}
@@ -131,7 +131,7 @@ export function ActivityLog({ taskId }: ActivityLogProps) {
 
   if (activities.length === 0) {
     return (
-      <p className="px-4 py-4 text-xs text-[#80868B]">アクティビティはまだありません</p>
+      <p className="px-4 py-4 text-xs text-g-text-muted">アクティビティはまだありません</p>
     );
   }
 
@@ -140,7 +140,7 @@ export function ActivityLog({ taskId }: ActivityLogProps) {
       <div className="relative">
         {/* タイムラインの縦線 */}
         <div
-          className="absolute left-[9px] top-1 bottom-0 w-px bg-[#E8EAED]"
+          className="absolute left-[9px] top-1 bottom-0 w-px bg-g-border"
           style={{ height: `calc(100% - 8px)` }}
         />
 
@@ -154,7 +154,7 @@ export function ActivityLog({ taskId }: ActivityLogProps) {
               <div key={activity.id} className="relative flex gap-3">
                 {/* ドット */}
                 <div
-                  className="relative z-10 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white"
+                  className="relative z-10 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-g-bg"
                   style={{ boxShadow: `0 0 0 2px ${config.color}` }}
                 >
                   <Icon
@@ -166,13 +166,13 @@ export function ActivityLog({ taskId }: ActivityLogProps) {
 
                 {/* コンテンツ */}
                 <div className="min-w-0 flex-1 pb-1">
-                  <p className="text-xs text-[#202124]">
+                  <p className="text-xs text-g-text">
                     <span className="font-medium">
                       {activity.user.name ?? 'ユーザー'}
                     </span>
-                    <span className="text-[#5F6368]">が{label}</span>
+                    <span className="text-g-text-secondary">が{label}</span>
                   </p>
-                  <p className="mt-0.5 text-[11px] text-[#80868B]">
+                  <p className="mt-0.5 text-[11px] text-g-text-muted">
                     {formatRelativeTime(activity.createdAt)}
                   </p>
                 </div>

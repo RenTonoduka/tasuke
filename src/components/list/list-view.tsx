@@ -35,21 +35,21 @@ export function ListView({ sections, projectId, onAddTask, onToggleTask }: ListV
   return (
     <div className="flex-1 overflow-auto">
       {sections.map((section) => (
-        <div key={section.id} className="border-b border-[#E8EAED]">
+        <div key={section.id} className="border-b border-g-border">
           {/* Section header */}
           <button
             onClick={() => toggleSection(section.id)}
-            className="flex w-full items-center gap-2 bg-[#F8F9FA] px-4 py-2 text-left hover:bg-[#F1F3F4]"
+            className="flex w-full items-center gap-2 bg-g-surface px-4 py-2 text-left hover:bg-g-surface-hover"
           >
             {collapsed[section.id] ? (
-              <ChevronRight className="h-4 w-4 text-[#5F6368]" />
+              <ChevronRight className="h-4 w-4 text-g-text-secondary" />
             ) : (
-              <ChevronDown className="h-4 w-4 text-[#5F6368]" />
+              <ChevronDown className="h-4 w-4 text-g-text-secondary" />
             )}
-            <span className="text-sm font-semibold text-[#202124]">
+            <span className="text-sm font-semibold text-g-text">
               {section.name}
             </span>
-            <span className="rounded-full bg-[#E8EAED] px-2 py-0.5 text-xs text-[#5F6368]">
+            <span className="rounded-full bg-g-border px-2 py-0.5 text-xs text-g-text-secondary">
               {section.tasks.length}
             </span>
           </button>
@@ -89,7 +89,7 @@ function TaskRow({
 
   return (
     <div
-      className="flex items-center gap-3 border-b border-[#F1F3F4] px-4 py-2 hover:bg-[#F8F9FA] cursor-pointer"
+      className="flex items-center gap-3 border-b border-g-surface-hover px-4 py-2 hover:bg-g-surface cursor-pointer"
       onClick={onOpen}
     >
       <Checkbox
@@ -103,8 +103,8 @@ function TaskRow({
 
       <span
         className={cn(
-          'flex-1 truncate text-sm text-[#202124]',
-          task.status === 'DONE' && 'line-through text-[#80868B]'
+          'flex-1 truncate text-sm text-g-text',
+          task.status === 'DONE' && 'line-through text-g-text-muted'
         )}
       >
         {task.title}
@@ -113,7 +113,7 @@ function TaskRow({
       {/* Priority - hidden on mobile */}
       <div className="hidden items-center gap-1 sm:flex">
         <Flag className="h-3 w-3" style={{ color: p.color }} />
-        <span className="text-xs text-[#5F6368]">{p.label}</span>
+        <span className="text-xs text-g-text-secondary">{p.label}</span>
       </div>
 
       {/* Labels - hidden on mobile */}
@@ -132,7 +132,7 @@ function TaskRow({
 
       {/* Due date - hidden on mobile */}
       {task.dueDate && (
-        <span className="hidden items-center gap-1 text-xs text-[#5F6368] sm:flex">
+        <span className="hidden items-center gap-1 text-xs text-g-text-secondary sm:flex">
           <Calendar className="h-3 w-3" />
           {new Date(task.dueDate).toLocaleDateString('ja-JP', {
             month: 'short',

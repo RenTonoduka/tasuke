@@ -265,7 +265,7 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
         <div className="mb-6 flex items-center gap-3">
           <Link
             href={`/${workspaceSlug}/projects/${project.id}`}
-            className="flex items-center gap-1 text-sm text-[#5F6368] hover:text-[#202124]"
+            className="flex items-center gap-1 text-sm text-g-text-secondary hover:text-g-text"
           >
             <ArrowLeft className="h-4 w-4" />
             プロジェクトに戻る
@@ -275,7 +275,7 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-[#4285F4]" />
-            <h2 className="text-xl font-semibold text-[#202124]">自動化ルール</h2>
+            <h2 className="text-xl font-semibold text-g-text">自動化ルール</h2>
           </div>
           <Button onClick={openCreateDialog} size="sm" className="gap-1">
             <Plus className="h-4 w-4" />
@@ -284,10 +284,10 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
         </div>
 
         {rules.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-[#E8EAED] p-12 text-center">
+          <div className="rounded-lg border border-dashed border-g-border p-12 text-center">
             <Zap className="mx-auto mb-3 h-10 w-10 text-[#DADCE0]" />
-            <p className="text-sm text-[#5F6368]">自動化ルールがまだありません</p>
-            <p className="mt-1 text-xs text-[#80868B]">
+            <p className="text-sm text-g-text-secondary">自動化ルールがまだありません</p>
+            <p className="mt-1 text-xs text-g-text-muted">
               ルールを追加して、タスクの更新を自動化しましょう
             </p>
             <Button onClick={openCreateDialog} variant="outline" size="sm" className="mt-4 gap-1">
@@ -300,7 +300,7 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
             {rules.map((rule) => (
               <div
                 key={rule.id}
-                className="flex items-start gap-4 rounded-lg border border-[#E8EAED] bg-white p-4 shadow-sm"
+                className="flex items-start gap-4 rounded-lg border border-g-border bg-g-bg p-4 shadow-sm"
               >
                 <Switch
                   checked={rule.enabled}
@@ -308,12 +308,12 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
                   className="mt-0.5"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-[#202124]">{rule.name}</p>
-                  <p className="mt-0.5 text-sm text-[#5F6368]">
+                  <p className="font-medium text-g-text">{rule.name}</p>
+                  <p className="mt-0.5 text-sm text-g-text-secondary">
                     <span className="font-medium text-[#1A73E8]">トリガー: </span>
                     {describeTrigger(rule.trigger)}
                   </p>
-                  <p className="text-sm text-[#5F6368]">
+                  <p className="text-sm text-g-text-secondary">
                     <span className="font-medium text-[#34A853]">アクション: </span>
                     {describeAction(rule.action)}
                   </p>
@@ -322,7 +322,7 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-[#5F6368]"
+                    className="h-8 w-8 text-g-text-secondary"
                     onClick={() => openEditDialog(rule)}
                   >
                     <Pencil className="h-4 w-4" />
@@ -396,7 +396,7 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
             {form.triggerType === 'STATUS_CHANGE' && (
               <div className="ml-4 grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-[#5F6368]">変更前（省略可）</Label>
+                  <Label className="text-xs text-g-text-secondary">変更前（省略可）</Label>
                   <Select value={form.triggerFrom || '_none'} onValueChange={(v) => setF('triggerFrom', v === '_none' ? '' : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="すべて" />
@@ -410,7 +410,7 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-[#5F6368]">変更後</Label>
+                  <Label className="text-xs text-g-text-secondary">変更後</Label>
                   <Select value={form.triggerTo} onValueChange={(v) => setF('triggerTo', v)}>
                     <SelectTrigger>
                       <SelectValue />
@@ -427,7 +427,7 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
 
             {form.triggerType === 'PRIORITY_CHANGE' && (
               <div className="ml-4 space-y-1.5">
-                <Label className="text-xs text-[#5F6368]">変更後の優先度</Label>
+                <Label className="text-xs text-g-text-secondary">変更後の優先度</Label>
                 <Select value={form.triggerTo} onValueChange={(v) => setF('triggerTo', v)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -443,7 +443,7 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
 
             {form.triggerType === 'DUE_DATE_APPROACHING' && (
               <div className="ml-4 space-y-1.5">
-                <Label className="text-xs text-[#5F6368]">何日前</Label>
+                <Label className="text-xs text-g-text-secondary">何日前</Label>
                 <Input
                   type="number"
                   min={1}
@@ -472,7 +472,7 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
 
             {form.actionType === 'NOTIFY_ASSIGNEES' && (
               <div className="ml-4 space-y-1.5">
-                <Label className="text-xs text-[#5F6368]">通知メッセージ（省略可）</Label>
+                <Label className="text-xs text-g-text-secondary">通知メッセージ（省略可）</Label>
                 <Input
                   placeholder="例: タスクが完了しました"
                   value={form.actionMessage}
@@ -483,7 +483,7 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
 
             {form.actionType === 'SET_PRIORITY' && (
               <div className="ml-4 space-y-1.5">
-                <Label className="text-xs text-[#5F6368]">設定する優先度</Label>
+                <Label className="text-xs text-g-text-secondary">設定する優先度</Label>
                 <Select value={form.actionPriority} onValueChange={(v) => setF('actionPriority', v)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -499,7 +499,7 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
 
             {form.actionType === 'MOVE_SECTION' && (
               <div className="ml-4 space-y-1.5">
-                <Label className="text-xs text-[#5F6368]">移動先セクション名</Label>
+                <Label className="text-xs text-g-text-secondary">移動先セクション名</Label>
                 <Input
                   placeholder="例: 完了"
                   value={form.actionSectionName}
@@ -510,7 +510,7 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
 
             {form.actionType === 'ADD_LABEL' && (
               <div className="ml-4 space-y-1.5">
-                <Label className="text-xs text-[#5F6368]">追加するラベル名</Label>
+                <Label className="text-xs text-g-text-secondary">追加するラベル名</Label>
                 <Input
                   placeholder="例: レビュー済み"
                   value={form.actionLabelName}

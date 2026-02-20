@@ -145,7 +145,7 @@ export function CommandPalette({ workspaceSlug, projects }: CommandPaletteProps)
         {showSearch && (
           <>
             {isSearching ? (
-              <div className="py-6 text-center text-sm text-[#5F6368]">検索中...</div>
+              <div className="py-6 text-center text-sm text-g-text-secondary">検索中...</div>
             ) : searchResults.length > 0 ? (
               <CommandGroup heading="タスク検索結果">
                 {searchResults.map((task) => (
@@ -156,13 +156,13 @@ export function CommandPalette({ workspaceSlug, projects }: CommandPaletteProps)
                     className="flex items-center gap-2 cursor-pointer"
                   >
                     <StatusIcon status={task.status} />
-                    <span className="flex-1 truncate text-[#202124]">{task.title}</span>
+                    <span className="flex-1 truncate text-g-text">{task.title}</span>
                     <span className="flex items-center gap-1 shrink-0">
                       <span
                         className="inline-block h-2 w-2 rounded-full"
                         style={{ backgroundColor: task.project.color }}
                       />
-                      <span className="text-xs text-[#5F6368] truncate max-w-[120px]">
+                      <span className="text-xs text-g-text-secondary truncate max-w-[120px]">
                         {task.project.name}
                       </span>
                     </span>
@@ -185,8 +185,8 @@ export function CommandPalette({ workspaceSlug, projects }: CommandPaletteProps)
                   onSelect={() => navigateTo(item.path)}
                   className="flex items-center gap-2 cursor-pointer"
                 >
-                  <item.icon className="h-4 w-4 text-[#5F6368]" />
-                  <span className="text-[#202124]">{item.label}</span>
+                  <item.icon className="h-4 w-4 text-g-text-secondary" />
+                  <span className="text-g-text">{item.label}</span>
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -206,7 +206,7 @@ export function CommandPalette({ workspaceSlug, projects }: CommandPaletteProps)
                         className="h-4 w-4 shrink-0"
                         style={{ color: project.color }}
                       />
-                      <span className="text-[#202124] truncate">{project.name}</span>
+                      <span className="text-g-text truncate">{project.name}</span>
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -220,21 +220,21 @@ export function CommandPalette({ workspaceSlug, projects }: CommandPaletteProps)
                 onSelect={createTask}
                 className="flex items-center gap-2 cursor-pointer"
               >
-                <Plus className="h-4 w-4 text-[#5F6368]" />
-                <span className="text-[#202124]">新規タスク作成</span>
+                <Plus className="h-4 w-4 text-g-text-secondary" />
+                <span className="text-g-text">新規タスク作成</span>
               </CommandItem>
               <CommandItem
                 value="action-create-project"
                 onSelect={createProject}
                 className="flex items-center gap-2 cursor-pointer"
               >
-                <FileText className="h-4 w-4 text-[#5F6368]" />
-                <span className="text-[#202124]">新規プロジェクト作成</span>
+                <FileText className="h-4 w-4 text-g-text-secondary" />
+                <span className="text-g-text">新規プロジェクト作成</span>
               </CommandItem>
             </CommandGroup>
 
             <div className="border-t px-3 py-2">
-              <p className="text-xs text-[#5F6368]">2文字以上入力するとタスクを検索します</p>
+              <p className="text-xs text-g-text-secondary">2文字以上入力するとタスクを検索します</p>
             </div>
           </>
         )}

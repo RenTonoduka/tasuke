@@ -68,7 +68,7 @@ export function SaveTemplateButton({ projectId, projectName }: SaveTemplateButto
       <Button
         variant="ghost"
         size="sm"
-        className="h-7 gap-1.5 px-2 text-xs text-[#5F6368] hover:bg-[#F1F3F4]"
+        className="h-7 gap-1.5 px-2 text-xs text-g-text-secondary hover:bg-g-surface-hover"
         onClick={handleOpen}
       >
         <Copy className="h-3.5 w-3.5" />

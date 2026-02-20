@@ -204,7 +204,7 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
         </Button>
 
         {data && (
-          <span className="text-xs text-[#5F6368]">
+          <span className="text-xs text-g-text-secondary">
             空き時間合計: {data.totalFreeHours}h
           </span>
         )}
@@ -212,23 +212,23 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
 
       {/* 設定パネル */}
       {showSettings && (
-        <div className="mb-4 flex flex-wrap items-center gap-4 rounded-lg border border-[#E8EAED] bg-[#F8F9FA] p-3">
+        <div className="mb-4 flex flex-wrap items-center gap-4 rounded-lg border border-g-border bg-g-surface p-3">
           <div className="flex items-center gap-2">
-            <label className="text-xs text-[#5F6368]">営業時間:</label>
+            <label className="text-xs text-g-text-secondary">営業時間:</label>
             <select
               value={workStart}
               onChange={(e) => setWorkStart(Number(e.target.value))}
-              className="rounded border border-[#E8EAED] px-2 py-1 text-xs"
+              className="rounded border border-g-border px-2 py-1 text-xs"
             >
               {Array.from({ length: 12 }, (_, i) => i + 6).map((h) => (
                 <option key={h} value={h}>{h}:00</option>
               ))}
             </select>
-            <span className="text-xs text-[#80868B]">~</span>
+            <span className="text-xs text-g-text-muted">~</span>
             <select
               value={workEnd}
               onChange={(e) => setWorkEnd(Number(e.target.value))}
-              className="rounded border border-[#E8EAED] px-2 py-1 text-xs"
+              className="rounded border border-g-border px-2 py-1 text-xs"
             >
               {Array.from({ length: 12 }, (_, i) => i + 12).map((h) => (
                 <option key={h} value={h}>{h}:00</option>
@@ -237,16 +237,16 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
           </div>
           <div className="flex items-center gap-2">
             <Switch checked={skipWeekends} onCheckedChange={setSkipWeekends} />
-            <label className="text-xs text-[#5F6368]">土日を除外</label>
+            <label className="text-xs text-g-text-secondary">土日を除外</label>
           </div>
         </div>
       )}
 
       {/* 警告: 見積もり未設定 */}
       {data && data.unestimatedCount > 0 && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-[#FBBC04] bg-[#FEF7E0] px-3 py-2">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-[#FBBC04] bg-g-warning-bg px-3 py-2">
           <AlertTriangle className="h-4 w-4 text-[#FBBC04]" />
-          <span className="text-xs text-[#5F6368]">
+          <span className="text-xs text-g-text-secondary">
             見積もり時間が未設定のタスクが {data.unestimatedCount} 件あります。タスクを開いて設定してください。
           </span>
         </div>
@@ -255,12 +255,12 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
       {/* 初期状態 */}
       {!data && !loading && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <CalendarClock className="mb-4 h-12 w-12 text-[#E8EAED]" />
-          <p className="text-sm text-[#5F6368]">
+          <CalendarClock className="mb-4 h-12 w-12 text-g-border" />
+          <p className="text-sm text-g-text-secondary">
             Googleカレンダーの予定を取得し、<br />
             タスクの最適なスケジュールを提案します
           </p>
-          <p className="mt-2 text-xs text-[#80868B]">
+          <p className="mt-2 text-xs text-g-text-muted">
             タスクに「期限」と「見積もり時間」を設定してください
           </p>
         </div>
@@ -273,13 +273,13 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
             {/* 時刻ヘッダー */}
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 w-[110px] min-w-[110px] bg-white" />
+                <th className="sticky left-0 z-10 w-[110px] min-w-[110px] bg-g-bg" />
                 <th className="p-0">
                   <div className="relative" style={{ width: totalWidth, height: 20 }}>
                     {Array.from({ length: workHours + 1 }, (_, i) => (
                       <span
                         key={i}
-                        className="absolute text-[10px] text-[#80868B]"
+                        className="absolute text-[10px] text-g-text-muted"
                         style={{ left: i * HOUR_WIDTH - 10, top: 0 }}
                       >
                         {workStart + i}:00
@@ -294,14 +294,14 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
               {getDaysData().map(({ date, allDayEvents, events: dayEvents, tasks: dayTasks }) => (
                 <tr key={date}>
                   {/* 日付ラベル（sticky） */}
-                  <td className="sticky left-0 z-10 bg-white pr-2 text-right align-middle">
-                    <div className="whitespace-nowrap text-xs font-medium text-[#202124]">
+                  <td className="sticky left-0 z-10 bg-g-bg pr-2 text-right align-middle">
+                    <div className="whitespace-nowrap text-xs font-medium text-g-text">
                       {formatDateLabel(date)}
                     </div>
                     {allDayEvents.length > 0 && (
                       <div className="mt-0.5 space-y-0.5">
                         {allDayEvents.map((name, i) => (
-                          <div key={i} className="truncate text-[9px] text-[#80868B]" style={{ maxWidth: 100 }}>
+                          <div key={i} className="truncate text-[9px] text-g-text-muted" style={{ maxWidth: 100 }}>
                             {name}
                           </div>
                         ))}
@@ -312,14 +312,14 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
                   {/* タイムラインバー */}
                   <td className="p-0 py-0.5">
                     <div
-                      className="relative rounded border border-[#E8EAED] bg-white"
+                      className="relative rounded border border-g-border bg-g-bg"
                       style={{ width: totalWidth, height: 40 }}
                     >
                       {/* 時刻グリッド線 */}
                       {Array.from({ length: workHours - 1 }, (_, i) => (
                         <div
                           key={i}
-                          className="absolute top-0 h-full border-l border-[#F1F3F4]"
+                          className="absolute top-0 h-full border-l border-g-surface-hover"
                           style={{ left: (i + 1) * HOUR_WIDTH }}
                         />
                       ))}
@@ -334,12 +334,12 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
                         return (
                           <div
                             key={`ev-${i}`}
-                            className="absolute top-1 flex items-center overflow-hidden rounded px-1.5 text-[10px] text-[#5F6368]"
+                            className="absolute top-1 flex items-center overflow-hidden rounded px-1.5 text-[10px] text-g-text-secondary"
                             style={{
                               left,
                               width,
                               height: 32,
-                              backgroundColor: '#E8EAED',
+                              backgroundColor: 'var(--g-border)',
                             }}
                             title={ev.summary}
                           >
@@ -397,10 +397,10 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
               <button
                 key={t.taskId}
                 onClick={() => openPanel(t.taskId)}
-                className="flex w-full items-center gap-3 rounded-md border border-[#FCE8E6] bg-[#FEF7E0] px-3 py-2 text-left text-xs hover:bg-[#FCE8E6]"
+                className="flex w-full items-center gap-3 rounded-md border border-[#FCE8E6] bg-g-warning-bg px-3 py-2 text-left text-xs hover:bg-g-error-bg"
               >
-                <span className="font-medium text-[#202124]">{t.taskTitle}</span>
-                <span className="text-[#80868B]">期限: {formatDueDate(t.dueDate)}</span>
+                <span className="font-medium text-g-text">{t.taskTitle}</span>
+                <span className="text-g-text-muted">期限: {formatDueDate(t.dueDate)}</span>
                 <span className="text-[#EA4335]">{t.reason}</span>
               </button>
             ))}
@@ -411,7 +411,7 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
       {/* サマリーカード */}
       {data && data.suggestions.length > 0 && (
         <div className="mt-6">
-          <h3 className="mb-2 flex items-center gap-2 text-xs font-medium text-[#5F6368]">
+          <h3 className="mb-2 flex items-center gap-2 text-xs font-medium text-g-text-secondary">
             <Clock className="h-3.5 w-3.5" />
             タスク一覧
           </h3>
@@ -420,27 +420,27 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
               <button
                 key={s.taskId}
                 onClick={() => openPanel(s.taskId)}
-                className="flex w-full items-center gap-3 rounded-md border border-[#E8EAED] px-3 py-2 text-left text-xs hover:bg-[#F8F9FA]"
+                className="flex w-full items-center gap-3 rounded-md border border-g-border px-3 py-2 text-left text-xs hover:bg-g-surface"
               >
                 <span
                   className="h-2 w-2 shrink-0 rounded-full"
                   style={{ backgroundColor: PRIORITY_COLORS[s.priority] }}
                 />
-                <span className="min-w-0 flex-1 truncate font-medium text-[#202124]">
+                <span className="min-w-0 flex-1 truncate font-medium text-g-text">
                   {s.taskTitle}
                 </span>
-                <span className="shrink-0 text-[#80868B]">
+                <span className="shrink-0 text-g-text-muted">
                   {s.totalScheduledHours}/{s.estimatedHours}h
                 </span>
-                <span className="shrink-0 text-[#80868B]">
+                <span className="shrink-0 text-g-text-muted">
                   期限: {formatDueDate(s.dueDate)}
                 </span>
                 <span
                   className={cn(
                     'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium',
-                    s.status === 'schedulable' && 'bg-[#E6F4EA] text-[#34A853]',
-                    s.status === 'tight' && 'bg-[#FEF7E0] text-[#FBBC04]',
-                    s.status === 'overdue' && 'bg-[#FCE8E6] text-[#EA4335]'
+                    s.status === 'schedulable' && 'bg-g-success-bg text-[#34A853]',
+                    s.status === 'tight' && 'bg-g-warning-bg text-[#FBBC04]',
+                    s.status === 'overdue' && 'bg-g-error-bg text-[#EA4335]'
                   )}
                 >
                   {s.status === 'schedulable' ? '配置可能' : s.status === 'tight' ? '時間不足' : '期限超過'}

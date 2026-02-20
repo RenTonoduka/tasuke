@@ -125,7 +125,7 @@ export default async function WorkspacePage({
   return (
     <>
       <Header title="ダッシュボード" workspaceSlug={params.workspaceSlug} />
-      <div className="flex-1 overflow-auto bg-[#F8F9FA] p-6">
+      <div className="flex-1 overflow-auto bg-g-surface p-6">
         <div className="mx-auto max-w-7xl space-y-6">
           {/* 概要カード */}
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

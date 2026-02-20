@@ -11,9 +11,9 @@ import { cn } from '@/lib/utils';
 
 const priorityConfig = {
   P0: { label: 'P0', color: 'bg-[#EA4335] text-white' },
-  P1: { label: 'P1', color: 'bg-[#FBBC04] text-[#202124]' },
+  P1: { label: 'P1', color: 'bg-[#FBBC04] text-g-text' },
   P2: { label: 'P2', color: 'bg-[#4285F4] text-white' },
-  P3: { label: 'P3', color: 'bg-[#E8EAED] text-[#5F6368]' },
+  P3: { label: 'P3', color: 'bg-g-border text-g-text-secondary' },
 };
 
 interface TaskCardProps {
@@ -44,7 +44,7 @@ export function TaskCard({ task, overlay }: TaskCardProps) {
       ref={setNodeRef}
       style={overlay ? undefined : style}
       className={cn(
-        'group cursor-pointer rounded-lg border border-[#E8EAED] bg-white p-3 shadow-sm transition-shadow hover:shadow-md',
+        'group cursor-pointer rounded-lg border border-g-border bg-g-bg p-3 shadow-sm transition-shadow hover:shadow-md',
         isDragging && 'opacity-50',
         overlay && 'rotate-2 shadow-lg'
       )}
@@ -60,8 +60,8 @@ export function TaskCard({ task, overlay }: TaskCardProps) {
         </button>
         <div className="flex-1 min-w-0">
           <p className={cn(
-            'text-sm text-[#202124]',
-            task.status === 'DONE' && 'line-through text-[#80868B]'
+            'text-sm text-g-text',
+            task.status === 'DONE' && 'line-through text-g-text-muted'
           )}>
             {task.title}
           </p>
@@ -85,14 +85,14 @@ export function TaskCard({ task, overlay }: TaskCardProps) {
             ))}
 
             {task.dueDate && (
-              <span className="flex items-center gap-1 text-[10px] text-[#5F6368]">
+              <span className="flex items-center gap-1 text-[10px] text-g-text-secondary">
                 <Calendar className="h-3 w-3" />
                 {new Date(task.dueDate).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })}
               </span>
             )}
 
             {task._count.subtasks > 0 && (
-              <span className="text-[10px] text-[#5F6368]">
+              <span className="text-[10px] text-g-text-secondary">
                 サブ {task._count.subtasks}
               </span>
             )}

@@ -86,7 +86,7 @@ export function InboxClient({ initialNotifications }: InboxClientProps) {
     <div className="flex flex-col gap-4">
       {/* ツールバー */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1 rounded-lg border border-[#E8EAED] p-0.5">
+        <div className="flex items-center gap-1 rounded-lg border border-g-border p-0.5">
           {(['all', 'unread', 'read'] as FilterType[]).map((f) => (
             <button
               key={f}
@@ -95,7 +95,7 @@ export function InboxClient({ initialNotifications }: InboxClientProps) {
                 'rounded-md px-3 py-1 text-xs font-medium transition-colors',
                 filter === f
                   ? 'bg-[#4285F4] text-white'
-                  : 'text-[#5F6368] hover:bg-[#F1F3F4]'
+                  : 'text-g-text-secondary hover:bg-g-surface-hover'
               )}
             >
               {f === 'all' && `すべて (${notifications.length})`}
@@ -110,7 +110,7 @@ export function InboxClient({ initialNotifications }: InboxClientProps) {
             size="sm"
             variant="outline"
             onClick={markAllRead}
-            className="h-8 gap-1.5 text-xs border-[#E8EAED] text-[#5F6368] hover:text-[#202124]"
+            className="h-8 gap-1.5 text-xs border-g-border text-g-text-secondary hover:text-g-text"
           >
             <CheckCheck className="h-3.5 w-3.5" />
             すべて既読にする
@@ -120,35 +120,35 @@ export function InboxClient({ initialNotifications }: InboxClientProps) {
 
       {/* 通知リスト */}
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-[#E8EAED] py-20">
-          <Bell className="mb-3 h-8 w-8 text-[#80868B]" />
-          <p className="text-sm text-[#5F6368]">通知はありません</p>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-g-border py-20">
+          <Bell className="mb-3 h-8 w-8 text-g-text-muted" />
+          <p className="text-sm text-g-text-secondary">通知はありません</p>
         </div>
       ) : (
-        <div className="divide-y divide-[#E8EAED] rounded-lg border border-[#E8EAED] overflow-hidden">
+        <div className="divide-y divide-g-border rounded-lg border border-g-border overflow-hidden">
           {filtered.map((n) => (
             <button
               key={n.id}
               onClick={() => handleClick(n)}
               className={cn(
-                'flex w-full items-start gap-4 px-5 py-4 text-left transition-colors hover:bg-[#F8F9FA]',
+                'flex w-full items-start gap-4 px-5 py-4 text-left transition-colors hover:bg-g-surface',
                 !n.read && 'bg-[#EEF3FE] hover:bg-[#E8F0FD]'
               )}
             >
-              <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white shadow-sm border border-[#E8EAED]">
-                {typeIcon[n.type] ?? <Bell className="h-4 w-4 text-[#80868B]" />}
+              <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-g-bg shadow-sm border border-g-border">
+                {typeIcon[n.type] ?? <Bell className="h-4 w-4 text-g-text-muted" />}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="rounded-full bg-[#F1F3F4] px-2 py-0.5 text-[11px] font-medium text-[#5F6368]">
+                  <span className="rounded-full bg-g-surface-hover px-2 py-0.5 text-[11px] font-medium text-g-text-secondary">
                     {typeLabel[n.type] ?? n.type}
                   </span>
                   {!n.read && (
                     <span className="h-1.5 w-1.5 rounded-full bg-[#4285F4]" />
                   )}
                 </div>
-                <p className="text-sm text-[#202124]">{n.message}</p>
-                <p className="mt-1 text-xs text-[#80868B]">{formatDate(n.createdAt)}</p>
+                <p className="text-sm text-g-text">{n.message}</p>
+                <p className="mt-1 text-xs text-g-text-muted">{formatDate(n.createdAt)}</p>
               </div>
               {n.taskId && (
                 <span className="flex-shrink-0 text-xs text-[#4285F4]">

@@ -29,27 +29,27 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
   const toggle = useSidebarStore((s) => s.toggle);
 
   return (
-    <header className="flex h-12 items-center gap-3 border-b border-[#E8EAED] bg-white px-4">
+    <header className="flex h-12 items-center gap-3 border-b border-g-border bg-g-bg px-4">
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 text-[#5F6368] lg:hidden"
+        className="h-8 w-8 text-g-text-secondary lg:hidden"
         onClick={toggle}
       >
         <Menu className="h-5 w-5" />
       </Button>
 
-      <h1 className="text-base font-semibold text-[#202124]">{title}</h1>
+      <h1 className="text-base font-semibold text-g-text">{title}</h1>
 
       {onViewChange && (
-        <div className="ml-4 flex rounded-md border border-[#E8EAED]">
+        <div className="ml-4 flex rounded-md border border-g-border">
           <button
             onClick={() => onViewChange('board')}
             className={cn(
               'flex items-center gap-1.5 px-3 py-1 text-xs font-medium',
               view === 'board'
-                ? 'bg-[#E8EAED] text-[#202124]'
-                : 'text-[#5F6368] hover:bg-[#F1F3F4]'
+                ? 'bg-g-border text-g-text'
+                : 'text-g-text-secondary hover:bg-g-surface-hover'
             )}
           >
             <LayoutGrid className="h-3.5 w-3.5" />
@@ -60,8 +60,8 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
             className={cn(
               'flex items-center gap-1.5 px-3 py-1 text-xs font-medium',
               view === 'list'
-                ? 'bg-[#E8EAED] text-[#202124]'
-                : 'text-[#5F6368] hover:bg-[#F1F3F4]'
+                ? 'bg-g-border text-g-text'
+                : 'text-g-text-secondary hover:bg-g-surface-hover'
             )}
           >
             <List className="h-3.5 w-3.5" />
@@ -72,8 +72,8 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
             className={cn(
               'flex items-center gap-1.5 px-3 py-1 text-xs font-medium',
               view === 'timeline'
-                ? 'bg-[#E8EAED] text-[#202124]'
-                : 'text-[#5F6368] hover:bg-[#F1F3F4]'
+                ? 'bg-g-border text-g-text'
+                : 'text-g-text-secondary hover:bg-g-surface-hover'
             )}
           >
             <GanttChart className="h-3.5 w-3.5" />
@@ -84,8 +84,8 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
             className={cn(
               'flex items-center gap-1.5 px-3 py-1 text-xs font-medium',
               view === 'schedule'
-                ? 'bg-[#E8EAED] text-[#202124]'
-                : 'text-[#5F6368] hover:bg-[#F1F3F4]'
+                ? 'bg-g-border text-g-text'
+                : 'text-g-text-secondary hover:bg-g-surface-hover'
             )}
           >
             <CalendarClock className="h-3.5 w-3.5" />
@@ -102,7 +102,7 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
         {projectId && workspaceSlug && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-[#5F6368]">
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-g-text-secondary">
                 <Settings className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -119,10 +119,10 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <button className="flex items-center gap-2 rounded-md border border-[#E8EAED] px-3 py-1 text-xs text-[#80868B] hover:bg-[#F1F3F4]">
+        <button className="flex items-center gap-2 rounded-md border border-g-border px-3 py-1 text-xs text-g-text-muted hover:bg-g-surface-hover">
           <Search className="h-3.5 w-3.5" />
           <span>検索...</span>
-          <kbd className="ml-1 rounded bg-[#F1F3F4] px-1.5 py-0.5 font-mono text-[10px] font-medium text-[#5F6368]">
+          <kbd className="ml-1 rounded bg-g-surface-hover px-1.5 py-0.5 font-mono text-[10px] font-medium text-g-text-secondary">
             ⌘K
           </kbd>
         </button>

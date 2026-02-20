@@ -28,7 +28,7 @@ export function AddTaskInline({ onAdd }: AddTaskInlineProps) {
           setIsEditing(true);
           setTimeout(() => inputRef.current?.focus(), 0);
         }}
-        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-[#80868B] hover:bg-[#F1F3F4] hover:text-[#5F6368]"
+        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-g-text-muted hover:bg-g-surface-hover hover:text-g-text-secondary"
       >
         <Plus className="h-4 w-4" />
         タスクを追加
@@ -37,7 +37,7 @@ export function AddTaskInline({ onAdd }: AddTaskInlineProps) {
   }
 
   return (
-    <div className="rounded-lg border border-[#4285F4] bg-white p-2">
+    <div className="rounded-lg border border-[#4285F4] bg-g-bg p-2">
       <input
         ref={inputRef}
         value={title}
@@ -48,7 +48,7 @@ export function AddTaskInline({ onAdd }: AddTaskInlineProps) {
         }}
         onBlur={handleSubmit}
         placeholder="タスク名を入力..."
-        className="w-full bg-transparent text-sm text-[#202124] outline-none placeholder:text-[#DADCE0]"
+        className="w-full bg-transparent text-sm text-g-text outline-none placeholder:text-[#DADCE0]"
         autoFocus
       />
     </div>
