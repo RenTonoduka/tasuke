@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { CalendarClock, RefreshCw, AlertTriangle, Clock, Settings2 } from 'lucide-react';
+import { CalendarClock, CalendarPlus, CalendarCheck, RefreshCw, AlertTriangle, Clock, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
@@ -58,6 +58,12 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 const HOUR_WIDTH = 80;
 
+function minutesToTime(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number);
   return h * 60 + m;
@@ -92,6 +98,8 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
   const [workEnd, setWorkEnd] = useState(18);
   const [skipWeekends, setSkipWeekends] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [registeredBlocks, setRegisteredBlocks] = useState<Map<string, string>>(new Map());
+  const [registeringSlot, setRegisteringSlot] = useState<string | null>(null);
   const openPanel = useTaskPanelStore((s) => s.open);
 
   const workHours = workEnd - workStart;
@@ -119,7 +127,22 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
         setEvents(await eventsRes.json());
       }
       if (suggestionRes.ok) {
-        setData(await suggestionRes.json());
+        const scheduleData = await suggestionRes.json();
+        setData(scheduleData);
+
+        // 登録済みブロック取得
+        const taskIds = (scheduleData.suggestions ?? []).map((s: TaskSuggestion) => s.taskId).join(',');
+        if (taskIds) {
+          const blocksRes = await fetch(`/api/calendar/schedule-block?taskIds=${taskIds}`);
+          if (blocksRes.ok) {
+            const blocks: { taskId: string; date: string; startTime: string; id: string }[] = await blocksRes.json();
+            const map = new Map<string, string>();
+            for (const b of blocks) {
+              map.set(`${b.taskId}|${b.date}|${b.startTime}`, b.id);
+            }
+            setRegisteredBlocks(map);
+          }
+        }
       }
     } catch (err) {
       console.error('スケジュール取得エラー:', err);
@@ -131,6 +154,52 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
   useEffect(() => {
     fetchSchedule();
   }, [fetchSchedule]);
+
+  const handleRegisterBlock = async (
+    taskId: string,
+    date: string,
+    startMin: number,
+    endMin: number,
+  ) => {
+    const start = minutesToTime(startMin);
+    const slotKey = `${taskId}|${date}|${start}`;
+
+    if (registeredBlocks.has(slotKey)) {
+      // 登録解除
+      const blockId = registeredBlocks.get(slotKey)!;
+      setRegisteringSlot(slotKey);
+      try {
+        const res = await fetch('/api/calendar/schedule-block', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scheduleBlockId: blockId }),
+        });
+        if (res.ok) {
+          setRegisteredBlocks((prev) => { const m = new Map(prev); m.delete(slotKey); return m; });
+        }
+      } finally {
+        setRegisteringSlot(null);
+      }
+      return;
+    }
+
+    // 新規登録
+    setRegisteringSlot(slotKey);
+    try {
+      const end = minutesToTime(endMin);
+      const res = await fetch('/api/calendar/schedule-block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, date, start, end }),
+      });
+      if (res.ok) {
+        const block = await res.json();
+        setRegisteredBlocks((prev) => new Map(prev).set(slotKey, block.id));
+      }
+    } finally {
+      setRegisteringSlot(null);
+    }
+  };
 
   // 日ごとにデータを整理
   const getDaysData = () => {
@@ -360,13 +429,16 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
                         const left = ((clampedStart - workStartMin) / 60) * HOUR_WIDTH;
                         const width = ((clampedEnd - clampedStart) / 60) * HOUR_WIDTH;
                         const color = PRIORITY_COLORS[task.priority] ?? '#4285F4';
+                        const slotKey = `${task.taskId}|${date}|${minutesToTime(task.startMin)}`;
+                        const isRegistered = registeredBlocks.has(slotKey);
+                        const isRegistering = registeringSlot === slotKey;
                         return (
-                          <button
+                          <div
                             key={`task-${i}`}
-                            onClick={() => openPanel(task.taskId)}
                             className={cn(
-                              'absolute top-1 flex items-center overflow-hidden rounded px-1.5 text-[10px] font-medium text-white transition-opacity hover:opacity-80',
-                              task.status === 'tight' && 'border-2 border-dashed border-white'
+                              'absolute top-1 flex items-center overflow-hidden rounded px-1.5 text-[10px] font-medium text-white',
+                              task.status === 'tight' && 'border-2 border-dashed border-white',
+                              isRegistered && 'ring-2 ring-white/70'
                             )}
                             style={{
                               left,
@@ -376,8 +448,27 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
                             }}
                             title={`${task.title} (${task.priority})`}
                           >
-                            <span className="truncate">{task.title}</span>
-                          </button>
+                            <button
+                              onClick={() => openPanel(task.taskId)}
+                              className="min-w-0 flex-1 truncate text-left transition-opacity hover:opacity-80"
+                            >
+                              {task.title}
+                            </button>
+                            <button
+                              onClick={() => handleRegisterBlock(task.taskId, date, task.startMin, task.endMin)}
+                              disabled={isRegistering}
+                              className="ml-0.5 shrink-0 rounded p-0.5 transition-opacity hover:bg-white/20"
+                              title={isRegistered ? 'カレンダー登録解除' : 'Googleカレンダーに登録'}
+                            >
+                              {isRegistering ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : isRegistered ? (
+                                <CalendarCheck className="h-3 w-3" />
+                              ) : (
+                                <CalendarPlus className="h-3 w-3 opacity-70" />
+                              )}
+                            </button>
+                          </div>
                         );
                       })}
                     </div>
