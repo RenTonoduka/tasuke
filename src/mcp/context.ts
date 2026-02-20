@@ -18,7 +18,7 @@ export async function getDefaultWorkspace() {
   const userId = await getDefaultUser();
   const member = await prisma.workspaceMember.findFirst({
     where: { userId },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { joinedAt: 'asc' },
   });
   if (!member) throw new Error('ワークスペースが存在しません');
   cachedWorkspaceId = member.workspaceId;
