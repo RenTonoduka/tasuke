@@ -44,8 +44,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const body = await req.json();
     const { email, role } = inviteSchema.parse(body);
 
-    const targetUser = await prisma.user.findUnique({ where: { email } });
-    if (!targetUser) return errorResponse('該当するユーザーが見つかりません', 404);
+    let targetUser = await prisma.user.findUnique({ where: { email } });
+    if (!targetUser) {
+      targetUser = await prisma.user.create({
+        data: { email, name: email.split('@')[0] },
+      });
+    }
 
     const existing = await prisma.workspaceMember.findFirst({
       where: { workspaceId: params.id, userId: targetUser.id },
