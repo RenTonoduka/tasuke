@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Calendar, Clock, Flag, Tag, Users, CheckSquare } from 'lucide-react';
+import { X, Calendar, Clock, Flag, Tag, Users, CheckSquare, GripVertical } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -54,6 +54,10 @@ interface TaskDetail {
   attachments: { id: string; name: string; mimeType: string; url: string; driveFileId: string; iconUrl: string | null; size: number | null; createdAt: string }[];
 }
 
+const MIN_WIDTH = 380;
+const MAX_WIDTH = 900;
+const DEFAULT_WIDTH = 480;
+
 export function TaskDetailPanel() {
   const { activeTaskId, close } = useTaskPanelStore();
   const [task, setTask] = useState<TaskDetail | null>(null);
@@ -61,6 +65,31 @@ export function TaskDetailPanel() {
   const [description, setDescription] = useState('');
   const [newSubtask, setNewSubtask] = useState('');
   const isUpdatingRef = useRef(false);
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH);
+  const isResizingRef = useRef(false);
+
+  const handleResizeStart = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    const startX = e.clientX;
+    const startWidth = panelWidth;
+
+    const handleMove = (ev: PointerEvent) => {
+      if (!isResizingRef.current) return;
+      const delta = startX - ev.clientX;
+      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + delta));
+      setPanelWidth(newWidth);
+    };
+
+    const handleUp = () => {
+      isResizingRef.current = false;
+      document.removeEventListener('pointermove', handleMove);
+      document.removeEventListener('pointerup', handleUp);
+    };
+
+    document.addEventListener('pointermove', handleMove);
+    document.addEventListener('pointerup', handleUp);
+  }, [panelWidth]);
 
   const fetchTask = useCallback(async (id: string) => {
     const res = await fetch(`/api/tasks/${id}`);
@@ -146,7 +175,18 @@ export function TaskDetailPanel() {
 
   return (
     <Sheet open={!!activeTaskId} onOpenChange={(open) => !open && close()}>
-      <SheetContent className="w-full sm:max-w-[480px] overflow-y-auto p-0">
+      <SheetContent
+        className="overflow-y-auto p-0 !w-full"
+        style={{ maxWidth: panelWidth }}
+      >
+        {/* リサイズハンドル */}
+        <div
+          onPointerDown={handleResizeStart}
+          className="absolute left-0 top-0 z-50 flex h-full w-2 cursor-col-resize items-center justify-center hover:bg-[#4285F4]/10 active:bg-[#4285F4]/20"
+          style={{ touchAction: 'none' }}
+        >
+          <div className="h-8 w-1 rounded-full bg-g-border" />
+        </div>
         {task && (
           <div className="flex flex-col">
             {/* Header */}
