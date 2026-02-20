@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
@@ -13,8 +14,27 @@ import {
   Inbox,
   Sun,
   Moon,
+  GripVertical,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProjectCreateDialog } from '@/components/project/project-create-dialog';
@@ -34,6 +54,56 @@ interface Project {
   color: string;
 }
 
+interface SortableProjectItemProps {
+  project: Project;
+  href: string;
+  isActive: boolean;
+}
+
+function SortableProjectItem({ project, href, isActive }: SortableProjectItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: project.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'group flex items-center rounded-md text-sm text-g-text-secondary hover:bg-g-border hover:text-g-text',
+        isActive && 'bg-g-border font-medium text-g-text',
+        isDragging && 'opacity-50'
+      )}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="flex h-full shrink-0 cursor-grab items-center pl-1.5 pr-0.5 text-g-text-muted opacity-0 group-hover:opacity-100 active:cursor-grabbing"
+        tabIndex={-1}
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </button>
+      <Link
+        href={href}
+        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-3"
+      >
+        <FolderKanban className="h-4 w-4 shrink-0" style={{ color: project.color }} />
+        <span className="truncate">{project.name}</span>
+      </Link>
+    </div>
+  );
+}
+
 interface SidebarProps {
   projects?: Project[];
   workspaceName?: string;
@@ -41,11 +111,45 @@ interface SidebarProps {
   workspaceId?: string;
 }
 
-export function Sidebar({ projects = [], workspaceName = 'マイワークスペース', currentWorkspaceSlug = '', workspaceId = '' }: SidebarProps) {
+export function Sidebar({ projects: initialProjects = [], workspaceName = 'マイワークスペース', currentWorkspaceSlug = '', workspaceId = '' }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const user = session?.user;
   const { theme, setTheme } = useTheme();
+
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [activeProject, setActiveProject] = useState<Project | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const proj = projects.find((p) => p.id === event.active.id);
+    if (proj) setActiveProject(proj);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveProject(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = projects.findIndex((p) => p.id === active.id);
+    const newIndex = projects.findIndex((p) => p.id === over.id);
+    const reordered = arrayMove(projects, oldIndex, newIndex);
+    setProjects(reordered);
+
+    try {
+      await fetch(`/api/workspaces/${workspaceId}/projects/reorder`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectIds: reordered.map((p) => p.id) }),
+      });
+    } catch {
+      setProjects(initialProjects);
+    }
+  };
 
   const navItems = [
     {
@@ -123,19 +227,34 @@ export function Sidebar({ projects = [], workspaceName = 'マイワークスペ�
             </span>
             <ProjectCreateDialog workspaceId={workspaceId} workspaceSlug={currentWorkspaceSlug} />
           </div>
-          {projects.map((project) => (
-            <Link
-              key={project.id}
-              href={`/${currentWorkspaceSlug}/projects/${project.id}`}
-              className={cn(
-                'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm text-g-text-secondary hover:bg-g-border hover:text-g-text',
-                pathname?.includes(project.id) && 'bg-g-border font-medium text-g-text'
-              )}
-            >
-              <FolderKanban className="h-4 w-4" style={{ color: project.color }} />
-              <span className="truncate">{project.name}</span>
-            </Link>
-          ))}
+
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={projects.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+              {projects.map((project) => (
+                <SortableProjectItem
+                  key={project.id}
+                  project={project}
+                  href={`/${currentWorkspaceSlug}/projects/${project.id}`}
+                  isActive={!!pathname?.includes(project.id)}
+                />
+              ))}
+            </SortableContext>
+
+            <DragOverlay>
+              {activeProject ? (
+                <div className="flex items-center gap-2 rounded-md bg-g-bg px-3 py-1.5 text-sm font-medium text-g-text shadow-lg ring-1 ring-g-border">
+                  <FolderKanban className="h-4 w-4" style={{ color: activeProject.color }} />
+                  <span className="truncate">{activeProject.name}</span>
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+
           {projects.length === 0 && (
             <p className="px-3 py-2 text-xs text-g-text-muted">
               プロジェクトがありません
