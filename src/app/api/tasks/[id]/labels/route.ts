@@ -4,8 +4,8 @@ import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { z } from 'zod';
 
-const assigneesSchema = z.object({
-  userIds: z.array(z.string()),
+const labelsSchema = z.object({
+  labelIds: z.array(z.string()),
 });
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
@@ -16,30 +16,30 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         id: params.id,
         project: { workspace: { members: { some: { userId: user.id } } } },
       },
-      include: { assignees: true, project: { select: { workspaceId: true } } },
+      include: { labels: true, project: { select: { workspaceId: true } } },
     });
     if (!task) return errorResponse('タスクが見つかりません', 404);
 
     const member = await prisma.workspaceMember.findFirst({
       where: { workspaceId: task.project.workspaceId, userId: user.id },
     });
-    if (member?.role === 'VIEWER') return errorResponse('閲覧者はアサインを変更できません', 403);
+    if (member?.role === 'VIEWER') return errorResponse('閲覧者はラベルを変更できません', 403);
 
-    const { userIds } = assigneesSchema.parse(await req.json());
+    const { labelIds } = labelsSchema.parse(await req.json());
 
-    const currentIds = task.assignees.map((a) => a.userId);
-    const toAdd = userIds.filter((id) => !currentIds.includes(id));
-    const toRemove = currentIds.filter((id) => !userIds.includes(id));
+    const currentIds = task.labels.map((l) => l.labelId);
+    const toAdd = labelIds.filter((id) => !currentIds.includes(id));
+    const toRemove = currentIds.filter((id) => !labelIds.includes(id));
 
     await prisma.$transaction([
-      ...toRemove.map((userId) =>
-        prisma.taskAssignment.deleteMany({
-          where: { taskId: params.id, userId },
+      ...toRemove.map((labelId) =>
+        prisma.taskLabel.deleteMany({
+          where: { taskId: params.id, labelId },
         })
       ),
-      ...toAdd.map((userId) =>
-        prisma.taskAssignment.create({
-          data: { taskId: params.id, userId },
+      ...toAdd.map((labelId) =>
+        prisma.taskLabel.create({
+          data: { taskId: params.id, labelId },
         })
       ),
     ]);
@@ -47,13 +47,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const updated = await prisma.task.findUnique({
       where: { id: params.id },
       include: {
-        assignees: {
-          include: { user: { select: { id: true, name: true, image: true } } },
-        },
+        labels: { include: { label: true } },
       },
     });
 
-    return successResponse(updated?.assignees ?? []);
+    return successResponse(updated?.labels ?? []);
   } catch (error) {
     return handleApiError(error);
   }

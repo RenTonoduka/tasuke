@@ -201,6 +201,10 @@ model Task {
   activities      Activity[]
   attachments     TaskAttachment[]
   scheduleBlocks  ScheduleBlock[]
+
+  @@index([projectId, status])
+  @@index([sectionId])
+  @@index([dueDate])
 }
 
 model TaskAssignment {
@@ -341,6 +345,9 @@ model Activity {
 
   task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
   user User  @relation(fields: [userId], references: [id])
+
+  @@index([taskId])
+  @@index([userId, createdAt])
 }
 
 // ========== Notification ==========
@@ -355,4 +362,7 @@ model Notification {
   taskId    String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([createdAt])
 }

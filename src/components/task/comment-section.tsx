@@ -158,6 +158,7 @@ export function CommentSection({ taskId, comments, onCommentAdded, workspaceId }
   };
 
   const handleDelete = async (commentId: string) => {
+    if (!window.confirm('このコメントを削除しますか？')) return;
     try {
       const res = await fetch(`/api/tasks/${taskId}/comments/${commentId}`, {
         method: 'DELETE',

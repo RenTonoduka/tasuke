@@ -50,6 +50,7 @@ interface TaskDetail {
   description: string | null;
   priority: string;
   status: string;
+  startDate: string | null;
   dueDate: string | null;
   estimatedHours: number | null;
   googleCalendarEventId: string | null;
@@ -79,6 +80,8 @@ export function TaskDetailPanel() {
   const isResizingRef = useRef(false);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const [labelOpen, setLabelOpen] = useState(false);
+  const [availableLabels, setAvailableLabels] = useState<{ id: string; name: string; color: string }[]>([]);
 
   const handleResizeStart = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
@@ -131,6 +134,35 @@ export function TaskDetailPanel() {
   useEffect(() => {
     if (assigneeOpen) fetchMembers();
   }, [assigneeOpen, fetchMembers]);
+
+  // ラベル取得（Popover展開時）
+  const fetchLabels = useCallback(async () => {
+    if (!task?.project?.workspaceId) return;
+    try {
+      const res = await fetch(`/api/workspaces/${task.project.workspaceId}/labels`);
+      if (res.ok) setAvailableLabels(await res.json());
+    } catch {}
+  }, [task?.project?.workspaceId]);
+
+  useEffect(() => {
+    if (labelOpen) fetchLabels();
+  }, [labelOpen, fetchLabels]);
+
+  const toggleLabel = async (labelId: string) => {
+    if (!task) return;
+    const currentIds = task.labels.map((l) => l.label.id);
+    const newIds = currentIds.includes(labelId)
+      ? currentIds.filter((id) => id !== labelId)
+      : [...currentIds, labelId];
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/labels`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ labelIds: newIds }),
+      });
+      if (res.ok) fetchTask(task.id);
+    } catch {}
+  };
 
   const toggleAssignee = async (userId: string) => {
     if (!task) return;
@@ -309,9 +341,27 @@ export function TaskDetailPanel() {
                 </Select>
               </div>
 
+              {/* Start date */}
+              <div className="flex items-center gap-3">
+                <Calendar className="h-4 w-4 text-g-text-muted" />
+                <span className="text-xs text-g-text-muted w-12">開始</span>
+                <input
+                  type="date"
+                  value={task.startDate ? task.startDate.split('T')[0] : ''}
+                  onChange={(e) =>
+                    updateField(
+                      'startDate',
+                      e.target.value ? new Date(e.target.value).toISOString() : null
+                    )
+                  }
+                  className="h-8 rounded-md border border-g-border px-2 text-xs text-g-text"
+                />
+              </div>
+
               {/* Due date */}
               <div className="flex items-center gap-3">
                 <Calendar className="h-4 w-4 text-g-text-muted" />
+                <span className="text-xs text-g-text-muted w-12">期限</span>
                 <input
                   type="date"
                   value={task.dueDate ? task.dueDate.split('T')[0] : ''}
@@ -422,26 +472,55 @@ export function TaskDetailPanel() {
               </div>
 
               {/* Labels */}
-              {task.labels.length > 0 && (
-                <div className="flex items-center gap-3">
-                  <Tag className="h-4 w-4 text-g-text-muted" />
-                  <div className="flex flex-wrap gap-1">
-                    {task.labels.map((tl) => (
-                      <Badge
-                        key={tl.id}
-                        variant="secondary"
-                        className="text-xs"
-                        style={{
-                          backgroundColor: tl.label.color + '20',
-                          color: tl.label.color,
-                        }}
-                      >
-                        {tl.label.name}
-                      </Badge>
-                    ))}
-                  </div>
+              <div className="flex items-center gap-3">
+                <Tag className="h-4 w-4 text-g-text-muted" />
+                <div className="flex flex-1 flex-wrap items-center gap-1">
+                  {task.labels.map((tl) => (
+                    <Badge
+                      key={tl.id}
+                      variant="secondary"
+                      className="text-xs"
+                      style={{
+                        backgroundColor: tl.label.color + '20',
+                        color: tl.label.color,
+                      }}
+                    >
+                      {tl.label.name}
+                    </Badge>
+                  ))}
+                  <Popover open={labelOpen} onOpenChange={setLabelOpen}>
+                    <PopoverTrigger asChild>
+                      <button className="flex h-6 items-center gap-1 rounded-full border border-dashed border-g-border px-2 text-xs text-g-text-muted hover:border-g-text-secondary hover:text-g-text-secondary">
+                        <Tag className="h-3 w-3" />
+                        ラベル
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-1" align="start">
+                      <div className="px-2 py-1.5 text-xs font-medium text-g-text-secondary">ラベル</div>
+                      {availableLabels.map((label) => {
+                        const isAttached = task.labels.some((tl) => tl.label.id === label.id);
+                        return (
+                          <button
+                            key={label.id}
+                            onClick={() => toggleLabel(label.id)}
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-g-surface-hover"
+                          >
+                            <span
+                              className="h-3 w-3 rounded-full"
+                              style={{ backgroundColor: label.color }}
+                            />
+                            <span className="flex-1 truncate text-left text-g-text">{label.name}</span>
+                            {isAttached && <Check className="h-4 w-4 text-[#34A853]" />}
+                          </button>
+                        );
+                      })}
+                      {availableLabels.length === 0 && (
+                        <div className="px-2 py-3 text-center text-xs text-g-text-muted">ラベルなし</div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Description */}

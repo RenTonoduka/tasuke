@@ -22,9 +22,7 @@ interface MyTask {
   status: string;
   priority: string;
   dueDate: string | null;
-  section: {
-    project: { id: string; name: string; color: string };
-  };
+  project: { id: string; name: string; color: string };
   assignees: { id: string; user: { id: string; name: string | null; image: string | null } }[];
   labels: { id: string; label: { id: string; name: string; color: string } }[];
   _count: { subtasks: number };
@@ -149,12 +147,12 @@ function TaskRow({
 
       {/* Project name */}
       <a
-        href={`/${workspaceSlug}/projects/${task.section.project.id}`}
+        href={`/${workspaceSlug}/projects/${task.project.id}`}
         className="hidden items-center gap-1 text-xs text-g-text-secondary hover:text-g-text sm:flex"
         onClick={(e) => e.stopPropagation()}
       >
-        <FolderKanban className="h-3 w-3" style={{ color: task.section.project.color }} />
-        {task.section.project.name}
+        <FolderKanban className="h-3 w-3" style={{ color: task.project.color }} />
+        {task.project.name}
       </a>
 
       <div className="hidden items-center gap-1 sm:flex">

@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
-import { successResponse, handleApiError } from '@/lib/api-utils';
+import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { canAccessProject } from '@/lib/project-access';
 
 const createSectionSchema = z.object({
   name: z.string().min(1).max(50),
@@ -17,7 +18,10 @@ const reorderSchema = z.object({
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAuthUser();
+    const user = await requireAuthUser();
+    if (!(await canAccessProject(user.id, params.id))) {
+      return errorResponse('プロジェクトへのアクセス権がありません', 403);
+    }
     const sections = await prisma.section.findMany({
       where: { projectId: params.id },
       orderBy: { position: 'asc' },
@@ -31,7 +35,19 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAuthUser();
+    const user = await requireAuthUser();
+    if (!(await canAccessProject(user.id, params.id))) {
+      return errorResponse('プロジェクトへのアクセス権がありません', 403);
+    }
+
+    // VIEWERチェック
+    const project = await prisma.project.findUnique({ where: { id: params.id }, select: { workspaceId: true } });
+    if (!project) return errorResponse('プロジェクトが見つかりません', 404);
+    const member = await prisma.workspaceMember.findFirst({
+      where: { workspaceId: project.workspaceId, userId: user.id },
+    });
+    if (member?.role === 'VIEWER') return errorResponse('閲覧者はセクションを作成できません', 403);
+
     const body = await req.json();
     const data = createSectionSchema.parse(body);
 
@@ -56,7 +72,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAuthUser();
+    const user = await requireAuthUser();
+    if (!(await canAccessProject(user.id, params.id))) {
+      return errorResponse('プロジェクトへのアクセス権がありません', 403);
+    }
+
+    // VIEWERチェック
+    const project = await prisma.project.findUnique({ where: { id: params.id }, select: { workspaceId: true } });
+    if (!project) return errorResponse('プロジェクトが見つかりません', 404);
+    const member = await prisma.workspaceMember.findFirst({
+      where: { workspaceId: project.workspaceId, userId: user.id },
+    });
+    if (member?.role === 'VIEWER') return errorResponse('閲覧者はセクションを編集できません', 403);
+
     const body = await req.json();
     const data = reorderSchema.parse(body);
 

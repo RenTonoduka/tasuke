@@ -104,7 +104,11 @@ export function BulkActionBar({ onAction }: BulkActionBarProps) {
         size="sm"
         className="h-7 gap-1.5 text-xs text-[#EA4335] hover:bg-red-50 hover:text-[#EA4335]"
         disabled={loading}
-        onClick={() => execute('delete')}
+        onClick={() => {
+          if (window.confirm(`選択した${count}件のタスクを削除しますか？この操作は取り消せません。`)) {
+            execute('delete');
+          }
+        }}
       >
         <Trash2 className="h-3.5 w-3.5" />
         削除

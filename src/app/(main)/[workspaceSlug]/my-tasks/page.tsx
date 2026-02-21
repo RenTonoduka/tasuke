@@ -24,11 +24,11 @@ export default async function MyTasksPage({
   const tasks = await prisma.task.findMany({
     where: {
       assignees: { some: { userId: session.user.id } },
-      section: { project: { workspaceId: workspace.id } },
+      project: { workspaceId: workspace.id },
     },
     orderBy: { createdAt: 'desc' },
     include: {
-      section: { include: { project: { select: { id: true, name: true, color: true } } } },
+      project: { select: { id: true, name: true, color: true } },
       assignees: {
         include: { user: { select: { id: true, name: true, image: true } } },
       },

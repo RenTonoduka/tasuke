@@ -31,16 +31,19 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
   const [sections, setSections] = useState<Section[]>(initialSections);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
 
-  const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder } = useFilterStore();
+  const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder, hasActiveFilters } = useFilterStore();
+  const isFiltered = hasActiveFilters();
   const filteredSections = useMemo(() => {
     const f: FilterState = { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder };
     return sections.map((s) => ({ ...s, tasks: filterTasks(s.tasks, f) }));
   }, [sections, priority, status, assignee, label, dueDateFilter, sortBy, sortOrder]);
 
-  const sensors = useSensors(
+  const activeSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
+  const emptySensors = useSensors();
+  const sensors = isFiltered ? emptySensors : activeSensors;
 
   const findSectionByTaskId = useCallback(
     (taskId: string) => {

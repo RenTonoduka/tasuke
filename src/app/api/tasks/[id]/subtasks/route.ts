@@ -39,12 +39,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         id: params.id,
         project: { workspace: { members: { some: { userId: user.id } } } },
       },
-      select: { projectId: true, sectionId: true },
+      select: { projectId: true, sectionId: true, project: { select: { workspaceId: true } } },
     });
 
     if (!parentTask) {
       return errorResponse('親タスクが見つかりません', 404);
     }
+
+    const member = await prisma.workspaceMember.findFirst({
+      where: { workspaceId: parentTask.project.workspaceId, userId: user.id },
+    });
+    if (member?.role === 'VIEWER') return errorResponse('閲覧者はサブタスクを作成できません', 403);
 
     const maxPos = await prisma.task.aggregate({
       where: { parentId: params.id },

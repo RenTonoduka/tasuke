@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Header } from '@/components/layout/header';
 import { BoardView } from '@/components/board/board-view';
 import { ListView } from '@/components/list/list-view';
@@ -11,6 +11,7 @@ import { TaskDetailPanel } from '@/components/task/task-detail-panel';
 import { FilterBar } from '@/components/shared/filter-bar';
 import { BulkActionBar } from '@/components/shared/bulk-action-bar';
 import { useFilterUrlSync } from '@/hooks/use-filter-url-sync';
+import { useSelectionStore } from '@/stores/selection-store';
 import type { FilterBarMember, FilterBarLabel } from '@/components/shared/filter-bar';
 import type { Project, Section } from '@/types';
 
@@ -23,6 +24,11 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
   const [view, setView] = useState<'board' | 'list' | 'timeline' | 'schedule' | 'dashboard'>('board');
   const [sections, setSections] = useState<Section[]>(project.sections);
   useFilterUrlSync();
+
+  const handleViewChange = useCallback((v: typeof view) => {
+    useSelectionStore.getState().clear();
+    setView(v);
+  }, []);
 
   // Extract unique members and labels from tasks for filter bar
   const { members, labels } = useMemo(() => {
@@ -98,14 +104,16 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
       <Header
         title={project.name}
         view={view}
-        onViewChange={setView}
+        onViewChange={handleViewChange}
         workspaceSlug={workspaceSlug}
         workspaceId={project.workspaceId}
         projectId={project.id}
         projectName={project.name}
       />
 
-      <FilterBar members={members} labels={labels} />
+      {(view === 'board' || view === 'list' || view === 'timeline') && (
+        <FilterBar members={members} labels={labels} />
+      )}
 
       <div className="flex-1 overflow-hidden flex flex-col">
         {view === 'board' && (
