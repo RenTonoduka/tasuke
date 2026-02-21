@@ -8,6 +8,7 @@ import { UpcomingDeadlines } from '@/components/dashboard/upcoming-deadlines';
 import { DashboardClient } from './dashboard-client';
 import { CheckCircle, Clock, AlertCircle, ListTodo } from 'lucide-react';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { getAccessibleProjectIds } from '@/lib/project-access';
 
 export default async function WorkspacePage({
   params,
@@ -25,8 +26,9 @@ export default async function WorkspacePage({
   if (!workspace || workspace.members.length === 0) redirect('/');
 
   const now = new Date();
+  const accessibleIds = await getAccessibleProjectIds(session.user.id, workspace.id);
   const projects = await prisma.project.findMany({
-    where: { workspaceId: workspace.id },
+    where: { id: { in: accessibleIds } },
     select: { id: true, name: true, color: true },
     orderBy: { position: 'asc' },
   });

@@ -3,6 +3,7 @@ import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { createProjectSchema } from '@/lib/validations/project';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { getAccessibleProjectIds } from '@/lib/project-access';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -12,8 +13,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     });
     if (!member) return errorResponse('アクセス権限がありません', 403);
 
+    const accessibleIds = await getAccessibleProjectIds(user.id, params.id);
     const projects = await prisma.project.findMany({
-      where: { workspaceId: params.id },
+      where: { id: { in: accessibleIds } },
       include: {
         sections: { orderBy: { position: 'asc' } },
         _count: { select: { tasks: true } },
@@ -54,6 +56,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
             { name: '完了', position: 2 },
           ],
         },
+        ...(data.isPrivate && {
+          members: {
+            create: { userId: user.id },
+          },
+        }),
       },
       include: { sections: { orderBy: { position: 'asc' } } },
     });

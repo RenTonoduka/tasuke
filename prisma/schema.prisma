@@ -21,6 +21,7 @@ model User {
   accounts          Account[]
   sessions          Session[]
   workspaceMembers  WorkspaceMember[]
+  projectMembers    ProjectMember[]
   taskAssignments   TaskAssignment[]
   comments          Comment[]
   createdTasks      Task[]         @relation("CreatedBy")
@@ -107,6 +108,7 @@ model Project {
   description String?
   color       String   @default("#4285F4")
   position    Int      @default(0)
+  isPrivate   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   workspaceId String
@@ -115,6 +117,19 @@ model Project {
   sections        Section[]
   tasks           Task[]
   automationRules AutomationRule[]
+  members         ProjectMember[]
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  addedAt   DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
 }
 
 // ========== Section (カンバンカラム) ==========

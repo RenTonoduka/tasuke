@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { canAccessProject } from '@/lib/project-access';
 
 const saveAsTemplateSchema = z.object({
   name: z.string().min(1, 'テンプレート名は必須です').max(100),
@@ -12,6 +13,9 @@ const saveAsTemplateSchema = z.object({
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = await requireAuthUser();
+    if (!(await canAccessProject(user.id, params.id))) {
+      return errorResponse('プロジェクトへのアクセス権がありません', 403);
+    }
 
     const project = await prisma.project.findFirst({
       where: {

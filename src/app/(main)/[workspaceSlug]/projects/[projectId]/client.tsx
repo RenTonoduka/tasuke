@@ -68,6 +68,7 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
         view={view}
         onViewChange={setView}
         workspaceSlug={workspaceSlug}
+        workspaceId={project.workspaceId}
         projectId={project.id}
         projectName={project.name}
       />

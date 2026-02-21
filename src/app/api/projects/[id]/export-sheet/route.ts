@@ -3,6 +3,7 @@ import { requireAuthUser } from '@/lib/auth';
 import { getGoogleClient, getSheetsClient } from '@/lib/google';
 import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { canAccessProject } from '@/lib/project-access';
 
 const STATUS_LABELS: Record<string, string> = {
   TODO: '未着手',
@@ -21,6 +22,9 @@ const PRIORITY_LABELS: Record<string, string> = {
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = await requireAuthUser();
+    if (!(await canAccessProject(user.id, params.id))) {
+      return errorResponse('プロジェクトへのアクセス権がありません', 403);
+    }
 
     const project = await prisma.project.findFirst({
       where: {

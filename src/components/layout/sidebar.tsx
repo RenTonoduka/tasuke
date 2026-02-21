@@ -15,6 +15,7 @@ import {
   Sun,
   Moon,
   GripVertical,
+  Lock,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
@@ -52,6 +53,7 @@ interface Project {
   id: string;
   name: string;
   color: string;
+  isPrivate: boolean;
 }
 
 interface SortableProjectItemProps {
@@ -100,6 +102,7 @@ function SortableProjectItem({ project, href, isActive }: SortableProjectItemPro
       >
         <FolderKanban className="h-4 w-4 shrink-0" style={{ color: project.color }} />
         <span className="truncate">{project.name}</span>
+        {project.isPrivate && <Lock className="ml-auto h-3 w-3 shrink-0 text-g-text-muted" />}
       </Link>
     </div>
   );

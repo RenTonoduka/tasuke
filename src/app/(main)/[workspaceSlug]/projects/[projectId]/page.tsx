@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation';
 import { getAuthSession } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { ProjectPageClient } from './client';
+import { canAccessProject } from '@/lib/project-access';
 
 export default async function ProjectPage({
   params,
@@ -10,6 +11,10 @@ export default async function ProjectPage({
 }) {
   const session = await getAuthSession();
   if (!session?.user) redirect('/login');
+
+  if (!(await canAccessProject(session.user.id, params.projectId))) {
+    notFound();
+  }
 
   const project = await prisma.project.findFirst({
     where: {

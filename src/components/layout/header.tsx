@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Menu, LayoutGrid, List, GanttChart, CalendarClock, BarChart3, Search, Settings, Zap, Pencil } from 'lucide-react';
+import { Menu, LayoutGrid, List, GanttChart, CalendarClock, BarChart3, Search, Settings, Zap, Pencil, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { useSidebarStore } from '@/stores/sidebar-store';
 import { NotificationBell } from './notification-bell';
 import { ExportSheetButton } from '@/components/project/export-sheet-button';
 import { SaveTemplateButton } from '@/components/project/save-template-button';
+import { ProjectSettingsDialog } from '@/components/project/project-settings-dialog';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
@@ -22,11 +23,12 @@ interface HeaderProps {
   view?: 'board' | 'list' | 'timeline' | 'schedule' | 'dashboard';
   onViewChange?: (view: 'board' | 'list' | 'timeline' | 'schedule' | 'dashboard') => void;
   workspaceSlug?: string;
+  workspaceId?: string;
   projectId?: string;
   projectName?: string;
 }
 
-export function Header({ title = '', view = 'board', onViewChange, workspaceSlug = '', projectId, projectName = '' }: HeaderProps) {
+export function Header({ title = '', view = 'board', onViewChange, workspaceSlug = '', workspaceId = '', projectId, projectName = '' }: HeaderProps) {
 
   const toggle = useSidebarStore((s) => s.toggle);
   const router = useRouter();
@@ -185,6 +187,14 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
                   自動化ルール
                 </Link>
               </DropdownMenuItem>
+              {workspaceId && (
+                <ProjectSettingsDialog projectId={projectId!} workspaceId={workspaceId}>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <Lock className="mr-2 h-4 w-4" />
+                    アクセス制御
+                  </DropdownMenuItem>
+                </ProjectSettingsDialog>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )}

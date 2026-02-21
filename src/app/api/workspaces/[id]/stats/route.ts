@@ -3,6 +3,7 @@ import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { getAccessibleProjectIds } from '@/lib/project-access';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -14,8 +15,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     if (!member) return errorResponse('ワークスペースが見つかりません', 404);
 
     const now = new Date();
+    const accessibleIds = await getAccessibleProjectIds(user.id, params.id);
     const projects = await prisma.project.findMany({
-      where: { workspaceId: params.id },
+      where: { id: { in: accessibleIds } },
       select: { id: true, name: true, color: true },
     });
 

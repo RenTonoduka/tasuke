@@ -10,7 +10,7 @@ import { ShortcutsHelp } from '@/components/shared/shortcuts-help';
 
 interface AppShellProps {
   children: React.ReactNode;
-  projects?: { id: string; name: string; color: string }[];
+  projects?: { id: string; name: string; color: string; isPrivate: boolean }[];
   workspaceName?: string;
   currentWorkspaceSlug?: string;
   workspaceId?: string;
