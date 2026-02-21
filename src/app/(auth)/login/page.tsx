@@ -1,6 +1,7 @@
 'use client';
 
 import { signIn } from 'next-auth/react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 export default function LoginPage() {
@@ -39,6 +40,14 @@ export default function LoginPage() {
           </svg>
           Googleでログイン
         </Button>
+
+        <p className="text-center text-[11px] text-g-text-muted">
+          ログインすることで
+          <Link href="/terms" className="mx-0.5 underline hover:text-g-text-secondary">利用規約</Link>
+          および
+          <Link href="/privacy" className="mx-0.5 underline hover:text-g-text-secondary">プライバシーポリシー</Link>
+          に同意したものとみなされます。
+        </p>
       </div>
     </div>
   );
