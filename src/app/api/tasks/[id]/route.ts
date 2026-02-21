@@ -71,6 +71,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const oldStatus = existing.status;
     const oldPriority = existing.priority;
     const updateData: Record<string, unknown> = { ...data };
+    if (data.startDate !== undefined) {
+      updateData.startDate = data.startDate ? new Date(data.startDate) : null;
+    }
     if (data.dueDate !== undefined) {
       updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
     }

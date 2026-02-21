@@ -17,7 +17,7 @@ interface TimelineViewProps {
   projectId: string;
 }
 
-export function TimelineView({ sections }: TimelineViewProps) {
+export function TimelineView({ sections, projectId }: TimelineViewProps) {
   const openPanel = useTaskPanelStore((s) => s.open);
   const scrollRef = useRef<HTMLDivElement>(null);
   const leftScrollRef = useRef<HTMLDivElement>(null);
@@ -103,6 +103,18 @@ export function TimelineView({ sections }: TimelineViewProps) {
 
   const toggleSection = useCallback((id: string) => {
     setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
+
+  const handleDateChange = useCallback(async (taskId: string, startDate: string | null, dueDate: string | null) => {
+    try {
+      await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startDate, dueDate }),
+      });
+    } catch (err) {
+      console.error('日付更新エラー:', err);
+    }
   }, []);
 
   return (
@@ -222,6 +234,7 @@ export function TimelineView({ sections }: TimelineViewProps) {
                       totalDays={totalDays}
                       today={today}
                       onClick={() => openPanel(task.id)}
+                      onDateChange={handleDateChange}
                     />
                   ))}
               </div>

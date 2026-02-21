@@ -15,6 +15,7 @@ interface TimelineRowProps {
   totalDays: number;
   today: Date;
   onClick: () => void;
+  onDateChange?: (taskId: string, startDate: string | null, dueDate: string | null) => void;
 }
 
 export const TimelineRow = memo(function TimelineRow({
@@ -23,6 +24,7 @@ export const TimelineRow = memo(function TimelineRow({
   totalDays,
   today,
   onClick,
+  onDateChange,
 }: TimelineRowProps) {
   const color = PRIORITY_COLORS[task.priority] ?? '#80868B';
   const isDone = task.status === 'DONE';
@@ -55,7 +57,12 @@ export const TimelineRow = memo(function TimelineRow({
         className="relative border-b border-g-border"
         style={{ width: totalDays * DAY_WIDTH }}
       >
-        <TimelineBar task={task} rangeStart={rangeStart} today={today} />
+        <TimelineBar
+          task={task}
+          rangeStart={rangeStart}
+          today={today}
+          onDateChange={onDateChange}
+        />
       </div>
     </div>
   );
