@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Header } from '@/components/layout/header';
 import { BoardView } from '@/components/board/board-view';
 import { ListView } from '@/components/list/list-view';
@@ -9,6 +9,8 @@ import { ScheduleView } from '@/components/schedule/schedule-view';
 import { ProjectDashboardView } from '@/components/dashboard/project-dashboard-view';
 import { TaskDetailPanel } from '@/components/task/task-detail-panel';
 import { FilterBar } from '@/components/shared/filter-bar';
+import { useFilterUrlSync } from '@/hooks/use-filter-url-sync';
+import type { FilterBarMember, FilterBarLabel } from '@/components/shared/filter-bar';
 import type { Project, Section } from '@/types';
 
 interface ProjectPageClientProps {
@@ -19,6 +21,31 @@ interface ProjectPageClientProps {
 export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientProps) {
   const [view, setView] = useState<'board' | 'list' | 'timeline' | 'schedule' | 'dashboard'>('board');
   const [sections, setSections] = useState<Section[]>(project.sections);
+  useFilterUrlSync();
+
+  // Extract unique members and labels from tasks for filter bar
+  const { members, labels } = useMemo(() => {
+    const memberMap = new Map<string, FilterBarMember>();
+    const labelMap = new Map<string, FilterBarLabel>();
+    for (const section of sections) {
+      for (const task of section.tasks) {
+        for (const a of task.assignees) {
+          if (!memberMap.has(a.user.id)) {
+            memberMap.set(a.user.id, { id: a.user.id, name: a.user.name, image: a.user.image });
+          }
+        }
+        for (const tl of task.labels) {
+          if (!labelMap.has(tl.label.id)) {
+            labelMap.set(tl.label.id, { id: tl.label.id, name: tl.label.name, color: tl.label.color });
+          }
+        }
+      }
+    }
+    return {
+      members: Array.from(memberMap.values()),
+      labels: Array.from(labelMap.values()),
+    };
+  }, [sections]);
 
   const handleAddTask = async (sectionId: string, title: string) => {
     try {
@@ -73,7 +100,7 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
         projectName={project.name}
       />
 
-      <FilterBar />
+      <FilterBar members={members} labels={labels} />
 
       <div className="flex-1 overflow-hidden flex flex-col">
         {view === 'board' && (

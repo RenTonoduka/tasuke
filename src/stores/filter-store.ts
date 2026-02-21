@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 export interface FilterState {
   priority: string[];
+  status: string[];
   assignee: string[];
   label: string[];
   dueDateFilter: 'all' | 'overdue' | 'today' | 'this-week' | 'no-date';
@@ -11,6 +12,7 @@ export interface FilterState {
 
 interface FilterStore extends FilterState {
   setPriority: (v: string[]) => void;
+  setStatus: (v: string[]) => void;
   setAssignee: (v: string[]) => void;
   setLabel: (v: string[]) => void;
   setDueDateFilter: (v: FilterState['dueDateFilter']) => void;
@@ -22,6 +24,7 @@ interface FilterStore extends FilterState {
 
 const initialState: FilterState = {
   priority: [],
+  status: [],
   assignee: [],
   label: [],
   dueDateFilter: 'all',
@@ -32,6 +35,7 @@ const initialState: FilterState = {
 export const useFilterStore = create<FilterStore>((set, get) => ({
   ...initialState,
   setPriority: (v) => set({ priority: v }),
+  setStatus: (v) => set({ status: v }),
   setAssignee: (v) => set({ assignee: v }),
   setLabel: (v) => set({ label: v }),
   setDueDateFilter: (v) => set({ dueDateFilter: v }),
@@ -42,6 +46,7 @@ export const useFilterStore = create<FilterStore>((set, get) => ({
     const s = get();
     return (
       s.priority.length > 0 ||
+      s.status.length > 0 ||
       s.assignee.length > 0 ||
       s.label.length > 0 ||
       s.dueDateFilter !== 'all' ||

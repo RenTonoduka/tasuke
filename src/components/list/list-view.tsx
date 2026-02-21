@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronDown, ChevronRight, Calendar, Flag } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
+import { useFilterStore } from '@/stores/filter-store';
+import { filterTasks } from '@/lib/task-filters';
 import { AddTaskInline } from '@/components/board/add-task-inline';
+import type { FilterState } from '@/stores/filter-store';
 import type { Section, Task } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -28,13 +31,19 @@ export function ListView({ sections, projectId, onAddTask, onToggleTask }: ListV
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const openPanel = useTaskPanelStore((s) => s.open);
 
+  const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder } = useFilterStore();
+  const filteredSections = useMemo(() => {
+    const f: FilterState = { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder };
+    return sections.map((s) => ({ ...s, tasks: filterTasks(s.tasks, f) }));
+  }, [sections, priority, status, assignee, label, dueDateFilter, sortBy, sortOrder]);
+
   const toggleSection = (id: string) => {
     setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   return (
     <div className="flex-1 overflow-auto">
-      {sections.map((section) => (
+      {filteredSections.map((section) => (
         <div key={section.id} className="border-b border-g-border">
           {/* Section header */}
           <button

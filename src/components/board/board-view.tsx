@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -16,6 +16,9 @@ import {
 import { arrayMove } from '@dnd-kit/sortable';
 import { BoardColumn } from './board-column';
 import { TaskCard } from './task-card';
+import { useFilterStore } from '@/stores/filter-store';
+import { filterTasks } from '@/lib/task-filters';
+import type { FilterState } from '@/stores/filter-store';
 import type { Section, Task } from '@/types';
 
 interface BoardViewProps {
@@ -27,6 +30,12 @@ interface BoardViewProps {
 export function BoardView({ initialSections, projectId, onSectionsChange }: BoardViewProps) {
   const [sections, setSections] = useState<Section[]>(initialSections);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+
+  const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder } = useFilterStore();
+  const filteredSections = useMemo(() => {
+    const f: FilterState = { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder };
+    return sections.map((s) => ({ ...s, tasks: filterTasks(s.tasks, f) }));
+  }, [sections, priority, status, assignee, label, dueDateFilter, sortBy, sortOrder]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -170,7 +179,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
       onDragEnd={handleDragEnd}
     >
       <div className="flex gap-4 overflow-x-auto p-4">
-        {sections.map((section) => (
+        {filteredSections.map((section) => (
           <BoardColumn
             key={section.id}
             section={section}
