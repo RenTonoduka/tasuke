@@ -9,6 +9,7 @@ import { ScheduleView } from '@/components/schedule/schedule-view';
 import { ProjectDashboardView } from '@/components/dashboard/project-dashboard-view';
 import { TaskDetailPanel } from '@/components/task/task-detail-panel';
 import { FilterBar } from '@/components/shared/filter-bar';
+import { BulkActionBar } from '@/components/shared/bulk-action-bar';
 import { useFilterUrlSync } from '@/hooks/use-filter-url-sync';
 import type { FilterBarMember, FilterBarLabel } from '@/components/shared/filter-bar';
 import type { Project, Section } from '@/types';
@@ -65,6 +66,10 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
     } catch (err) {
       console.error('タスク作成エラー:', err);
     }
+  };
+
+  const handleBulkAction = () => {
+    window.location.reload();
   };
 
   const handleToggleTask = async (taskId: string, currentStatus: string) => {
@@ -126,6 +131,7 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
       </div>
 
       <TaskDetailPanel />
+      <BulkActionBar onAction={handleBulkAction} />
     </>
   );
 }

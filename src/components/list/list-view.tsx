@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { useFilterStore } from '@/stores/filter-store';
+import { useSelectionStore } from '@/stores/selection-store';
 import { filterTasks } from '@/lib/task-filters';
 import { AddTaskInline } from '@/components/board/add-task-inline';
 import type { FilterState } from '@/stores/filter-store';
@@ -30,6 +31,7 @@ interface ListViewProps {
 export function ListView({ sections, projectId, onAddTask, onToggleTask }: ListViewProps) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const openPanel = useTaskPanelStore((s) => s.open);
+  const { selectedIds, toggle: toggleSelection, selectAll, clear: clearSelection } = useSelectionStore();
 
   const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder } = useFilterStore();
   const filteredSections = useMemo(() => {
@@ -37,12 +39,36 @@ export function ListView({ sections, projectId, onAddTask, onToggleTask }: ListV
     return sections.map((s) => ({ ...s, tasks: filterTasks(s.tasks, f) }));
   }, [sections, priority, status, assignee, label, dueDateFilter, sortBy, sortOrder]);
 
+  const allTaskIds = useMemo(
+    () => filteredSections.flatMap((s) => s.tasks.map((t) => t.id)),
+    [filteredSections]
+  );
+  const allSelected = allTaskIds.length > 0 && allTaskIds.every((id) => selectedIds.has(id));
+
   const toggleSection = (id: string) => {
     setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   return (
     <div className="flex-1 overflow-auto">
+      {/* Select all header */}
+      {allTaskIds.length > 0 && (
+        <div className="flex items-center gap-3 border-b border-g-border px-4 py-1.5 bg-g-surface">
+          <Checkbox
+            checked={allSelected}
+            onCheckedChange={() => {
+              if (allSelected) clearSelection();
+              else selectAll(allTaskIds);
+            }}
+          />
+          <span className="text-xs text-g-text-muted">
+            {selectedIds.size > 0
+              ? `${selectedIds.size}/${allTaskIds.length}件選択`
+              : 'すべて選択'}
+          </span>
+        </div>
+      )}
+
       {filteredSections.map((section) => (
         <div key={section.id} className="border-b border-g-border">
           {/* Section header */}
@@ -70,6 +96,9 @@ export function ListView({ sections, projectId, onAddTask, onToggleTask }: ListV
                 <TaskRow
                   key={task.id}
                   task={task}
+                  selected={selectedIds.has(task.id)}
+                  selectionMode={selectedIds.size > 0}
+                  onSelect={() => toggleSelection(task.id)}
                   onOpen={() => openPanel(task.id)}
                   onToggle={() => onToggleTask(task.id, task.status)}
                 />
@@ -87,10 +116,16 @@ export function ListView({ sections, projectId, onAddTask, onToggleTask }: ListV
 
 function TaskRow({
   task,
+  selected,
+  selectionMode,
+  onSelect,
   onOpen,
   onToggle,
 }: {
   task: Task;
+  selected: boolean;
+  selectionMode: boolean;
+  onSelect: () => void;
   onOpen: () => void;
   onToggle: () => void;
 }) {
@@ -98,14 +133,17 @@ function TaskRow({
 
   return (
     <div
-      className="flex items-center gap-3 border-b border-g-surface-hover px-4 py-2 hover:bg-g-surface cursor-pointer"
-      onClick={onOpen}
+      className={cn(
+        'flex items-center gap-3 border-b border-g-surface-hover px-4 py-2 hover:bg-g-surface cursor-pointer',
+        selected && 'bg-[#4285F4]/5'
+      )}
+      onClick={selectionMode ? onSelect : onOpen}
     >
       <Checkbox
-        checked={task.status === 'DONE'}
-        onCheckedChange={(e) => {
-          e; // prevent propagation handled by onToggle
-          onToggle();
+        checked={selectionMode ? selected : task.status === 'DONE'}
+        onCheckedChange={() => {
+          if (selectionMode) onSelect();
+          else onToggle();
         }}
         onClick={(e) => e.stopPropagation()}
       />
