@@ -16,8 +16,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         id: params.id,
         project: { workspace: { members: { some: { userId: user.id } } } },
       },
+      include: { project: { select: { workspaceId: true } } },
     });
     if (!existing) return errorResponse('タスクが見つかりません', 404);
+    const member = await prisma.workspaceMember.findFirst({
+      where: { workspaceId: existing.project.workspaceId, userId: user.id },
+    });
+    if (member?.role === 'VIEWER') return errorResponse('閲覧者はタスクを移動できません', 403);
 
     const task = await prisma.task.update({
       where: { id: params.id },

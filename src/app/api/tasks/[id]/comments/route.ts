@@ -16,7 +16,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     if (!task) return errorResponse('タスクが見つかりません', 404);
     const comments = await prisma.comment.findMany({
       where: { taskId: params.id },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
       include: {
         user: { select: { id: true, name: true, email: true, image: true } },
       },

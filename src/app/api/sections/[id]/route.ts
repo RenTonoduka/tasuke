@@ -19,8 +19,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         id: params.id,
         project: { workspace: { members: { some: { userId: user.id } } } },
       },
+      include: { project: { select: { workspaceId: true } } },
     });
     if (!existing) return errorResponse('セクションが見つかりません', 404);
+    const member = await prisma.workspaceMember.findFirst({
+      where: { workspaceId: existing.project.workspaceId, userId: user.id },
+    });
+    if (member?.role === 'VIEWER') return errorResponse('閲覧者はセクションを編集できません', 403);
     const section = await prisma.section.update({
       where: { id: params.id },
       data,
@@ -39,8 +44,13 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
         id: params.id,
         project: { workspace: { members: { some: { userId: user.id } } } },
       },
+      include: { project: { select: { workspaceId: true } } },
     });
     if (!existing) return errorResponse('セクションが見つかりません', 404);
+    const member = await prisma.workspaceMember.findFirst({
+      where: { workspaceId: existing.project.workspaceId, userId: user.id },
+    });
+    if (member?.role === 'VIEWER') return errorResponse('閲覧者はセクションを削除できません', 403);
     await prisma.section.delete({ where: { id: params.id } });
     return successResponse({ success: true });
   } catch (error) {

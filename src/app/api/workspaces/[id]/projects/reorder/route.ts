@@ -22,7 +22,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     await prisma.$transaction(
       projectIds.map((id, index) =>
         prisma.project.update({
-          where: { id },
+          where: { id, workspaceId: params.id },
           data: { position: index },
         })
       )

@@ -2,12 +2,16 @@ import { NextRequest } from 'next/server';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { createTaskSchema } from '@/lib/validations/task';
-import { successResponse, handleApiError } from '@/lib/api-utils';
+import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { logActivity } from '@/lib/activity';
+import { canAccessProject } from '@/lib/project-access';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireAuthUser();
+    const user = await requireAuthUser();
+    if (!(await canAccessProject(user.id, params.id))) {
+      return errorResponse('プロジェクトへのアクセス権がありません', 403);
+    }
     const tasks = await prisma.task.findMany({
       where: { projectId: params.id, parentId: null },
       orderBy: { position: 'asc' },
@@ -28,6 +32,16 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = await requireAuthUser();
+    if (!(await canAccessProject(user.id, params.id))) {
+      return errorResponse('プロジェクトへのアクセス権がありません', 403);
+    }
+    const member = await prisma.workspaceMember.findFirst({
+      where: {
+        userId: user.id,
+        workspace: { projects: { some: { id: params.id } } },
+      },
+    });
+    if (member?.role === 'VIEWER') return errorResponse('閲覧者はタスクを作成できません', 403);
     const body = await req.json();
     const { assigneeIds, ...data } = createTaskSchema.parse(body);
 

@@ -25,6 +25,7 @@ export default async function MyTasksPage({
     where: {
       assignees: { some: { userId: session.user.id } },
       project: { workspaceId: workspace.id },
+      status: { not: 'ARCHIVED' },
     },
     orderBy: { createdAt: 'desc' },
     include: {

@@ -31,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         where: {
           projectId: { in: projectIds },
           dueDate: { lt: now },
-          status: { not: 'DONE' },
+          status: { notIn: ['DONE', 'ARCHIVED'] },
         },
       }),
       prisma.task.count({ where: { projectId: { in: projectIds }, status: 'IN_PROGRESS' } }),
