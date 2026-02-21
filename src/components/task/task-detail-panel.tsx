@@ -525,6 +525,7 @@ export function TaskDetailPanel() {
               taskId={task.id}
               comments={task.comments}
               onCommentAdded={() => fetchTask(task.id)}
+              workspaceId={task.project?.workspaceId}
             />
 
             {/* Activity Log */}

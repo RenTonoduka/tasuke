@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -19,20 +19,105 @@ interface Comment {
   };
 }
 
+interface MentionMember {
+  id: string;
+  user: { id: string; name: string | null; email: string; image: string | null };
+}
+
 interface CommentSectionProps {
   taskId: string;
   comments: Comment[];
   onCommentAdded: () => void;
+  workspaceId?: string;
 }
 
-export function CommentSection({ taskId, comments, onCommentAdded }: CommentSectionProps) {
+export function CommentSection({ taskId, comments, onCommentAdded, workspaceId }: CommentSectionProps) {
   const { data: session } = useSession();
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
 
+  // Mention autocomplete state
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionIdx, setMentionIdx] = useState(0);
+  const [members, setMembers] = useState<MentionMember[]>([]);
+  const [membersLoaded, setMembersLoaded] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mentionStartRef = useRef<number>(-1);
+
   const currentUserId = (session?.user as { id?: string })?.id;
+
+  // Fetch members on first @ trigger
+  useEffect(() => {
+    if (!mentionOpen || membersLoaded || !workspaceId) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/workspaces/${workspaceId}/members`);
+        if (res.ok) {
+          setMembers(await res.json());
+          setMembersLoaded(true);
+        }
+      } catch {}
+    })();
+  }, [mentionOpen, membersLoaded, workspaceId]);
+
+  const filteredMembers = members.filter((m) => {
+    if (!mentionQuery) return true;
+    const q = mentionQuery.toLowerCase();
+    return (
+      (m.user.name?.toLowerCase().includes(q)) ||
+      m.user.email.toLowerCase().includes(q)
+    );
+  }).slice(0, 6);
+
+  const insertMention = useCallback((member: MentionMember) => {
+    const name = member.user.name ?? member.user.email.split('@')[0];
+    const start = mentionStartRef.current;
+    const before = content.slice(0, start);
+    const afterCursor = content.slice(textareaRef.current?.selectionStart ?? start);
+    const newContent = `${before}@${name} ${afterCursor}`;
+    setContent(newContent);
+    setMentionOpen(false);
+    setMentionQuery('');
+    // Focus back
+    setTimeout(() => {
+      const pos = before.length + name.length + 2; // @name + space
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(pos, pos);
+    }, 0);
+  }, [content]);
+
+  const handleContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    const pos = e.target.selectionStart;
+    setContent(val);
+
+    // Detect @ mention trigger
+    if (pos > 0 && val[pos - 1] === '@' && (pos === 1 || val[pos - 2] === ' ' || val[pos - 2] === '\n')) {
+      mentionStartRef.current = pos - 1;
+      setMentionOpen(true);
+      setMentionQuery('');
+      setMentionIdx(0);
+      return;
+    }
+
+    if (mentionOpen) {
+      const start = mentionStartRef.current;
+      if (pos <= start) {
+        setMentionOpen(false);
+        return;
+      }
+      const query = val.slice(start + 1, pos);
+      if (query.includes(' ') || query.includes('\n')) {
+        setMentionOpen(false);
+        return;
+      }
+      setMentionQuery(query);
+      setMentionIdx(0);
+    }
+  }, [mentionOpen]);
 
   const handleSubmit = useCallback(async () => {
     const trimmed = content.trim();
@@ -84,6 +169,30 @@ export function CommentSection({ taskId, comments, onCommentAdded }: CommentSect
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Mention navigation
+    if (mentionOpen && filteredMembers.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIdx((i) => (i + 1) % filteredMembers.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIdx((i) => (i - 1 + filteredMembers.length) % filteredMembers.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        insertMention(filteredMembers[mentionIdx]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setMentionOpen(false);
+        return;
+      }
+    }
+
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleSubmit();
@@ -191,14 +300,43 @@ export function CommentSection({ taskId, comments, onCommentAdded }: CommentSect
             {(session?.user?.name ?? session?.user?.email ?? 'U').charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        <div className="flex flex-1 flex-col gap-2">
+        <div className="relative flex flex-1 flex-col gap-2">
           <Textarea
+            ref={textareaRef}
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={handleContentChange}
             onKeyDown={handleKeyDown}
+            onBlur={() => setTimeout(() => setMentionOpen(false), 200)}
             placeholder="コメントを追加... (@名前 でメンション、Cmd+Enter で送信)"
             className="min-h-[72px] resize-none border-g-border text-sm focus:border-[#4285F4]"
           />
+
+          {/* Mention autocomplete dropdown */}
+          {mentionOpen && filteredMembers.length > 0 && (
+            <div className="absolute bottom-full left-0 mb-1 w-64 rounded-md border border-g-border bg-g-bg shadow-lg z-50">
+              {filteredMembers.map((m, i) => (
+                <button
+                  key={m.user.id}
+                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-g-surface-hover ${
+                    i === mentionIdx ? 'bg-g-surface-hover' : ''
+                  }`}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    insertMention(m);
+                  }}
+                >
+                  <Avatar className="h-5 w-5">
+                    <AvatarImage src={m.user.image ?? ''} />
+                    <AvatarFallback className="bg-[#4285F4] text-[8px] text-white">
+                      {(m.user.name ?? m.user.email).charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="truncate text-g-text">{m.user.name ?? m.user.email}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="flex justify-end">
             <Button
               size="sm"
