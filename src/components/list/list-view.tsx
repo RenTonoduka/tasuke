@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ChevronDown, ChevronRight, Calendar, Flag } from 'lucide-react';
+import { ChevronDown, ChevronRight, Calendar, Flag, SearchX } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -33,7 +33,8 @@ export function ListView({ sections, projectId, onAddTask, onToggleTask }: ListV
   const openPanel = useTaskPanelStore((s) => s.open);
   const { selectedIds, toggle: toggleSelection, selectAll, clear: clearSelection } = useSelectionStore();
 
-  const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder } = useFilterStore();
+  const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder, hasActiveFilters } = useFilterStore();
+  const isFiltered = hasActiveFilters();
   const filteredSections = useMemo(() => {
     const f: FilterState = { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder };
     return sections.map((s) => ({ ...s, tasks: filterTasks(s.tasks, f) }));
@@ -110,6 +111,13 @@ export function ListView({ sections, projectId, onAddTask, onToggleTask }: ListV
           )}
         </div>
       ))}
+
+      {isFiltered && allTaskIds.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 text-g-text-muted">
+          <SearchX className="mb-2 h-8 w-8" />
+          <p className="text-sm">フィルター条件に一致するタスクがありません</p>
+        </div>
+      )}
     </div>
   );
 }

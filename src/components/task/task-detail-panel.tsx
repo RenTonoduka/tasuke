@@ -205,7 +205,12 @@ export function TaskDetailPanel() {
   };
 
   const handleTitleBlur = () => {
-    if (task && title !== task.title && title.trim()) {
+    if (!task) return;
+    if (!title.trim()) {
+      setTitle(task.title);
+      return;
+    }
+    if (title.trim() !== task.title) {
       updateField('title', title.trim());
     }
   };

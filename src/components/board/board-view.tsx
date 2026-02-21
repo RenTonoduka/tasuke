@@ -19,6 +19,7 @@ import { TaskCard } from './task-card';
 import { useFilterStore } from '@/stores/filter-store';
 import { filterTasks } from '@/lib/task-filters';
 import type { FilterState } from '@/stores/filter-store';
+import { SearchX } from 'lucide-react';
 import type { Section, Task } from '@/types';
 
 interface BoardViewProps {
@@ -46,6 +47,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
   );
   const emptySensors = useSensors();
   const sensors = isFiltered ? emptySensors : activeSensors;
+  const totalFilteredTasks = filteredSections.reduce((sum, s) => sum + s.tasks.length, 0);
 
   const findSectionByTaskId = useCallback(
     (taskId: string) => {
@@ -225,6 +227,12 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
           />
         ))}
       </div>
+      {isFiltered && totalFilteredTasks === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 text-g-text-muted">
+          <SearchX className="mb-2 h-8 w-8" />
+          <p className="text-sm">フィルター条件に一致するタスクがありません</p>
+        </div>
+      )}
 
       <DragOverlay>
         {activeTask ? <TaskCard task={activeTask} overlay /> : null}

@@ -35,6 +35,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       where: { workspaceId: params.id, userId: user.id },
     });
     if (!member) return errorResponse('アクセス権限がありません', 403);
+    if (member.role === 'VIEWER') return errorResponse('閲覧者はプロジェクトを作成できません', 403);
 
     const body = await req.json();
     const data = createProjectSchema.parse(body);

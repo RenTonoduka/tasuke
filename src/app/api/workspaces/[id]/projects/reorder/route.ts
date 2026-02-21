@@ -15,6 +15,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       where: { workspaceId: params.id, userId: user.id },
     });
     if (!member) return errorResponse('アクセス権限がありません', 403);
+    if (member.role === 'VIEWER') return errorResponse('閲覧者はプロジェクトを並べ替えできません', 403);
 
     const body = await req.json();
     const { projectIds } = reorderSchema.parse(body);

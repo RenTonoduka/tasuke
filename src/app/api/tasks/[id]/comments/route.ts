@@ -50,6 +50,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     if (!task) return errorResponse('タスクが見つかりません', 404);
 
+    const member = await prisma.workspaceMember.findFirst({
+      where: { userId: currentUser.id, workspace: { projects: { some: { id: task.projectId } } } },
+    });
+    if (member?.role === 'VIEWER') return errorResponse('閲覧者はコメントできません', 403);
+
     const comment = await prisma.comment.create({
       data: {
         content,
