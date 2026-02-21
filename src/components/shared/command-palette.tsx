@@ -23,7 +23,7 @@ import {
   Circle,
   CheckCircle2,
   Clock,
-  Ban,
+  Archive,
 } from 'lucide-react';
 
 interface SearchTask {
@@ -52,8 +52,8 @@ function StatusIcon({ status }: { status: string }) {
       return <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />;
     case 'IN_PROGRESS':
       return <Clock className="h-3.5 w-3.5 text-blue-500 shrink-0" />;
-    case 'CANCELLED':
-      return <Ban className="h-3.5 w-3.5 text-gray-400 shrink-0" />;
+    case 'ARCHIVED':
+      return <Archive className="h-3.5 w-3.5 text-gray-400 shrink-0" />;
     default:
       return <Circle className="h-3.5 w-3.5 text-gray-400 shrink-0" />;
   }

@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
     timeMax.setDate(timeMax.getDate() + 1);
 
     let calendarEvents: CalendarEvent[] = [];
+    let calendarUnavailable = false;
     try {
       const auth = await getGoogleClient(user.id);
       const calendar = getCalendarClient(auth);
@@ -84,9 +85,9 @@ export async function POST(req: NextRequest) {
           end: e.end?.dateTime ?? e.end?.date ?? '',
           allDay: !!e.start?.date,
         }));
-    } catch {
-      // カレンダー取得失敗時は予定なしとして計算続行
-      console.warn('カレンダーイベント取得スキップ');
+    } catch (err) {
+      console.warn('カレンダーイベント取得スキップ:', err);
+      calendarUnavailable = true;
     }
 
     // 空き時間算出
@@ -125,6 +126,7 @@ export async function POST(req: NextRequest) {
     return successResponse({
       ...result,
       unestimatedCount,
+      calendarUnavailable,
     });
   } catch (error) {
     if (error instanceof Error && error.message.includes('Google')) {

@@ -35,6 +35,7 @@ const statusOptions = [
   { value: 'TODO', label: 'Todo' },
   { value: 'IN_PROGRESS', label: '進行中' },
   { value: 'DONE', label: '完了' },
+  { value: 'ARCHIVED', label: 'アーカイブ' },
 ];
 
 interface WorkspaceMember {

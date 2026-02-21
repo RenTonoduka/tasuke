@@ -47,6 +47,8 @@ interface AutomationsClientProps {
   project: { id: string; name: string };
   initialRules: AutomationRule[];
   workspaceSlug: string;
+  sections: { id: string; name: string }[];
+  labels: { id: string; name: string; color: string }[];
 }
 
 const STATUS_OPTIONS = [
@@ -151,7 +153,7 @@ function buildPayload(form: FormState, toast: ReturnType<typeof useToast>['toast
   return { name: form.name, trigger, action };
 }
 
-export function AutomationsClient({ project, initialRules, workspaceSlug }: AutomationsClientProps) {
+export function AutomationsClient({ project, initialRules, workspaceSlug, sections, labels }: AutomationsClientProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [rules, setRules] = useState<AutomationRule[]>(initialRules);
@@ -499,23 +501,38 @@ export function AutomationsClient({ project, initialRules, workspaceSlug }: Auto
 
             {form.actionType === 'MOVE_SECTION' && (
               <div className="ml-4 space-y-1.5">
-                <Label className="text-xs text-g-text-secondary">移動先セクション名</Label>
-                <Input
-                  placeholder="例: 完了"
-                  value={form.actionSectionName}
-                  onChange={(e) => setF('actionSectionName', e.target.value)}
-                />
+                <Label className="text-xs text-g-text-secondary">移動先セクション</Label>
+                <Select value={form.actionSectionName} onValueChange={(v) => setF('actionSectionName', v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="セクションを選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sections.map((s) => (
+                      <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
             {form.actionType === 'ADD_LABEL' && (
               <div className="ml-4 space-y-1.5">
-                <Label className="text-xs text-g-text-secondary">追加するラベル名</Label>
-                <Input
-                  placeholder="例: レビュー済み"
-                  value={form.actionLabelName}
-                  onChange={(e) => setF('actionLabelName', e.target.value)}
-                />
+                <Label className="text-xs text-g-text-secondary">追加するラベル</Label>
+                <Select value={form.actionLabelName} onValueChange={(v) => setF('actionLabelName', v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="ラベルを選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {labels.map((l) => (
+                      <SelectItem key={l.id} value={l.name}>
+                        <span className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: l.color }} />
+                          {l.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </div>
