@@ -11,6 +11,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'タス助 - タスク管理',
   description: 'チームのタスク管理をシンプルに',
+  verification: {
+    google: 'vp7lhFE1jW5MF144ihMgG4AMYBjS2t0UXpvmOQn2TZA',
+  },
 };
 
 export default function RootLayout({
