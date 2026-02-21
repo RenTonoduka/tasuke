@@ -12,6 +12,12 @@ export default async function InboxPage({
   const session = await getAuthSession();
   if (!session?.user) redirect('/login');
 
+  const workspace = await prisma.workspace.findUnique({
+    where: { slug: params.workspaceSlug },
+    include: { members: { where: { userId: session.user.id } } },
+  });
+  if (!workspace || workspace.members.length === 0) redirect('/');
+
   const rawNotifications = await prisma.notification.findMany({
     where: { userId: session.user.id },
     orderBy: [{ read: 'asc' }, { createdAt: 'desc' }],

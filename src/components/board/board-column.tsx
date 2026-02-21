@@ -13,6 +13,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import type { Section } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +42,7 @@ export function BoardColumn({ section, onAddTask, onRenameSection, onDeleteSecti
 
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(section.name);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const taskIds = section.tasks.map((t) => t.id);
 
   const handleRename = () => {
@@ -79,11 +90,7 @@ export function BoardColumn({ section, onAddTask, onRenameSection, onDeleteSecti
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-[#EA4335] focus:text-[#EA4335]"
-              onClick={() => {
-                if (window.confirm(`「${section.name}」セクションを削除しますか？含まれるタスクも削除されます。`)) {
-                  onDeleteSection?.(section.id);
-                }
-              }}
+              onClick={() => setDeleteOpen(true)}
             >
               <Trash2 className="mr-2 h-3.5 w-3.5" />
               削除
@@ -113,6 +120,26 @@ export function BoardColumn({ section, onAddTask, onRenameSection, onDeleteSecti
       <div className="px-2 pb-2">
         <AddTaskInline onAdd={(title) => onAddTask(section.id, title)} listenNewTask={listenNewTask} />
       </div>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>セクションを削除</AlertDialogTitle>
+            <AlertDialogDescription>
+              「{section.name}」セクションを削除しますか？含まれるタスクも削除されます。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#EA4335] hover:bg-red-600"
+              onClick={() => onDeleteSection?.(section.id)}
+            >
+              削除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

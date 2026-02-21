@@ -12,6 +12,7 @@ import { FilterBar } from '@/components/shared/filter-bar';
 import { BulkActionBar } from '@/components/shared/bulk-action-bar';
 import { useFilterUrlSync } from '@/hooks/use-filter-url-sync';
 import { useSelectionStore } from '@/stores/selection-store';
+import { useFilterStore } from '@/stores/filter-store';
 import type { FilterBarMember, FilterBarLabel } from '@/components/shared/filter-bar';
 import type { Project, Section } from '@/types';
 
@@ -27,6 +28,9 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
 
   const handleViewChange = useCallback((v: typeof view) => {
     useSelectionStore.getState().clear();
+    if (v === 'schedule' || v === 'dashboard') {
+      useFilterStore.getState().reset();
+    }
     setView(v);
   }, []);
 

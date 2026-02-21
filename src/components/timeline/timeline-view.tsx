@@ -164,13 +164,15 @@ export function TimelineView({ sections, projectId }: TimelineViewProps) {
                 </span>
               </button>
 
-              {/* タスク行（左パネル側は TimelineRow 内で描画するため空行でスペース確保） */}
+              {/* タスク行 */}
               {!collapsed[section.id] &&
                 section.tasks.map((task) => (
                   <div
                     key={task.id}
-                    className="h-10 border-b border-g-border"
-                  />
+                    className="flex items-center h-10 border-b border-g-border px-3"
+                  >
+                    <span className="truncate text-sm text-g-text">{task.title}</span>
+                  </div>
                 ))}
             </div>
           ))}

@@ -35,24 +35,24 @@ export default async function WorkspacePage({
   const projectIds = projects.map((p) => p.id);
 
   const [totalTasks, completedTasks, overdueTasks, inProgressTasks] = await Promise.all([
-    prisma.task.count({ where: { projectId: { in: projectIds } } }),
+    prisma.task.count({ where: { projectId: { in: projectIds }, status: { not: 'ARCHIVED' } } }),
     prisma.task.count({ where: { projectId: { in: projectIds }, status: 'DONE' } }),
     prisma.task.count({
-      where: { projectId: { in: projectIds }, dueDate: { lt: now }, status: { not: 'DONE' } },
+      where: { projectId: { in: projectIds }, dueDate: { lt: now }, status: { notIn: ['DONE', 'ARCHIVED'] } },
     }),
     prisma.task.count({ where: { projectId: { in: projectIds }, status: 'IN_PROGRESS' } }),
   ]);
 
   const statusGroups = await prisma.task.groupBy({
     by: ['status'],
-    where: { projectId: { in: projectIds } },
+    where: { projectId: { in: projectIds }, status: { not: 'ARCHIVED' } },
     _count: { _all: true },
   });
   const byStatus = statusGroups.map((g) => ({ status: g.status, count: g._count._all }));
 
   const priorityGroups = await prisma.task.groupBy({
     by: ['priority'],
-    where: { projectId: { in: projectIds } },
+    where: { projectId: { in: projectIds }, status: { not: 'ARCHIVED' } },
     _count: { _all: true },
   });
   const byPriority = priorityGroups.map((g) => ({ priority: g.priority, count: g._count._all }));
@@ -60,7 +60,7 @@ export default async function WorkspacePage({
   // 修正1: byProject を groupBy で 1クエリに統合
   const taskStats = await prisma.task.groupBy({
     by: ['projectId', 'status'],
-    where: { projectId: { in: projectIds } },
+    where: { projectId: { in: projectIds }, status: { not: 'ARCHIVED' } },
     _count: { _all: true },
   });
   const byProject = projects.map((project) => {
@@ -97,6 +97,7 @@ export default async function WorkspacePage({
   const ganttTasks = await prisma.task.findMany({
     where: {
       projectId: { in: projectIds },
+      status: { not: 'ARCHIVED' },
       OR: [{ startDate: { not: null } }, { dueDate: { not: null } }],
     },
     select: {
@@ -132,7 +133,7 @@ export default async function WorkspacePage({
     where: {
       projectId: { in: projectIds },
       dueDate: { gte: now, lte: sevenDaysLater },
-      status: { not: 'DONE' },
+      status: { notIn: ['DONE', 'ARCHIVED'] },
     },
     orderBy: { dueDate: 'asc' },
     take: 10,

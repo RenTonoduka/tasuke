@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -29,6 +29,8 @@ interface BoardViewProps {
 
 export function BoardView({ initialSections, projectId, onSectionsChange }: BoardViewProps) {
   const [sections, setSections] = useState<Section[]>(initialSections);
+  const sectionsRef = useRef(sections);
+  sectionsRef.current = sections;
   const [activeTask, setActiveTask] = useState<Task | null>(null);
 
   const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder, hasActiveFilters } = useFilterStore();
@@ -128,8 +130,8 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
       }
     }
 
-    // API更新
-    const updatedSection = sections.find((s) => s.tasks.some((t) => t.id === activeId));
+    // API更新（最新のstateを参照）
+    const updatedSection = sectionsRef.current.find((s) => s.tasks.some((t) => t.id === activeId));
     if (!updatedSection) return;
 
     const taskIndex = updatedSection.tasks.findIndex((t) => t.id === activeId);

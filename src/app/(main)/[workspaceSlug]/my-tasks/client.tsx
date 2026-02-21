@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -36,6 +37,16 @@ interface MyTasksClientProps {
 export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksClientProps) {
   const [tasks, setTasks] = useState(initialTasks);
   const openPanel = useTaskPanelStore((s) => s.open);
+  const activeTaskId = useTaskPanelStore((s) => s.activeTaskId);
+  const router = useRouter();
+  const prevActiveRef = useRef(activeTaskId);
+
+  useEffect(() => {
+    if (prevActiveRef.current && !activeTaskId) {
+      router.refresh();
+    }
+    prevActiveRef.current = activeTaskId;
+  }, [activeTaskId, router]);
 
   const handleToggle = async (taskId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'DONE' ? 'TODO' : 'DONE';

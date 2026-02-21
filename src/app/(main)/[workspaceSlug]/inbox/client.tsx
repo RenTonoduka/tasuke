@@ -43,13 +43,15 @@ export function InboxClient({ initialNotifications }: InboxClientProps) {
   const { open: openPanel } = useTaskPanelStore();
 
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const fetchNotifications = async () => {
       const res = await fetch('/api/notifications');
       if (res.ok) {
         const data = await res.json();
         setNotifications(data);
       }
-    }, 30000);
+    };
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
 

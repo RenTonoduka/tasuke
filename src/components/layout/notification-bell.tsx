@@ -81,7 +81,7 @@ export function NotificationBell({ workspaceSlug }: NotificationBellProps) {
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu open={open} onOpenChange={(o) => { setOpen(o); if (o) fetchNotifications(); }}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"

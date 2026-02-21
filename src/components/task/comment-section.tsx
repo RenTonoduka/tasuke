@@ -6,6 +6,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { MessageSquare, Send, Pencil, Trash2, Check, X } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Comment {
   id: string;
@@ -37,6 +47,7 @@ export function CommentSection({ taskId, comments, onCommentAdded, workspaceId }
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // Mention autocomplete state
   const [mentionOpen, setMentionOpen] = useState(false);
@@ -158,7 +169,6 @@ export function CommentSection({ taskId, comments, onCommentAdded, workspaceId }
   };
 
   const handleDelete = async (commentId: string) => {
-    if (!window.confirm('このコメントを削除しますか？')) return;
     try {
       const res = await fetch(`/api/tasks/${taskId}/comments/${commentId}`, {
         method: 'DELETE',
@@ -244,7 +254,7 @@ export function CommentSection({ taskId, comments, onCommentAdded, workspaceId }
                         <Pencil className="h-3 w-3" />
                       </button>
                       <button
-                        onClick={() => handleDelete(c.id)}
+                        onClick={() => setDeleteTarget(c.id)}
                         className="rounded p-0.5 text-g-text-muted hover:text-red-500"
                       >
                         <Trash2 className="h-3 w-3" />
@@ -351,6 +361,26 @@ export function CommentSection({ taskId, comments, onCommentAdded, workspaceId }
           </div>
         </div>
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>コメントを削除</AlertDialogTitle>
+            <AlertDialogDescription>
+              このコメントを削除しますか？この操作は取り消せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#EA4335] hover:bg-red-600"
+              onClick={() => { if (deleteTarget) handleDelete(deleteTarget); setDeleteTarget(null); }}
+            >
+              削除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

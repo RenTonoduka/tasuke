@@ -9,6 +9,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useSelectionStore } from '@/stores/selection-store';
 
 const statusActions = [
@@ -32,6 +42,7 @@ interface BulkActionBarProps {
 export function BulkActionBar({ onAction }: BulkActionBarProps) {
   const { selectedIds, clear } = useSelectionStore();
   const [loading, setLoading] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const count = selectedIds.size;
 
   if (count === 0) return null;
@@ -104,11 +115,7 @@ export function BulkActionBar({ onAction }: BulkActionBarProps) {
         size="sm"
         className="h-7 gap-1.5 text-xs text-[#EA4335] hover:bg-red-50 hover:text-[#EA4335]"
         disabled={loading}
-        onClick={() => {
-          if (window.confirm(`選択した${count}件のタスクを削除しますか？この操作は取り消せません。`)) {
-            execute('delete');
-          }
-        }}
+        onClick={() => setDeleteOpen(true)}
       >
         <Trash2 className="h-3.5 w-3.5" />
         削除
@@ -118,6 +125,26 @@ export function BulkActionBar({ onAction }: BulkActionBarProps) {
       <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clear}>
         <X className="h-3.5 w-3.5" />
       </Button>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>タスクを削除</AlertDialogTitle>
+            <AlertDialogDescription>
+              選択した{count}件のタスクを削除しますか？この操作は取り消せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#EA4335] hover:bg-red-600"
+              onClick={() => execute('delete')}
+            >
+              削除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

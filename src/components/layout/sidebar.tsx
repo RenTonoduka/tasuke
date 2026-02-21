@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import {
+  Check,
   CheckSquare,
   FolderKanban,
   Settings,
@@ -123,6 +124,20 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
 
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
+  const [workspaces, setWorkspaces] = useState<{ id: string; name: string; slug: string }[]>([]);
+  const [wsLoaded, setWsLoaded] = useState(false);
+
+  const fetchWorkspaces = useCallback(async () => {
+    if (wsLoaded) return;
+    try {
+      const res = await fetch('/api/workspaces');
+      if (res.ok) {
+        const data = await res.json();
+        setWorkspaces(data.map((w: { id: string; name: string; slug: string }) => ({ id: w.id, name: w.name, slug: w.slug })));
+        setWsLoaded(true);
+      }
+    } catch {}
+  }, [wsLoaded]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -182,7 +197,7 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
     <div className="flex h-full w-[240px] flex-col border-r border-g-border bg-g-surface">
       {/* Workspace header */}
       <div className="flex h-12 items-center gap-2 border-b border-g-border px-4">
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={(open) => { if (open) fetchWorkspaces(); }}>
           <DropdownMenuTrigger asChild>
             <button className="flex flex-1 items-center gap-2 rounded-md px-1 py-1 text-sm font-semibold text-g-text hover:bg-g-border">
               <div className="flex h-6 w-6 items-center justify-center rounded bg-[#4285F4] text-xs font-bold text-white">
@@ -193,6 +208,23 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
+            {workspaces.length > 1 && (
+              <>
+                <div className="px-2 py-1.5 text-xs font-medium text-g-text-muted">ワークスペース</div>
+                {workspaces.map((ws) => (
+                  <DropdownMenuItem key={ws.id} asChild>
+                    <Link href={`/${ws.slug}`} className="flex items-center gap-2">
+                      <div className="flex h-5 w-5 items-center justify-center rounded bg-[#4285F4] text-[10px] font-bold text-white">
+                        {ws.name.charAt(0)}
+                      </div>
+                      <span className="flex-1 truncate">{ws.name}</span>
+                      {ws.slug === currentWorkspaceSlug && <Check className="h-4 w-4 text-[#34A853]" />}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem asChild>
               <Link href={`/${currentWorkspaceSlug}/settings/members`}>
                 <Settings className="mr-2 h-4 w-4" />
