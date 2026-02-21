@@ -152,6 +152,36 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
     }
   };
 
+  const handleRenameSection = async (sectionId: string, name: string) => {
+    try {
+      const res = await fetch(`/api/sections/${sectionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok) {
+        setSections((prev) => {
+          const next = prev.map((s) => s.id === sectionId ? { ...s, name } : s);
+          onSectionsChange?.(next);
+          return next;
+        });
+      }
+    } catch {}
+  };
+
+  const handleDeleteSection = async (sectionId: string) => {
+    try {
+      const res = await fetch(`/api/sections/${sectionId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setSections((prev) => {
+          const next = prev.filter((s) => s.id !== sectionId);
+          onSectionsChange?.(next);
+          return next;
+        });
+      }
+    } catch {}
+  };
+
   const handleAddTask = async (sectionId: string, title: string) => {
     try {
       const res = await fetch(`/api/projects/${projectId}/tasks`, {
@@ -182,11 +212,14 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
       onDragEnd={handleDragEnd}
     >
       <div className="flex gap-4 overflow-x-auto p-4">
-        {filteredSections.map((section) => (
+        {filteredSections.map((section, index) => (
           <BoardColumn
             key={section.id}
             section={section}
             onAddTask={handleAddTask}
+            onRenameSection={handleRenameSection}
+            onDeleteSection={handleDeleteSection}
+            listenNewTask={index === 0}
           />
         ))}
       </div>

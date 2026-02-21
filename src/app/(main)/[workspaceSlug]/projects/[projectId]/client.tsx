@@ -74,8 +74,18 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
     }
   };
 
+  const refetchSections = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/projects/${project.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSections(data.sections);
+      }
+    } catch {}
+  }, [project.id]);
+
   const handleBulkAction = () => {
-    window.location.reload();
+    refetchSections();
   };
 
   const handleToggleTask = async (taskId: string, currentStatus: string) => {

@@ -17,6 +17,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
+import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ActivityLog } from './activity-log';
 import { CommentSection } from './comment-section';
@@ -109,7 +110,7 @@ export function TaskDetailPanel() {
   const fetchTask = useCallback(async (id: string) => {
     const res = await fetch(`/api/tasks/${id}`);
     if (!res.ok) {
-      console.error(`タスク取得失敗: ${res.status} ${res.statusText}`);
+      toast({ title: 'タスクの取得に失敗しました', variant: 'destructive' });
       return;
     }
     const data = await res.json();
@@ -192,12 +193,12 @@ export function TaskDetailPanel() {
         body: JSON.stringify({ [field]: value }),
       });
       if (!res.ok) {
-        console.error(`フィールド更新失敗 (${field}): ${res.status} ${res.statusText}`);
+        toast({ title: '更新に失敗しました', variant: 'destructive' });
         return;
       }
       await fetchTask(task.id);
-    } catch (error) {
-      console.error(`フィールド更新エラー (${field}):`, error);
+    } catch {
+      toast({ title: '更新に失敗しました', variant: 'destructive' });
     } finally {
       isUpdatingRef.current = false;
     }
@@ -223,7 +224,7 @@ export function TaskDetailPanel() {
       body: JSON.stringify({ title: newSubtask.trim() }),
     });
     if (!res.ok) {
-      console.error('サブタスク作成に失敗');
+      toast({ title: 'サブタスク作成に失敗しました', variant: 'destructive' });
       return;
     }
     setNewSubtask('');
@@ -238,7 +239,7 @@ export function TaskDetailPanel() {
       body: JSON.stringify({ status: newStatus }),
     });
     if (!res.ok) {
-      console.error('サブタスク更新に失敗');
+      toast({ title: 'サブタスク更新に失敗しました', variant: 'destructive' });
       return;
     }
     if (task) fetchTask(task.id);

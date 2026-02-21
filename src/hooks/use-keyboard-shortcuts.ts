@@ -22,7 +22,11 @@ export function useKeyboardShortcuts({ workspaceSlug, onNewTask }: UseKeyboardSh
   useHotkeys('n', (e) => {
     if (isInputFocused(e)) return;
     e.preventDefault();
-    onNewTask?.();
+    if (onNewTask) {
+      onNewTask();
+    } else {
+      window.dispatchEvent(new Event('tasuke:new-task'));
+    }
   }, { enableOnFormTags: false });
 
   // g then m: マイタスクへ移動

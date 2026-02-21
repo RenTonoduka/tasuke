@@ -1,16 +1,27 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 
 interface AddTaskInlineProps {
   onAdd: (title: string) => void;
+  listenNewTask?: boolean;
 }
 
-export function AddTaskInline({ onAdd }: AddTaskInlineProps) {
+export function AddTaskInline({ onAdd, listenNewTask }: AddTaskInlineProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!listenNewTask) return;
+    const handler = () => {
+      setIsEditing(true);
+      setTimeout(() => inputRef.current?.focus(), 0);
+    };
+    window.addEventListener('tasuke:new-task', handler);
+    return () => window.removeEventListener('tasuke:new-task', handler);
+  }, [listenNewTask]);
 
   const handleSubmit = () => {
     const trimmed = title.trim();

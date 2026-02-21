@@ -1,40 +1,95 @@
 'use client';
 
+import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { TaskCard } from './task-card';
 import { AddTaskInline } from './add-task-inline';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { Section } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface BoardColumnProps {
   section: Section;
   onAddTask: (sectionId: string, title: string) => void;
+  onRenameSection?: (sectionId: string, name: string) => void;
+  onDeleteSection?: (sectionId: string) => void;
+  listenNewTask?: boolean;
 }
 
-export function BoardColumn({ section, onAddTask }: BoardColumnProps) {
+export function BoardColumn({ section, onAddTask, onRenameSection, onDeleteSection, listenNewTask }: BoardColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `section-${section.id}`,
     data: { type: 'section', sectionId: section.id },
   });
 
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(section.name);
   const taskIds = section.tasks.map((t) => t.id);
+
+  const handleRename = () => {
+    const trimmed = editName.trim();
+    if (trimmed && trimmed !== section.name) {
+      onRenameSection?.(section.id, trimmed);
+    }
+    setEditing(false);
+  };
 
   return (
     <div className="flex h-full w-[280px] flex-shrink-0 flex-col rounded-lg bg-g-surface">
       {/* Column header */}
       <div className="flex items-center justify-between px-3 py-2">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-g-text">{section.name}</h3>
+          {editing ? (
+            <input
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onBlur={handleRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleRename();
+                if (e.key === 'Escape') setEditing(false);
+              }}
+              className="w-full rounded border border-[#4285F4] bg-transparent px-1 text-sm font-semibold text-g-text outline-none"
+              autoFocus
+            />
+          ) : (
+            <h3 className="text-sm font-semibold text-g-text">{section.name}</h3>
+          )}
           <span className="rounded-full bg-g-border px-2 py-0.5 text-xs text-g-text-secondary">
             {section.tasks.length}
           </span>
         </div>
-        <button className="rounded p-1 text-g-text-muted hover:bg-g-border">
-          <MoreHorizontal className="h-4 w-4" />
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="rounded p-1 text-g-text-muted hover:bg-g-border">
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => { setEditName(section.name); setEditing(true); }}>
+              <Pencil className="mr-2 h-3.5 w-3.5" />
+              名前を変更
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-[#EA4335] focus:text-[#EA4335]"
+              onClick={() => {
+                if (window.confirm(`「${section.name}」セクションを削除しますか？含まれるタスクも削除されます。`)) {
+                  onDeleteSection?.(section.id);
+                }
+              }}
+            >
+              <Trash2 className="mr-2 h-3.5 w-3.5" />
+              削除
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Tasks */}
@@ -56,7 +111,7 @@ export function BoardColumn({ section, onAddTask }: BoardColumnProps) {
 
       {/* Add task */}
       <div className="px-2 pb-2">
-        <AddTaskInline onAdd={(title) => onAddTask(section.id, title)} />
+        <AddTaskInline onAdd={(title) => onAddTask(section.id, title)} listenNewTask={listenNewTask} />
       </div>
     </div>
   );
