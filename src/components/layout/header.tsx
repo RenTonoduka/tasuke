@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Menu, LayoutGrid, List, GanttChart, CalendarClock, BarChart3, Search, Settings, Zap, Pencil, Lock } from 'lucide-react';
+import { Menu, LayoutGrid, List, GanttChart, CalendarClock, BarChart3, Network, Search, Settings, Zap, Pencil, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -20,8 +20,8 @@ import { cn } from '@/lib/utils';
 
 interface HeaderProps {
   title?: string;
-  view?: 'board' | 'list' | 'timeline' | 'schedule' | 'dashboard';
-  onViewChange?: (view: 'board' | 'list' | 'timeline' | 'schedule' | 'dashboard') => void;
+  view?: 'board' | 'list' | 'timeline' | 'schedule' | 'dashboard' | 'mindmap';
+  onViewChange?: (view: 'board' | 'list' | 'timeline' | 'schedule' | 'dashboard' | 'mindmap') => void;
   workspaceSlug?: string;
   workspaceId?: string;
   projectId?: string;
@@ -62,7 +62,7 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
   };
 
   return (
-    <header className="flex h-12 items-center gap-3 border-b border-g-border bg-g-bg px-4">
+    <header className="flex h-12 min-w-0 items-center gap-3 overflow-hidden border-b border-g-border bg-g-bg px-4">
       <Button
         variant="ghost"
         size="icon"
@@ -97,75 +97,91 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
       )}
 
       {onViewChange && (
-        <div className="ml-4 flex rounded-md border border-g-border">
+        <div className="ml-4 flex flex-shrink-0 overflow-x-auto rounded-md border border-g-border scrollbar-hide">
           <button
             onClick={() => onViewChange('board')}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1 text-xs font-medium',
+              'flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1 text-xs font-medium',
               view === 'board'
                 ? 'bg-g-border text-g-text'
                 : 'text-g-text-secondary hover:bg-g-surface-hover'
             )}
           >
             <LayoutGrid className="h-3.5 w-3.5" />
-            ボード
+            <span className="hidden sm:inline">ボード</span>
           </button>
           <button
             onClick={() => onViewChange('list')}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1 text-xs font-medium',
+              'flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1 text-xs font-medium',
               view === 'list'
                 ? 'bg-g-border text-g-text'
                 : 'text-g-text-secondary hover:bg-g-surface-hover'
             )}
           >
             <List className="h-3.5 w-3.5" />
-            リスト
+            <span className="hidden sm:inline">リスト</span>
           </button>
           <button
             onClick={() => onViewChange('timeline')}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1 text-xs font-medium',
+              'flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1 text-xs font-medium',
               view === 'timeline'
                 ? 'bg-g-border text-g-text'
                 : 'text-g-text-secondary hover:bg-g-surface-hover'
             )}
           >
             <GanttChart className="h-3.5 w-3.5" />
-            タイムライン
+            <span className="hidden sm:inline">タイムライン</span>
           </button>
           <button
             onClick={() => onViewChange('schedule')}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1 text-xs font-medium',
+              'flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1 text-xs font-medium',
               view === 'schedule'
                 ? 'bg-g-border text-g-text'
                 : 'text-g-text-secondary hover:bg-g-surface-hover'
             )}
           >
             <CalendarClock className="h-3.5 w-3.5" />
-            スケジュール
+            <span className="hidden sm:inline">スケジュール</span>
           </button>
           <button
             onClick={() => onViewChange('dashboard')}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1 text-xs font-medium',
+              'flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1 text-xs font-medium',
               view === 'dashboard'
                 ? 'bg-g-border text-g-text'
                 : 'text-g-text-secondary hover:bg-g-surface-hover'
             )}
           >
             <BarChart3 className="h-3.5 w-3.5" />
-            ダッシュボード
+            <span className="hidden sm:inline">ダッシュボード</span>
+          </button>
+          <button
+            onClick={() => onViewChange('mindmap')}
+            className={cn(
+              'flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1 text-xs font-medium',
+              view === 'mindmap'
+                ? 'bg-g-border text-g-text'
+                : 'text-g-text-secondary hover:bg-g-surface-hover'
+            )}
+          >
+            <Network className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">マップ</span>
           </button>
         </div>
       )}
 
-      <div className="ml-auto flex items-center gap-2">
-        {projectId && <ExportSheetButton projectId={projectId} />}
-        {projectId && (
-          <SaveTemplateButton projectId={projectId} projectName={projectName || title} />
-        )}
+      <div className="ml-auto flex flex-shrink-0 items-center gap-2">
+        <span className="hidden xl:inline-flex">
+          {projectId && <ExportSheetButton projectId={projectId} />}
+        </span>
+        <span className="hidden xl:inline-flex">
+          {projectId && (
+            <SaveTemplateButton projectId={projectId} projectName={projectName || title} />
+          )}
+        </span>
         {projectId && workspaceSlug && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -198,10 +214,10 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <button className="flex items-center gap-2 rounded-md border border-g-border px-3 py-1 text-xs text-g-text-muted hover:bg-g-surface-hover">
+        <button className="flex flex-shrink-0 items-center gap-2 rounded-md border border-g-border px-3 py-1 text-xs text-g-text-muted hover:bg-g-surface-hover">
           <Search className="h-3.5 w-3.5" />
-          <span>検索...</span>
-          <kbd className="ml-1 rounded bg-g-surface-hover px-1.5 py-0.5 font-mono text-[10px] font-medium text-g-text-secondary">
+          <span className="hidden md:inline">検索...</span>
+          <kbd className="ml-1 hidden rounded bg-g-surface-hover px-1.5 py-0.5 font-mono text-[10px] font-medium text-g-text-secondary md:inline">
             ⌘K
           </kbd>
         </button>
