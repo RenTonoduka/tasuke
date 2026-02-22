@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Calendar, Clock, Flag, Tag, Users, CheckSquare, GripVertical, UserPlus, Check } from 'lucide-react';
+import { X, Calendar, Clock, Flag, Tag, Users, CheckSquare, GripVertical, UserPlus, Check, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,17 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -72,6 +84,7 @@ const DEFAULT_WIDTH = 480;
 
 export function TaskDetailPanel() {
   const { activeTaskId, close } = useTaskPanelStore();
+  const router = useRouter();
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -204,6 +217,22 @@ export function TaskDetailPanel() {
     }
   };
 
+  const deleteTask = async () => {
+    if (!task) return;
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        toast({ title: '削除に失敗しました', variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'タスクを削除しました' });
+      close();
+      router.refresh();
+    } catch {
+      toast({ title: '削除に失敗しました', variant: 'destructive' });
+    }
+  };
+
   const handleTitleBlur = () => {
     if (!task) return;
     if (!title.trim()) {
@@ -282,9 +311,32 @@ export function TaskDetailPanel() {
                   {task.status === 'DONE' ? '完了' : '未完了'}
                 </span>
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={close}>
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-g-text-muted hover:text-red-500">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>タスクを削除しますか？</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        「{task.title}」を削除します。この操作は取り消せません。
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>キャンセル</AlertDialogCancel>
+                      <AlertDialogAction onClick={deleteTask} className="bg-red-500 hover:bg-red-600">
+                        削除
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={close}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Title */}
