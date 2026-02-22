@@ -11,6 +11,7 @@ type TaskNodeData = {
   projectId?: string;
   isEditing?: boolean;
   isAdding?: boolean;
+  isSelected?: boolean;
   hasChildren?: boolean;
   childrenLoaded?: boolean;
   isCollapsed?: boolean;
@@ -157,7 +158,7 @@ function TaskNodeComponent({ data }: NodeProps<TaskNodeType>) {
   // 通常表示
   return (
     <div
-      className="group relative flex items-center gap-2 rounded-lg border border-g-border bg-g-bg px-3 py-2 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+      className={`group relative flex items-center gap-2 rounded-lg border ${data.isSelected ? 'border-[#4285F4] shadow-md' : 'border-g-border shadow-sm'} bg-g-bg px-3 py-2 hover:shadow-md transition-shadow cursor-pointer`}
       style={{ minWidth: 220, maxWidth: 220 }}
       title={data.label}
     >

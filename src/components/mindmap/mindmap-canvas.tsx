@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -17,6 +17,16 @@ import { TaskNode } from './nodes/task-node';
 import { MindMapEdge } from './edges/mindmap-edge';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { useMindMapStore } from '@/stores/mindmap-store';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 import type { Node, Edge } from '@xyflow/react';
 
 const nodeTypes = {
@@ -34,13 +44,18 @@ interface MindMapCanvasProps {
   edges: Edge[];
   projectId: string;
   onLoadSubtasks: (taskId: string) => void;
+  onRefetch?: () => void;
 }
 
-export function MindMapCanvas({ nodes, edges, projectId, onLoadSubtasks }: MindMapCanvasProps) {
+export function MindMapCanvas({ nodes, edges, projectId, onLoadSubtasks, onRefetch }: MindMapCanvasProps) {
   const openPanel = useTaskPanelStore((s) => s.open);
   const toggleCollapse = useMindMapStore((s) => s.toggleCollapse);
   const setEditingNodeId = useMindMapStore((s) => s.setEditingNodeId);
+  const setAddingNodeId = useMindMapStore((s) => s.setAddingNodeId);
+  const setSelectedNodeId = useMindMapStore((s) => s.setSelectedNodeId);
   const clearInteraction = useMindMapStore((s) => s.clearInteraction);
+
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // ダブルクリック検出用タイマー
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -54,6 +69,9 @@ export function MindMapCanvas({ nodes, edges, projectId, onLoadSubtasks }: MindM
         clearInteraction();
         return;
       }
+
+      // 選択状態を設定（root 含む全ノード）
+      setSelectedNodeId(node.id);
 
       if (node.id === 'root') return;
 
@@ -90,12 +108,11 @@ export function MindMapCanvas({ nodes, edges, projectId, onLoadSubtasks }: MindM
         }
       }, DOUBLE_CLICK_DELAY);
     },
-    [projectId, toggleCollapse, openPanel, onLoadSubtasks, clearInteraction]
+    [projectId, toggleCollapse, openPanel, onLoadSubtasks, clearInteraction, setSelectedNodeId]
   );
 
   const handleNodeDoubleClick: NodeMouseHandler = useCallback(
     (_event, node) => {
-      // タイマーキャンセル（シングルクリック動作を止める）
       if (clickTimerRef.current) {
         clearTimeout(clickTimerRef.current);
         clickTimerRef.current = null;
@@ -110,39 +127,117 @@ export function MindMapCanvas({ nodes, edges, projectId, onLoadSubtasks }: MindM
     [setEditingNodeId]
   );
 
-  // 背景クリック → 編集/追加解除
+  // 背景クリック → 全解除
   const handlePaneClick = useCallback(() => {
     clearInteraction();
   }, [clearInteraction]);
 
+  // キーボードショートカット
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const { selectedNodeId, editingNodeId, addingNodeId } = useMindMapStore.getState();
+
+    // 編集/追加中はショートカット無効
+    if (editingNodeId || addingNodeId) return;
+
+    if (!selectedNodeId) return;
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      if (selectedNodeId === 'root') return;
+      setAddingNodeId(selectedNodeId);
+    }
+
+    if (e.key === 'F2') {
+      e.preventDefault();
+      if (selectedNodeId === 'root') return;
+      setEditingNodeId(selectedNodeId);
+    }
+
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      if (selectedNodeId === 'root') return;
+      setDeleteTarget(selectedNodeId);
+    }
+
+    if (e.key === 'Escape') {
+      setSelectedNodeId(null);
+    }
+  }, [setAddingNodeId, setEditingNodeId, setSelectedNodeId]);
+
+  // 削除実行
+  const handleDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+
+    try {
+      if (deleteTarget.startsWith('task-')) {
+        const taskId = deleteTarget.replace('task-', '');
+        await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+      } else if (deleteTarget.startsWith('section-')) {
+        const sectionId = deleteTarget.replace('section-', '');
+        await fetch(`/api/sections/${sectionId}`, { method: 'DELETE' });
+      }
+      setSelectedNodeId(null);
+      onRefetch?.();
+    } catch (err) {
+      console.error('削除エラー:', err);
+    } finally {
+      setDeleteTarget(null);
+    }
+  }, [deleteTarget, setSelectedNodeId, onRefetch]);
+
+  const deleteLabel = deleteTarget?.startsWith('section-') ? 'セクション' : 'タスク';
+
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      nodeTypes={nodeTypes}
-      edgeTypes={edgeTypes}
-      onNodeClick={handleNodeClick}
-      onNodeDoubleClick={handleNodeDoubleClick}
-      onPaneClick={handlePaneClick}
-      fitView
-      fitViewOptions={{ padding: 0.3 }}
-      nodesDraggable={false}
-      nodesConnectable={false}
-      elementsSelectable={false}
-      minZoom={0.1}
-      maxZoom={2}
-    >
-      <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--g-border)" />
-      <Controls showInteractive={false} className="!bg-g-bg !border-g-border !shadow-sm" />
-      <MiniMap
-        className="!bg-g-bg !border-g-border"
-        maskColor="rgba(0,0,0,0.1)"
-        nodeColor={(node) => {
-          if (node.type === 'rootNode') return '#4285F4';
-          if (node.type === 'sectionNode') return 'var(--g-surface)';
-          return 'var(--g-bg)';
-        }}
-      />
-    </ReactFlow>
+    <>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        onNodeClick={handleNodeClick}
+        onNodeDoubleClick={handleNodeDoubleClick}
+        onPaneClick={handlePaneClick}
+        onKeyDown={handleKeyDown}
+        fitView
+        fitViewOptions={{ padding: 0.3 }}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        minZoom={0.1}
+        maxZoom={2}
+      >
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--g-border)" />
+        <Controls showInteractive={false} className="!bg-g-bg !border-g-border !shadow-sm" />
+        <MiniMap
+          className="!bg-g-bg !border-g-border"
+          maskColor="rgba(0,0,0,0.1)"
+          nodeColor={(node) => {
+            if (node.type === 'rootNode') return '#4285F4';
+            if (node.type === 'sectionNode') return 'var(--g-surface)';
+            return 'var(--g-bg)';
+          }}
+        />
+      </ReactFlow>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{deleteLabel}を削除</AlertDialogTitle>
+            <AlertDialogDescription>
+              この{deleteLabel}を削除しますか？この操作は取り消せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#EA4335] hover:bg-red-600"
+              onClick={handleDelete}
+            >
+              削除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

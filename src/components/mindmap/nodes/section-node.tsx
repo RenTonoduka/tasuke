@@ -12,6 +12,7 @@ type SectionNodeData = {
   isCollapsed?: boolean;
   isEditing?: boolean;
   isAdding?: boolean;
+  isSelected?: boolean;
   onRefetch?: () => void;
   [key: string]: unknown;
 };
@@ -142,7 +143,7 @@ function SectionNodeComponent({ id, data }: NodeProps<SectionNodeType>) {
 
   // 通常表示
   return (
-    <div className="group flex items-center gap-2 rounded-lg border border-g-border bg-g-surface px-4 py-2.5 shadow-sm"
+    <div className={`group flex items-center gap-2 rounded-lg border ${data.isSelected ? 'border-[#4285F4] shadow-md' : 'border-g-border shadow-sm'} bg-g-surface px-4 py-2.5`}
       style={{ minWidth: 180 }}
       title={data.label}
     >

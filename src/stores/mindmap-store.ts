@@ -4,7 +4,8 @@ interface MindMapState {
   collapsedNodes: Record<string, Set<string>>; // projectId → nodeIds
   direction: 'RIGHT' | 'DOWN';
   editingNodeId: string | null;
-  addingNodeId: string | null; // 「+」入力中のノードID
+  addingNodeId: string | null;
+  selectedNodeId: string | null;
   toggleCollapse: (projectId: string, nodeId: string) => void;
   expandAll: (projectId: string) => void;
   collapseAll: (projectId: string, nodeIds: string[]) => void;
@@ -12,6 +13,7 @@ interface MindMapState {
   isCollapsed: (projectId: string, nodeId: string) => boolean;
   setEditingNodeId: (id: string | null) => void;
   setAddingNodeId: (id: string | null) => void;
+  setSelectedNodeId: (id: string | null) => void;
   clearInteraction: () => void;
 }
 
@@ -20,6 +22,7 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
   direction: 'RIGHT',
   editingNodeId: null,
   addingNodeId: null,
+  selectedNodeId: null,
 
   toggleCollapse: (projectId, nodeId) =>
     set((state) => {
@@ -48,7 +51,9 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
 
   setAddingNodeId: (id) => set({ addingNodeId: id, editingNodeId: null }),
 
-  clearInteraction: () => set({ editingNodeId: null, addingNodeId: null }),
+  setSelectedNodeId: (id) => set({ selectedNodeId: id }),
+
+  clearInteraction: () => set({ editingNodeId: null, addingNodeId: null, selectedNodeId: null }),
 
   isCollapsed: (projectId, nodeId) => {
     return get().collapsedNodes[projectId]?.has(nodeId) ?? false;

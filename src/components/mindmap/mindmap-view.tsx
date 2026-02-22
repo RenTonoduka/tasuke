@@ -45,6 +45,7 @@ export function MindMapView({ sections, projectId, projectName, projectColor = '
             edges={edges}
             projectId={projectId}
             onLoadSubtasks={loadSubtasks}
+            onRefetch={onRefetch}
           />
         </div>
       </div>

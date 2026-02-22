@@ -12,7 +12,7 @@ export function useMindMapData(
   projectColor: string,
   onRefetch?: () => void
 ) {
-  const { collapsedNodes, direction, editingNodeId, addingNodeId } = useMindMapStore();
+  const { collapsedNodes, direction, editingNodeId, addingNodeId, selectedNodeId } = useMindMapStore();
   const collapsed = collapsedNodes[projectId] ?? new Set<string>();
 
   const [subtasksMap, setSubtasksMap] = useState<Record<string, Task[]>>({});
@@ -85,6 +85,7 @@ export function useMindMapData(
           projectId,
           isEditing: editingNodeId === node.id,
           isAdding: addingNodeId === node.id,
+          isSelected: selectedNodeId === node.id,
           onRefetch: stableOnRefetch,
           hasChildren: node.type === 'section'
             ? (node.data.taskCount ?? 0) > 0
@@ -102,7 +103,7 @@ export function useMindMapData(
         },
       };
     });
-  }, [visibleTree, layoutMap, collapsed, subtasksMap, loadingSubtasks, projectId, editingNodeId, addingNodeId, stableOnRefetch]);
+  }, [visibleTree, layoutMap, collapsed, subtasksMap, loadingSubtasks, projectId, editingNodeId, addingNodeId, selectedNodeId, stableOnRefetch]);
 
   // React Flow エッジ生成
   const edges: Edge[] = useMemo(() => {
