@@ -55,6 +55,25 @@
     --g-warning-bg: #FEF7E0;
     --g-error-bg: #FCE8E6;
   }
+  /* React Flow Controls/MiniMap ダークモード対応 */
+  .dark .react-flow__controls button {
+    background-color: var(--g-bg);
+    border-color: var(--g-border);
+    fill: var(--g-text-secondary);
+  }
+  .dark .react-flow__controls button:hover {
+    background-color: var(--g-surface-hover);
+  }
+  .dark .react-flow__minimap {
+    background-color: var(--g-bg);
+  }
+  .dark .react-flow__attribution {
+    background: transparent;
+  }
+  .dark .react-flow__attribution a {
+    color: var(--g-text-muted);
+  }
+
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;

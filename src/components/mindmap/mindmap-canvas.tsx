@@ -98,7 +98,6 @@ export function MindMapCanvas({ nodes, edges, projectId, onLoadSubtasks }: MindM
       elementsSelectable={false}
       minZoom={0.1}
       maxZoom={2}
-      proOptions={{ hideAttribution: true }}
     >
       <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--g-border)" />
       <Controls showInteractive={false} className="!bg-g-bg !border-g-border !shadow-sm" />

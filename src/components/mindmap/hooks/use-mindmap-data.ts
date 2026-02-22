@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import type { Node, Edge } from '@xyflow/react';
 import type { Section, Task } from '@/types';
 import { sectionsToTree, filterCollapsed, insertSubtasks, type MindMapTreeNode } from '@/lib/mindmap-utils';
@@ -17,12 +17,20 @@ export function useMindMapData(
   const [subtasksMap, setSubtasksMap] = useState<Record<string, Task[]>>({});
   const [loadingSubtasks, setLoadingSubtasks] = useState<Set<string>>(new Set());
 
-  // ツリー構築
+  // sections が変わったら subtasksMap をリセット（古いキャッシュ防止）
+  const prevSectionsRef = useRef(sections);
+  useEffect(() => {
+    if (prevSectionsRef.current !== sections) {
+      prevSectionsRef.current = sections;
+      setSubtasksMap({});
+    }
+  }, [sections]);
+
+  // ツリー構築（Object.assign バグ修正: イミュータブルに積み重ねる）
   const fullTree = useMemo(() => {
-    const tree = sectionsToTree(projectName, projectColor, sections);
-    // ロード済みサブタスクを挿入
+    let tree = sectionsToTree(projectName, projectColor, sections);
     for (const [taskId, subtasks] of Object.entries(subtasksMap)) {
-      Object.assign(tree, insertSubtasks(tree, taskId, subtasks));
+      tree = insertSubtasks(tree, taskId, subtasks);
     }
     return tree;
   }, [projectName, projectColor, sections, subtasksMap]);
@@ -36,20 +44,29 @@ export function useMindMapData(
   // レイアウト計算
   const layoutNodes = useMindMapLayout(visibleTree, direction);
 
+  // layoutNodes を Map に変換（O(n^2) → O(n) に改善）
+  const layoutMap = useMemo(() => {
+    const map = new Map<string, { x: number; y: number }>();
+    for (const n of layoutNodes) {
+      map.set(n.id, { x: n.x, y: n.y });
+    }
+    return map;
+  }, [layoutNodes]);
+
   // React Flow ノード生成
   const nodes: Node[] = useMemo(() => {
-    const flatNodes: { node: MindMapTreeNode; parentId?: string }[] = [];
+    const flatNodes: MindMapTreeNode[] = [];
 
-    function flatten(node: MindMapTreeNode, parentId?: string) {
-      flatNodes.push({ node, parentId });
+    function flatten(node: MindMapTreeNode) {
+      flatNodes.push(node);
       for (const child of node.children) {
-        flatten(child, node.id);
+        flatten(child);
       }
     }
     flatten(visibleTree);
 
-    return flatNodes.map(({ node }) => {
-      const pos = layoutNodes.find((l) => l.id === node.id);
+    return flatNodes.map((node) => {
+      const pos = layoutMap.get(node.id);
       return {
         id: node.id,
         type: node.type === 'root' ? 'rootNode' : node.type === 'section' ? 'sectionNode' : 'taskNode',
@@ -73,7 +90,7 @@ export function useMindMapData(
         },
       };
     });
-  }, [visibleTree, layoutNodes, collapsed, subtasksMap, loadingSubtasks]);
+  }, [visibleTree, layoutMap, collapsed, subtasksMap, loadingSubtasks]);
 
   // React Flow エッジ生成
   const edges: Edge[] = useMemo(() => {
@@ -95,9 +112,16 @@ export function useMindMapData(
     return result;
   }, [visibleTree]);
 
-  // サブタスク遅延ロード
+  // ref で最新 state を追跡（useCallback の deps を空にするため）
+  const subtasksMapRef = useRef(subtasksMap);
+  subtasksMapRef.current = subtasksMap;
+  const loadingRef = useRef(loadingSubtasks);
+  loadingRef.current = loadingSubtasks;
+
+  // サブタスク遅延ロード（依存配列から state を除外）
   const loadSubtasks = useCallback(async (taskId: string) => {
-    if (subtasksMap[taskId] || loadingSubtasks.has(taskId)) return;
+    if (subtasksMapRef.current[taskId] || loadingRef.current.has(taskId)) return;
+
     setLoadingSubtasks((prev) => new Set(prev).add(taskId));
     try {
       const res = await fetch(`/api/tasks/${taskId}/subtasks`);
@@ -112,7 +136,7 @@ export function useMindMapData(
         return next;
       });
     }
-  }, [subtasksMap, loadingSubtasks]);
+  }, []);
 
   // 全ノードIDの収集（collapseAll用）
   const allNodeIds = useMemo(() => {

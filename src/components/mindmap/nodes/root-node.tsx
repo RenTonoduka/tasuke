@@ -1,14 +1,16 @@
 import { memo } from 'react';
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { useMindMapStore } from '@/stores/mindmap-store';
 
-interface RootNodeData {
+type RootNodeData = {
   label: string;
   projectColor?: string;
-}
+  [key: string]: unknown;
+};
 
-function RootNodeComponent({ data }: NodeProps) {
-  const d = data as unknown as RootNodeData;
+type RootNodeType = Node<RootNodeData, 'rootNode'>;
+
+function RootNodeComponent({ data }: NodeProps<RootNodeType>) {
   const direction = useMindMapStore((s) => s.direction);
   const handlePos = direction === 'RIGHT' ? Position.Right : Position.Bottom;
 
@@ -16,11 +18,11 @@ function RootNodeComponent({ data }: NodeProps) {
     <div
       className="flex items-center justify-center rounded-xl px-6 py-3 shadow-md"
       style={{
-        backgroundColor: d.projectColor ?? '#4285F4',
+        backgroundColor: data.projectColor ?? '#4285F4',
         minWidth: 200,
       }}
     >
-      <span className="text-sm font-bold text-white">{d.label}</span>
+      <span className="text-sm font-bold text-white">{data.label}</span>
       <Handle type="source" position={handlePos} className="!bg-white/50 !w-2 !h-2" />
     </div>
   );
