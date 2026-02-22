@@ -7,6 +7,7 @@ export interface MindMapTreeNode {
   data: {
     projectName?: string;
     projectColor?: string;
+    sectionId?: string;
     sectionName?: string;
     taskCount?: number;
     task?: Task;
@@ -32,7 +33,7 @@ export function sectionsToTree(
       id: `section-${section.id}`,
       type: 'section' as const,
       label: section.name,
-      data: { sectionName: section.name, taskCount: section.tasks.length },
+      data: { sectionId: section.id, sectionName: section.name, taskCount: section.tasks.length },
       children: section.tasks.map((task) => taskToTreeNode(task)),
     })),
   };

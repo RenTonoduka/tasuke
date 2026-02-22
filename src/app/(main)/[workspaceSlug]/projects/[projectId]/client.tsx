@@ -152,7 +152,7 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
           <ProjectDashboardView sections={sections} projectId={project.id} />
         )}
         {view === 'mindmap' && (
-          <MindMapView sections={sections} projectId={project.id} projectName={project.name} projectColor={project.color} />
+          <MindMapView sections={sections} projectId={project.id} projectName={project.name} projectColor={project.color} onRefetch={refetchSections} />
         )}
       </div>
 

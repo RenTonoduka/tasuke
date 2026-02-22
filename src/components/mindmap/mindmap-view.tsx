@@ -12,9 +12,10 @@ interface MindMapViewProps {
   projectId: string;
   projectName: string;
   projectColor?: string;
+  onRefetch?: () => void;
 }
 
-export function MindMapView({ sections, projectId, projectName, projectColor = '#4285F4' }: MindMapViewProps) {
+export function MindMapView({ sections, projectId, projectName, projectColor = '#4285F4', onRefetch }: MindMapViewProps) {
   const hasTasks = sections.some((s) => s.tasks.length > 0);
 
   const { nodes, edges, loadSubtasks, allNodeIds } = useMindMapData(
@@ -43,6 +44,7 @@ export function MindMapView({ sections, projectId, projectName, projectColor = '
             edges={edges}
             projectId={projectId}
             onLoadSubtasks={loadSubtasks}
+            onRefetch={onRefetch}
           />
         </div>
       </div>

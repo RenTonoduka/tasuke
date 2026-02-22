@@ -11,7 +11,7 @@ export function useMindMapData(
   projectName: string,
   projectColor: string
 ) {
-  const { collapsedNodes, direction } = useMindMapStore();
+  const { collapsedNodes, direction, editingNodeId } = useMindMapStore();
   const collapsed = collapsedNodes[projectId] ?? new Set<string>();
 
   const [subtasksMap, setSubtasksMap] = useState<Record<string, Task[]>>({});
@@ -74,6 +74,8 @@ export function useMindMapData(
         data: {
           ...node.data,
           label: node.label,
+          projectId,
+          isEditing: editingNodeId === node.id,
           hasChildren: node.type === 'section'
             ? (node.data.taskCount ?? 0) > 0
             : (node.data.subtaskCount ?? 0) > 0,
@@ -90,7 +92,7 @@ export function useMindMapData(
         },
       };
     });
-  }, [visibleTree, layoutMap, collapsed, subtasksMap, loadingSubtasks]);
+  }, [visibleTree, layoutMap, collapsed, subtasksMap, loadingSubtasks, projectId, editingNodeId]);
 
   // React Flow エッジ生成
   const edges: Edge[] = useMemo(() => {

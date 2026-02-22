@@ -3,16 +3,19 @@ import { create } from 'zustand';
 interface MindMapState {
   collapsedNodes: Record<string, Set<string>>; // projectId → nodeIds
   direction: 'RIGHT' | 'DOWN';
+  editingNodeId: string | null;
   toggleCollapse: (projectId: string, nodeId: string) => void;
   expandAll: (projectId: string) => void;
   collapseAll: (projectId: string, nodeIds: string[]) => void;
   setDirection: (d: 'RIGHT' | 'DOWN') => void;
   isCollapsed: (projectId: string, nodeId: string) => boolean;
+  setEditingNodeId: (id: string | null) => void;
 }
 
 export const useMindMapStore = create<MindMapState>((set, get) => ({
   collapsedNodes: {},
   direction: 'RIGHT',
+  editingNodeId: null,
 
   toggleCollapse: (projectId, nodeId) =>
     set((state) => {
@@ -36,6 +39,8 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
     })),
 
   setDirection: (d) => set({ direction: d }),
+
+  setEditingNodeId: (id) => set({ editingNodeId: id }),
 
   isCollapsed: (projectId, nodeId) => {
     return get().collapsedNodes[projectId]?.has(nodeId) ?? false;
