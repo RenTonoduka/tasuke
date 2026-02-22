@@ -11,40 +11,47 @@ type SectionNodeData = {
   hasChildren?: boolean;
   isCollapsed?: boolean;
   isEditing?: boolean;
+  isAdding?: boolean;
   onRefetch?: () => void;
   [key: string]: unknown;
 };
 
 type SectionNodeType = Node<SectionNodeData, 'sectionNode'>;
 
-function SectionNodeComponent({ data }: NodeProps<SectionNodeType>) {
+function SectionNodeComponent({ id, data }: NodeProps<SectionNodeType>) {
   const direction = useMindMapStore((s) => s.direction);
-  const setEditingNodeId = useMindMapStore((s) => s.setEditingNodeId);
+  const setAddingNodeId = useMindMapStore((s) => s.setAddingNodeId);
+  const clearInteraction = useMindMapStore((s) => s.clearInteraction);
   const sourcePos = direction === 'RIGHT' ? Position.Right : Position.Bottom;
   const targetPos = direction === 'RIGHT' ? Position.Left : Position.Top;
 
   const [editValue, setEditValue] = useState(data.label);
-  const [adding, setAdding] = useState(false);
   const [addValue, setAddValue] = useState('');
   const editRef = useRef<HTMLInputElement>(null);
   const addRef = useRef<HTMLInputElement>(null);
+  const isSavingRef = useRef(false);
 
   useEffect(() => {
     if (data.isEditing) {
       setEditValue(data.label);
+      isSavingRef.current = false;
       setTimeout(() => editRef.current?.select(), 0);
     }
   }, [data.isEditing, data.label]);
 
   useEffect(() => {
-    if (adding) {
+    if (data.isAdding) {
+      setAddValue('');
+      isSavingRef.current = false;
       setTimeout(() => addRef.current?.focus(), 0);
     }
-  }, [adding]);
+  }, [data.isAdding]);
 
   const saveSectionName = useCallback(async () => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
     const trimmed = editValue.trim();
-    setEditingNodeId(null);
+    clearInteraction();
     if (!trimmed || trimmed === data.label || !data.sectionId) return;
     try {
       await fetch(`/api/sections/${data.sectionId}`, {
@@ -52,16 +59,17 @@ function SectionNodeComponent({ data }: NodeProps<SectionNodeType>) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: trimmed }),
       });
-      (data as SectionNodeData).onRefetch?.();
+      data.onRefetch?.();
     } catch (err) {
       console.error('セクション名更新エラー:', err);
     }
-  }, [editValue, data, setEditingNodeId]);
+  }, [editValue, data, clearInteraction]);
 
   const addTask = useCallback(async () => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
     const trimmed = addValue.trim();
-    setAdding(false);
-    setAddValue('');
+    clearInteraction();
     if (!trimmed || !data.projectId || !data.sectionId) return;
     try {
       await fetch(`/api/projects/${data.projectId}/tasks`, {
@@ -69,16 +77,16 @@ function SectionNodeComponent({ data }: NodeProps<SectionNodeType>) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: trimmed, sectionId: data.sectionId }),
       });
-      (data as SectionNodeData).onRefetch?.();
+      data.onRefetch?.();
     } catch (err) {
       console.error('タスク追加エラー:', err);
     }
-  }, [addValue, data]);
+  }, [addValue, data, clearInteraction]);
 
   const handleAddClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    setAdding(true);
-  }, []);
+    setAddingNodeId(id);
+  }, [id, setAddingNodeId]);
 
   // 編集モード
   if (data.isEditing) {
@@ -93,8 +101,8 @@ function SectionNodeComponent({ data }: NodeProps<SectionNodeType>) {
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={saveSectionName}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') saveSectionName();
-            if (e.key === 'Escape') { setEditValue(data.label); setEditingNodeId(null); }
+            if (e.key === 'Enter') { e.currentTarget.blur(); }
+            if (e.key === 'Escape') { setEditValue(data.label); clearInteraction(); }
             e.stopPropagation();
           }}
           className="flex-1 bg-transparent text-xs font-semibold text-g-text outline-none"
@@ -106,7 +114,7 @@ function SectionNodeComponent({ data }: NodeProps<SectionNodeType>) {
   }
 
   // タスク追加入力
-  if (adding) {
+  if (data.isAdding) {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-[#34A853] bg-g-surface px-4 py-2.5 shadow-md"
         style={{ minWidth: 180 }}
@@ -119,8 +127,8 @@ function SectionNodeComponent({ data }: NodeProps<SectionNodeType>) {
           onChange={(e) => setAddValue(e.target.value)}
           onBlur={addTask}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') addTask();
-            if (e.key === 'Escape') { setAdding(false); setAddValue(''); }
+            if (e.key === 'Enter') { e.currentTarget.blur(); }
+            if (e.key === 'Escape') { clearInteraction(); }
             e.stopPropagation();
           }}
           placeholder="タスク名..."

@@ -9,9 +9,10 @@ export function useMindMapData(
   sections: Section[],
   projectId: string,
   projectName: string,
-  projectColor: string
+  projectColor: string,
+  onRefetch?: () => void
 ) {
-  const { collapsedNodes, direction, editingNodeId } = useMindMapStore();
+  const { collapsedNodes, direction, editingNodeId, addingNodeId } = useMindMapStore();
   const collapsed = collapsedNodes[projectId] ?? new Set<string>();
 
   const [subtasksMap, setSubtasksMap] = useState<Record<string, Task[]>>({});
@@ -26,7 +27,14 @@ export function useMindMapData(
     }
   }, [sections]);
 
-  // ツリー構築（Object.assign バグ修正: イミュータブルに積み重ねる）
+  // onRefetch を ref で保持（useMemo の deps に入れない）
+  const onRefetchRef = useRef(onRefetch);
+  onRefetchRef.current = onRefetch;
+  const stableOnRefetch = useCallback(() => {
+    onRefetchRef.current?.();
+  }, []);
+
+  // ツリー構築
   const fullTree = useMemo(() => {
     let tree = sectionsToTree(projectName, projectColor, sections);
     for (const [taskId, subtasks] of Object.entries(subtasksMap)) {
@@ -44,7 +52,7 @@ export function useMindMapData(
   // レイアウト計算
   const layoutNodes = useMindMapLayout(visibleTree, direction);
 
-  // layoutNodes を Map に変換（O(n^2) → O(n) に改善）
+  // layoutNodes を Map に変換
   const layoutMap = useMemo(() => {
     const map = new Map<string, { x: number; y: number }>();
     for (const n of layoutNodes) {
@@ -53,7 +61,7 @@ export function useMindMapData(
     return map;
   }, [layoutNodes]);
 
-  // React Flow ノード生成
+  // React Flow ノード生成（onRefetch を直接注入）
   const nodes: Node[] = useMemo(() => {
     const flatNodes: MindMapTreeNode[] = [];
 
@@ -76,6 +84,8 @@ export function useMindMapData(
           label: node.label,
           projectId,
           isEditing: editingNodeId === node.id,
+          isAdding: addingNodeId === node.id,
+          onRefetch: stableOnRefetch,
           hasChildren: node.type === 'section'
             ? (node.data.taskCount ?? 0) > 0
             : (node.data.subtaskCount ?? 0) > 0,
@@ -92,7 +102,7 @@ export function useMindMapData(
         },
       };
     });
-  }, [visibleTree, layoutMap, collapsed, subtasksMap, loadingSubtasks, projectId, editingNodeId]);
+  }, [visibleTree, layoutMap, collapsed, subtasksMap, loadingSubtasks, projectId, editingNodeId, addingNodeId, stableOnRefetch]);
 
   // React Flow エッジ生成
   const edges: Edge[] = useMemo(() => {
@@ -114,13 +124,13 @@ export function useMindMapData(
     return result;
   }, [visibleTree]);
 
-  // ref で最新 state を追跡（useCallback の deps を空にするため）
+  // ref で最新 state を追跡
   const subtasksMapRef = useRef(subtasksMap);
   subtasksMapRef.current = subtasksMap;
   const loadingRef = useRef(loadingSubtasks);
   loadingRef.current = loadingSubtasks;
 
-  // サブタスク遅延ロード（依存配列から state を除外）
+  // サブタスク遅延ロード
   const loadSubtasks = useCallback(async (taskId: string) => {
     if (subtasksMapRef.current[taskId] || loadingRef.current.has(taskId)) return;
 

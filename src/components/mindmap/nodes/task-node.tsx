@@ -16,6 +16,7 @@ type TaskNodeData = {
   task?: Task;
   projectId?: string;
   isEditing?: boolean;
+  isAdding?: boolean;
   hasChildren?: boolean;
   childrenLoaded?: boolean;
   isCollapsed?: boolean;
@@ -31,33 +32,40 @@ type TaskNodeType = Node<TaskNodeData, 'taskNode'>;
 function TaskNodeComponent({ data }: NodeProps<TaskNodeType>) {
   const direction = useMindMapStore((s) => s.direction);
   const setEditingNodeId = useMindMapStore((s) => s.setEditingNodeId);
+  const setAddingNodeId = useMindMapStore((s) => s.setAddingNodeId);
+  const clearInteraction = useMindMapStore((s) => s.clearInteraction);
   const sourcePos = direction === 'RIGHT' ? Position.Right : Position.Bottom;
   const targetPos = direction === 'RIGHT' ? Position.Left : Position.Top;
   const task = data.task;
   const isDone = task?.status === 'DONE';
 
   const [editValue, setEditValue] = useState(data.label);
-  const [adding, setAdding] = useState(false);
   const [addValue, setAddValue] = useState('');
   const editRef = useRef<HTMLInputElement>(null);
   const addRef = useRef<HTMLInputElement>(null);
+  const isSavingRef = useRef(false);
 
   useEffect(() => {
     if (data.isEditing) {
       setEditValue(data.label);
+      isSavingRef.current = false;
       setTimeout(() => editRef.current?.select(), 0);
     }
   }, [data.isEditing, data.label]);
 
   useEffect(() => {
-    if (adding) {
+    if (data.isAdding) {
+      setAddValue('');
+      isSavingRef.current = false;
       setTimeout(() => addRef.current?.focus(), 0);
     }
-  }, [adding]);
+  }, [data.isAdding]);
 
   const saveTitle = useCallback(async () => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
     const trimmed = editValue.trim();
-    setEditingNodeId(null);
+    clearInteraction();
     if (!trimmed || trimmed === data.label || !task) return;
     try {
       await fetch(`/api/tasks/${task.id}`, {
@@ -65,16 +73,17 @@ function TaskNodeComponent({ data }: NodeProps<TaskNodeType>) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: trimmed }),
       });
-      (data as TaskNodeData).onRefetch?.();
+      data.onRefetch?.();
     } catch (err) {
       console.error('タイトル更新エラー:', err);
     }
-  }, [editValue, data, task, setEditingNodeId]);
+  }, [editValue, data, task, clearInteraction]);
 
   const addSubtask = useCallback(async () => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
     const trimmed = addValue.trim();
-    setAdding(false);
-    setAddValue('');
+    clearInteraction();
     if (!trimmed || !task) return;
     try {
       await fetch(`/api/tasks/${task.id}/subtasks`, {
@@ -82,16 +91,16 @@ function TaskNodeComponent({ data }: NodeProps<TaskNodeType>) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: trimmed }),
       });
-      (data as TaskNodeData).onRefetch?.();
+      data.onRefetch?.();
     } catch (err) {
       console.error('サブタスク追加エラー:', err);
     }
-  }, [addValue, task, data]);
+  }, [addValue, task, data, clearInteraction]);
 
   const handleAddClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    setAdding(true);
-  }, []);
+    setAddingNodeId(data.task ? `task-${data.task.id}` : null);
+  }, [data.task, setAddingNodeId]);
 
   // 編集モード
   if (data.isEditing) {
@@ -107,8 +116,8 @@ function TaskNodeComponent({ data }: NodeProps<TaskNodeType>) {
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={saveTitle}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') saveTitle();
-            if (e.key === 'Escape') { setEditValue(data.label); setEditingNodeId(null); }
+            if (e.key === 'Enter') { e.currentTarget.blur(); }
+            if (e.key === 'Escape') { setEditValue(data.label); clearInteraction(); }
             e.stopPropagation();
           }}
           className="flex-1 bg-transparent text-xs text-g-text outline-none"
@@ -122,7 +131,7 @@ function TaskNodeComponent({ data }: NodeProps<TaskNodeType>) {
   }
 
   // サブタスク追加入力
-  if (adding) {
+  if (data.isAdding) {
     return (
       <div
         className="relative flex items-center gap-2 rounded-lg border border-[#34A853] bg-g-bg px-3 py-2 shadow-md"
@@ -136,8 +145,8 @@ function TaskNodeComponent({ data }: NodeProps<TaskNodeType>) {
           onChange={(e) => setAddValue(e.target.value)}
           onBlur={addSubtask}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') addSubtask();
-            if (e.key === 'Escape') { setAdding(false); setAddValue(''); }
+            if (e.key === 'Enter') { e.currentTarget.blur(); }
+            if (e.key === 'Escape') { clearInteraction(); }
             e.stopPropagation();
           }}
           placeholder="サブタスク名..."
