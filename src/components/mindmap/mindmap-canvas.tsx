@@ -59,6 +59,7 @@ export function MindMapCanvas({ nodes, edges, projectId, navMap, onLoadSubtasks,
   const clearInteraction = useMindMapStore((s) => s.clearInteraction);
 
   const { getNodes, getZoom, setCenter } = useReactFlow();
+  const containerRef = useRef<HTMLDivElement>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // ダブルクリック検出用タイマー
@@ -145,9 +146,12 @@ export function MindMapCanvas({ nodes, edges, projectId, navMap, onLoadSubtasks,
   // キーボードショートカット（document レベルで捕捉）
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // input/textarea 内の入力は無視
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      // マインドマップコンテナ外のイベントは無視
+      if (!containerRef.current?.contains(e.target as HTMLElement)) return;
+
+      // input/textarea/contentEditable 内の入力は無視
+      const el = e.target as HTMLElement;
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable) return;
 
       const { selectedNodeId, editingNodeId, addingNodeId, direction } = useMindMapStore.getState();
 
@@ -251,7 +255,7 @@ export function MindMapCanvas({ nodes, edges, projectId, navMap, onLoadSubtasks,
 
   return (
     <>
-      <div className="h-full w-full">
+      <div ref={containerRef} className="h-full w-full">
       <ReactFlow
         nodes={nodes}
         edges={edges}

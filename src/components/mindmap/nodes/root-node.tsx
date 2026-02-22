@@ -5,6 +5,7 @@ import { useMindMapStore } from '@/stores/mindmap-store';
 type RootNodeData = {
   label: string;
   projectColor?: string;
+  isSelected?: boolean;
   [key: string]: unknown;
 };
 
@@ -16,7 +17,7 @@ function RootNodeComponent({ data }: NodeProps<RootNodeType>) {
 
   return (
     <div
-      className="flex items-center justify-center rounded-xl px-6 py-3 shadow-md"
+      className={`flex items-center justify-center rounded-xl px-6 py-3 ${data.isSelected ? 'ring-2 ring-white/70 shadow-lg' : 'shadow-md'}`}
       style={{
         backgroundColor: data.projectColor ?? '#4285F4',
         minWidth: 200,
