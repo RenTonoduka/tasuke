@@ -38,7 +38,7 @@ export function MindMapView({ sections, projectId, projectName, projectColor = '
   return (
     <ReactFlowProvider>
       <div className="flex flex-1 flex-col overflow-hidden">
-        <MindMapToolbar projectId={projectId} allNodeIds={allNodeIds} />
+        <MindMapToolbar projectId={projectId} projectName={projectName} allNodeIds={allNodeIds} />
         <div className="flex-1">
           <MindMapCanvas
             nodes={nodes}

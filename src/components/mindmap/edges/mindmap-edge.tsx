@@ -9,6 +9,7 @@ function MindMapEdgeComponent({
   sourcePosition,
   targetPosition,
   style,
+  data,
 }: EdgeProps) {
   const [edgePath] = getBezierPath({
     sourceX,
@@ -20,11 +21,13 @@ function MindMapEdgeComponent({
     curvature: 0.3,
   });
 
+  const color = (data as Record<string, unknown>)?.color as string | undefined;
+
   return (
     <BaseEdge
       path={edgePath}
       style={{
-        stroke: 'var(--g-border)',
+        stroke: color ?? 'var(--g-border)',
         strokeWidth: 1.5,
         ...style,
       }}

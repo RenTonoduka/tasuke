@@ -178,6 +178,8 @@ function TaskNodeComponent({ data }: NodeProps<TaskNodeType>) {
 
       {isDone ? (
         <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#34A853]" />
+      ) : task?.status === 'IN_PROGRESS' ? (
+        <div className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#4285F4] animate-pulse" />
       ) : (
         <div className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-g-text-muted" />
       )}

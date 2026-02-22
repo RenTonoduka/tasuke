@@ -106,15 +106,31 @@ export function useMindMapData(
 
   // React Flow エッジ生成
   const edges: Edge[] = useMemo(() => {
+    const priorityColors: Record<string, string> = {
+      P0: '#EA4335',
+      P1: '#FBBC04',
+      P2: '#4285F4',
+      P3: '#80868B',
+    };
+
     const result: Edge[] = [];
 
     function traverse(node: MindMapTreeNode) {
       for (const child of node.children) {
+        // エッジの色: タスクノードの優先度に基づく
+        let edgeColor: string | undefined;
+        if (child.type === 'task' && child.data.task) {
+          edgeColor = priorityColors[child.data.task.priority];
+        } else if (node.type === 'task' && node.data.task) {
+          edgeColor = priorityColors[node.data.task.priority];
+        }
+
         result.push({
           id: `${node.id}->${child.id}`,
           source: node.id,
           target: child.id,
           type: 'mindmapEdge',
+          data: edgeColor ? { color: edgeColor } : {},
         });
         traverse(child);
       }
