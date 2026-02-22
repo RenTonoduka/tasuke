@@ -17,13 +17,31 @@ export function useMindMapData(
 
   const [subtasksMap, setSubtasksMap] = useState<Record<string, Task[]>>({});
   const [loadingSubtasks, setLoadingSubtasks] = useState<Set<string>>(new Set());
+  const subtasksMapRef = useRef(subtasksMap);
+  subtasksMapRef.current = subtasksMap;
 
-  // sections が変わったら subtasksMap をリセット（古いキャッシュ防止）
+  // sections が変わったらロード済みサブタスクを再取得（全消去ではなく更新）
   const prevSectionsRef = useRef(sections);
   useEffect(() => {
     if (prevSectionsRef.current !== sections) {
       prevSectionsRef.current = sections;
-      setSubtasksMap({});
+      const loadedTaskIds = Object.keys(subtasksMapRef.current);
+      if (loadedTaskIds.length === 0) return;
+      for (const taskId of loadedTaskIds) {
+        fetch(`/api/tasks/${taskId}/subtasks`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data) {
+              setSubtasksMap((prev) => ({ ...prev, [taskId]: data }));
+            } else {
+              setSubtasksMap((prev) => {
+                const { [taskId]: _, ...rest } = prev;
+                return rest;
+              });
+            }
+          })
+          .catch(() => {});
+      }
     }
   }, [sections]);
 
@@ -134,8 +152,6 @@ export function useMindMapData(
   }, [visibleTree]);
 
   // ref で最新 state を追跡
-  const subtasksMapRef = useRef(subtasksMap);
-  subtasksMapRef.current = subtasksMap;
   const loadingRef = useRef(loadingSubtasks);
   loadingRef.current = loadingSubtasks;
 
