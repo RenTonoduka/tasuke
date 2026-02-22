@@ -7,6 +7,7 @@ import { ListView } from '@/components/list/list-view';
 import { TimelineView } from '@/components/timeline/timeline-view';
 import { ScheduleView } from '@/components/schedule/schedule-view';
 import { ProjectDashboardView } from '@/components/dashboard/project-dashboard-view';
+import { MindMapView } from '@/components/mindmap/mindmap-view';
 import { TaskDetailPanel } from '@/components/task/task-detail-panel';
 import { FilterBar } from '@/components/shared/filter-bar';
 import { BulkActionBar } from '@/components/shared/bulk-action-bar';
@@ -22,13 +23,13 @@ interface ProjectPageClientProps {
 }
 
 export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientProps) {
-  const [view, setView] = useState<'board' | 'list' | 'timeline' | 'schedule' | 'dashboard'>('board');
+  const [view, setView] = useState<'board' | 'list' | 'timeline' | 'schedule' | 'dashboard' | 'mindmap'>('board');
   const [sections, setSections] = useState<Section[]>(project.sections);
   useFilterUrlSync();
 
   const handleViewChange = useCallback((v: typeof view) => {
     useSelectionStore.getState().clear();
-    if (v === 'schedule' || v === 'dashboard') {
+    if (v === 'schedule' || v === 'dashboard' || v === 'mindmap') {
       useFilterStore.getState().reset();
     }
     setView(v);
@@ -125,7 +126,7 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
         projectName={project.name}
       />
 
-      {(view === 'board' || view === 'list' || view === 'timeline') && (
+      {['board', 'list', 'timeline'].includes(view) && (
         <FilterBar members={members} labels={labels} />
       )}
 
@@ -149,6 +150,9 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
         )}
         {view === 'dashboard' && (
           <ProjectDashboardView sections={sections} projectId={project.id} />
+        )}
+        {view === 'mindmap' && (
+          <MindMapView sections={sections} projectId={project.id} projectName={project.name} projectColor={project.color} />
         )}
       </div>
 
