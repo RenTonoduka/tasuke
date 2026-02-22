@@ -7,6 +7,7 @@ import {
   Controls,
   Background,
   BackgroundVariant,
+  useReactFlow,
   type NodeMouseHandler,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -57,6 +58,7 @@ export function MindMapCanvas({ nodes, edges, projectId, navMap, onLoadSubtasks,
   const setSelectedNodeId = useMindMapStore((s) => s.setSelectedNodeId);
   const clearInteraction = useMindMapStore((s) => s.clearInteraction);
 
+  const { getNodes, getZoom, setCenter } = useReactFlow();
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // ダブルクリック検出用タイマー
@@ -164,7 +166,18 @@ export function MindMapCanvas({ nodes, edges, projectId, navMap, onLoadSubtasks,
       if (e.key === toNext) target = nav.nextSibling;
       if (e.key === toPrev) target = nav.prevSibling;
 
-      if (target) setSelectedNodeId(target);
+      if (target) {
+        setSelectedNodeId(target);
+        const targetNode = getNodes().find((n) => n.id === target);
+        if (targetNode) {
+          const zoom = getZoom();
+          setCenter(
+            targetNode.position.x + (targetNode.measured?.width ?? 180) / 2,
+            targetNode.position.y + (targetNode.measured?.height ?? 40) / 2,
+            { zoom, duration: 200 }
+          );
+        }
+      }
       return;
     }
 
@@ -191,7 +204,7 @@ export function MindMapCanvas({ nodes, edges, projectId, navMap, onLoadSubtasks,
     if (e.key === 'Escape') {
       setSelectedNodeId(null);
     }
-  }, [navMap, setAddingNodeId, setEditingNodeId, setSelectedNodeId]);
+  }, [navMap, getNodes, getZoom, setCenter, setAddingNodeId, setEditingNodeId, setSelectedNodeId]);
 
   // 削除実行
   const handleDelete = useCallback(async () => {
