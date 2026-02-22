@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -138,73 +138,86 @@ export function MindMapCanvas({ nodes, edges, projectId, navMap, onLoadSubtasks,
     setSelectedNodeId(null);
   }, [clearInteraction, setSelectedNodeId]);
 
-  // キーボードショートカット
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    const { selectedNodeId, editingNodeId, addingNodeId, direction } = useMindMapStore.getState();
+  // navMap を ref で保持（useEffect 内で最新値を参照するため）
+  const navMapRef = useRef(navMap);
+  navMapRef.current = navMap;
 
-    // 編集/追加中はショートカット無効
-    if (editingNodeId || addingNodeId) return;
+  // キーボードショートカット（document レベルで捕捉）
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // input/textarea 内の入力は無視
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
-    // 矢印キー: 未選択時は root を選択
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-      e.preventDefault();
-      if (!selectedNodeId) {
-        setSelectedNodeId('root');
+      const { selectedNodeId, editingNodeId, addingNodeId, direction } = useMindMapStore.getState();
+
+      // 編集/追加中はショートカット無効
+      if (editingNodeId || addingNodeId) return;
+
+      // 矢印キー: 未選択時は root を選択
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        if (!selectedNodeId) {
+          setSelectedNodeId('root');
+          return;
+        }
+        const nav = navMapRef.current.get(selectedNodeId);
+        if (!nav) return;
+
+        const toChild = direction === 'RIGHT' ? 'ArrowRight' : 'ArrowDown';
+        const toParent = direction === 'RIGHT' ? 'ArrowLeft' : 'ArrowUp';
+        const toNext = direction === 'RIGHT' ? 'ArrowDown' : 'ArrowRight';
+        const toPrev = direction === 'RIGHT' ? 'ArrowUp' : 'ArrowLeft';
+
+        let target: string | null = null;
+        if (e.key === toChild) target = nav.firstChild;
+        if (e.key === toParent) target = nav.parent;
+        if (e.key === toNext) target = nav.nextSibling;
+        if (e.key === toPrev) target = nav.prevSibling;
+
+        if (target) {
+          setSelectedNodeId(target);
+          const targetNode = getNodes().find((n) => n.id === target);
+          if (targetNode) {
+            const zoom = getZoom();
+            setCenter(
+              targetNode.position.x + (targetNode.measured?.width ?? 180) / 2,
+              targetNode.position.y + (targetNode.measured?.height ?? 40) / 2,
+              { zoom, duration: 200 }
+            );
+          }
+        }
         return;
       }
-      const nav = navMap.get(selectedNodeId);
-      if (!nav) return;
 
-      const toChild = direction === 'RIGHT' ? 'ArrowRight' : 'ArrowDown';
-      const toParent = direction === 'RIGHT' ? 'ArrowLeft' : 'ArrowUp';
-      const toNext = direction === 'RIGHT' ? 'ArrowDown' : 'ArrowRight';
-      const toPrev = direction === 'RIGHT' ? 'ArrowUp' : 'ArrowLeft';
+      if (!selectedNodeId) return;
 
-      let target: string | null = null;
-      if (e.key === toChild) target = nav.firstChild;
-      if (e.key === toParent) target = nav.parent;
-      if (e.key === toNext) target = nav.nextSibling;
-      if (e.key === toPrev) target = nav.prevSibling;
-
-      if (target) {
-        setSelectedNodeId(target);
-        const targetNode = getNodes().find((n) => n.id === target);
-        if (targetNode) {
-          const zoom = getZoom();
-          setCenter(
-            targetNode.position.x + (targetNode.measured?.width ?? 180) / 2,
-            targetNode.position.y + (targetNode.measured?.height ?? 40) / 2,
-            { zoom, duration: 200 }
-          );
-        }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        if (selectedNodeId === 'root') return;
+        setAddingNodeId(selectedNodeId);
       }
-      return;
-    }
 
-    if (!selectedNodeId) return;
+      if (e.key === 'F2') {
+        e.preventDefault();
+        if (selectedNodeId === 'root') return;
+        setEditingNodeId(selectedNodeId);
+      }
 
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      if (selectedNodeId === 'root') return;
-      setAddingNodeId(selectedNodeId);
-    }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        if (selectedNodeId === 'root') return;
+        setDeleteTarget(selectedNodeId);
+      }
 
-    if (e.key === 'F2') {
-      e.preventDefault();
-      if (selectedNodeId === 'root') return;
-      setEditingNodeId(selectedNodeId);
-    }
+      if (e.key === 'Escape') {
+        setSelectedNodeId(null);
+      }
+    };
 
-    if (e.key === 'Delete' || e.key === 'Backspace') {
-      e.preventDefault();
-      if (selectedNodeId === 'root') return;
-      setDeleteTarget(selectedNodeId);
-    }
-
-    if (e.key === 'Escape') {
-      setSelectedNodeId(null);
-    }
-  }, [navMap, getNodes, getZoom, setCenter, setAddingNodeId, setEditingNodeId, setSelectedNodeId]);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [getNodes, getZoom, setCenter, setAddingNodeId, setEditingNodeId, setSelectedNodeId]);
 
   // 削除実行
   const handleDelete = useCallback(async () => {
@@ -238,8 +251,7 @@ export function MindMapCanvas({ nodes, edges, projectId, navMap, onLoadSubtasks,
 
   return (
     <>
-      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
-      <div className="h-full w-full" tabIndex={0} onKeyDown={handleKeyDown} style={{ outline: 'none' }}>
+      <div className="h-full w-full">
       <ReactFlow
         nodes={nodes}
         edges={edges}
