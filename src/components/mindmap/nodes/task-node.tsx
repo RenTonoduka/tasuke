@@ -2,14 +2,8 @@ import { memo, useState, useRef, useEffect, useCallback } from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { ChevronRight, ChevronDown, Loader2, CheckCircle2, Plus } from 'lucide-react';
 import { useMindMapStore } from '@/stores/mindmap-store';
+import { PRIORITY_COLORS } from '@/lib/mindmap-utils';
 import type { Task } from '@/types';
-
-const priorityColors: Record<string, string> = {
-  P0: '#EA4335',
-  P1: '#FBBC04',
-  P2: '#4285F4',
-  P3: '#80868B',
-};
 
 type TaskNodeData = {
   label: string;
@@ -172,14 +166,14 @@ function TaskNodeComponent({ data }: NodeProps<TaskNodeType>) {
       {task && (
         <div
           className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
-          style={{ backgroundColor: priorityColors[task.priority] ?? '#80868B' }}
+          style={{ backgroundColor: PRIORITY_COLORS[task.priority] ?? '#80868B' }}
         />
       )}
 
       {isDone ? (
         <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#34A853]" />
       ) : task?.status === 'IN_PROGRESS' ? (
-        <div className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#4285F4] animate-pulse" />
+        <div className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-[#4285F4] bg-[#4285F4]/30 animate-[pulse_2s_ease-in-out_infinite]" />
       ) : (
         <div className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-g-text-muted" />
       )}

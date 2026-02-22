@@ -28,15 +28,22 @@ export function MindMapToolbar({ projectId, projectName, allNodeIds }: MindMapTo
       const padding = 50;
       const imageWidth = bounds.width + padding * 2;
       const imageHeight = bounds.height + padding * 2;
-      const viewport = getViewportForBounds(bounds, imageWidth, imageHeight, 0.5, 2, padding);
+      const viewport = getViewportForBounds(bounds, imageWidth, imageHeight, 0.5, 2, 0);
 
       const viewportEl = document.querySelector('.react-flow__viewport') as HTMLElement;
       if (!viewportEl) return;
 
+      // React Flow コンテナから実際の背景色を取得
+      const rfContainer = viewportEl.closest('.react-flow') as HTMLElement;
+      const bgColor = rfContainer
+        ? getComputedStyle(rfContainer).backgroundColor
+        : '#ffffff';
+
       const dataUrl = await toPng(viewportEl, {
-        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--g-bg').trim() || '#ffffff',
+        backgroundColor: bgColor,
         width: imageWidth,
         height: imageHeight,
+        pixelRatio: 2,
         style: {
           width: `${imageWidth}px`,
           height: `${imageHeight}px`,

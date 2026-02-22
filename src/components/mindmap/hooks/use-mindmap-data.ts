@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import type { Node, Edge } from '@xyflow/react';
 import type { Section, Task } from '@/types';
-import { sectionsToTree, filterCollapsed, insertSubtasks, type MindMapTreeNode } from '@/lib/mindmap-utils';
+import { sectionsToTree, filterCollapsed, insertSubtasks, PRIORITY_COLORS, type MindMapTreeNode } from '@/lib/mindmap-utils';
 import { useMindMapStore } from '@/stores/mindmap-store';
 import { useMindMapLayout } from './use-mindmap-layout';
 
@@ -106,23 +106,15 @@ export function useMindMapData(
 
   // React Flow エッジ生成
   const edges: Edge[] = useMemo(() => {
-    const priorityColors: Record<string, string> = {
-      P0: '#EA4335',
-      P1: '#FBBC04',
-      P2: '#4285F4',
-      P3: '#80868B',
-    };
-
     const result: Edge[] = [];
 
     function traverse(node: MindMapTreeNode) {
       for (const child of node.children) {
-        // エッジの色: タスクノードの優先度に基づく
         let edgeColor: string | undefined;
         if (child.type === 'task' && child.data.task) {
-          edgeColor = priorityColors[child.data.task.priority];
+          edgeColor = PRIORITY_COLORS[child.data.task.priority];
         } else if (node.type === 'task' && node.data.task) {
-          edgeColor = priorityColors[node.data.task.priority];
+          edgeColor = PRIORITY_COLORS[node.data.task.priority];
         }
 
         result.push({

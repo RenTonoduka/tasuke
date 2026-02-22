@@ -1,5 +1,12 @@
 import type { Section, Task } from '@/types';
 
+export const PRIORITY_COLORS: Record<string, string> = {
+  P0: '#EA4335',
+  P1: '#FBBC04',
+  P2: '#4285F4',
+  P3: '#80868B',
+};
+
 export interface MindMapTreeNode {
   id: string;
   type: 'root' | 'section' | 'task';
