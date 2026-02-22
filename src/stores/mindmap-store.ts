@@ -53,7 +53,7 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
 
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
 
-  clearInteraction: () => set({ editingNodeId: null, addingNodeId: null, selectedNodeId: null }),
+  clearInteraction: () => set({ editingNodeId: null, addingNodeId: null }),
 
   isCollapsed: (projectId, nodeId) => {
     return get().collapsedNodes[projectId]?.has(nodeId) ?? false;

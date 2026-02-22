@@ -63,10 +63,11 @@ export function MindMapCanvas({ nodes, edges, projectId, onLoadSubtasks, onRefet
 
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {
-      // 編集/追加中なら解除（保存は blur で処理）
+      // 編集/追加中なら解除し、クリックしたノードを選択
       const { editingNodeId, addingNodeId } = useMindMapStore.getState();
       if (editingNodeId || addingNodeId) {
         clearInteraction();
+        setSelectedNodeId(node.id);
         return;
       }
 
@@ -127,10 +128,11 @@ export function MindMapCanvas({ nodes, edges, projectId, onLoadSubtasks, onRefet
     [setEditingNodeId]
   );
 
-  // 背景クリック → 全解除
+  // 背景クリック → 全解除（選択も含む）
   const handlePaneClick = useCallback(() => {
     clearInteraction();
-  }, [clearInteraction]);
+    setSelectedNodeId(null);
+  }, [clearInteraction, setSelectedNodeId]);
 
   // キーボードショートカット
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -169,12 +171,19 @@ export function MindMapCanvas({ nodes, edges, projectId, onLoadSubtasks, onRefet
     if (!deleteTarget) return;
 
     try {
+      let res: Response;
       if (deleteTarget.startsWith('task-')) {
         const taskId = deleteTarget.replace('task-', '');
-        await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+        res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
       } else if (deleteTarget.startsWith('section-')) {
         const sectionId = deleteTarget.replace('section-', '');
-        await fetch(`/api/sections/${sectionId}`, { method: 'DELETE' });
+        res = await fetch(`/api/sections/${sectionId}`, { method: 'DELETE' });
+      } else {
+        return;
+      }
+      if (!res.ok) {
+        console.error('削除失敗:', res.status);
+        return;
       }
       setSelectedNodeId(null);
       onRefetch?.();
@@ -189,6 +198,8 @@ export function MindMapCanvas({ nodes, edges, projectId, onLoadSubtasks, onRefet
 
   return (
     <>
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+      <div className="h-full w-full" tabIndex={0} onKeyDown={handleKeyDown} style={{ outline: 'none' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -197,7 +208,6 @@ export function MindMapCanvas({ nodes, edges, projectId, onLoadSubtasks, onRefet
         onNodeClick={handleNodeClick}
         onNodeDoubleClick={handleNodeDoubleClick}
         onPaneClick={handlePaneClick}
-        onKeyDown={handleKeyDown}
         fitView
         fitViewOptions={{ padding: 0.3 }}
         nodesDraggable={false}
@@ -218,13 +228,16 @@ export function MindMapCanvas({ nodes, edges, projectId, onLoadSubtasks, onRefet
           }}
         />
       </ReactFlow>
+      </div>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{deleteLabel}を削除</AlertDialogTitle>
             <AlertDialogDescription>
-              この{deleteLabel}を削除しますか？この操作は取り消せません。
+              {deleteTarget?.startsWith('section-')
+                ? 'このセクションを削除しますか？含まれるタスクも削除されます。この操作は取り消せません。'
+                : 'このタスクを削除しますか？この操作は取り消せません。'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
