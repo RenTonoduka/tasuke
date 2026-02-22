@@ -19,6 +19,7 @@ type TaskNodeData = {
   isLoading?: boolean;
   subtaskCount?: number;
   onRefetch?: () => void;
+  onSubtaskCreated?: (parentTaskId: string) => void;
   [key: string]: unknown;
 };
 
@@ -86,7 +87,7 @@ function TaskNodeComponent({ data }: NodeProps<TaskNodeType>) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: trimmed }),
       });
-      data.onRefetch?.();
+      data.onSubtaskCreated?.(task.id);
     } catch (err) {
       console.error('サブタスク追加エラー:', err);
     }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { CalendarClock, CalendarPlus, CalendarCheck, RefreshCw, AlertTriangle, Clock, Settings2 } from 'lucide-react';
+import { CalendarClock, CalendarPlus, CalendarCheck, RefreshCw, AlertTriangle, Clock, Settings2, Save, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
@@ -90,17 +90,39 @@ interface ScheduleViewProps {
   projectId: string;
 }
 
+function loadSettings(projectId: string) {
+  if (typeof window === 'undefined') return { workStart: 9, workEnd: 18, skipWeekends: true };
+  try {
+    const raw = localStorage.getItem(`schedule-settings:${projectId}`);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { workStart: 9, workEnd: 18, skipWeekends: true };
+}
+
 export function ScheduleView({ projectId }: ScheduleViewProps) {
   const [data, setData] = useState<ScheduleData | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
-  const [workStart, setWorkStart] = useState(9);
-  const [workEnd, setWorkEnd] = useState(18);
-  const [skipWeekends, setSkipWeekends] = useState(true);
+  const saved = loadSettings(projectId);
+  const [workStart, setWorkStart] = useState(saved.workStart);
+  const [workEnd, setWorkEnd] = useState(saved.workEnd);
+  const [skipWeekends, setSkipWeekends] = useState(saved.skipWeekends);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState(false);
   const [registeredBlocks, setRegisteredBlocks] = useState<Map<string, string>>(new Map());
   const [registeringSlot, setRegisteringSlot] = useState<string | null>(null);
+  const [draggingTask, setDraggingTask] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ date: string; startMin: number } | null>(null);
   const openPanel = useTaskPanelStore((s) => s.open);
+
+  const handleSaveSettings = useCallback(() => {
+    localStorage.setItem(
+      `schedule-settings:${projectId}`,
+      JSON.stringify({ workStart, workEnd, skipWeekends })
+    );
+    setSettingsSaved(true);
+    setTimeout(() => setSettingsSaved(false), 2000);
+  }, [projectId, workStart, workEnd, skipWeekends]);
 
   const workHours = workEnd - workStart;
   const totalWidth = workHours * HOUR_WIDTH;
@@ -200,6 +222,83 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
       setRegisteringSlot(null);
     }
   };
+
+  // D&D: ドラッグ開始
+  const handleDragStart = useCallback((e: React.DragEvent, taskId: string, estimatedHours: number, priority: string) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ taskId, estimatedHours, priority }));
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingTask(taskId);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggingTask(null);
+    setDropTarget(null);
+  }, []);
+
+  // D&D: ドロップエリア上でのマウス位置から時間を計算
+  const calcDropTime = useCallback((e: React.DragEvent, date: string) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const rawMin = workStartMin + (x / HOUR_WIDTH) * 60;
+    // 30分単位でスナップ
+    const snappedMin = Math.round(rawMin / 30) * 30;
+    const clampedMin = Math.max(workStartMin, Math.min(snappedMin, workEndMin - 30));
+    return clampedMin;
+  }, [workStartMin, workEndMin]);
+
+  const handleDragOver = useCallback((e: React.DragEvent, date: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const startMin = calcDropTime(e, date);
+    setDropTarget({ date, startMin });
+  }, [calcDropTime]);
+
+  const handleDragLeave = useCallback(() => {
+    setDropTarget(null);
+  }, []);
+
+  // D&D: ドロップ処理
+  const handleDrop = useCallback(async (e: React.DragEvent, date: string) => {
+    e.preventDefault();
+    setDropTarget(null);
+    setDraggingTask(null);
+
+    let taskId: string;
+    let estimatedHours: number;
+    try {
+      const payload = JSON.parse(e.dataTransfer.getData('text/plain'));
+      taskId = payload.taskId;
+      estimatedHours = payload.estimatedHours;
+    } catch { return; }
+
+    const startMin = calcDropTime(e, date);
+    const endMin = Math.min(startMin + estimatedHours * 60, workEndMin);
+
+    if (endMin <= startMin) return;
+
+    const start = minutesToTime(startMin);
+    const end = minutesToTime(endMin);
+    const slotKey = `${taskId}|${date}|${start}`;
+
+    if (registeredBlocks.has(slotKey)) return;
+
+    setRegisteringSlot(slotKey);
+    try {
+      const res = await fetch('/api/calendar/schedule-block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, date, start, end }),
+      });
+      if (res.ok) {
+        const block = await res.json();
+        setRegisteredBlocks((prev) => new Map(prev).set(slotKey, block.id));
+        // スケジュール再取得
+        fetchSchedule();
+      }
+    } finally {
+      setRegisteringSlot(null);
+    }
+  }, [calcDropTime, workEndMin, registeredBlocks, fetchSchedule]);
 
   // 日ごとにデータを整理
   const getDaysData = () => {
@@ -312,6 +411,14 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
             <Switch checked={skipWeekends} onCheckedChange={setSkipWeekends} />
             <label className="text-xs text-g-text-secondary">土日を除外</label>
           </div>
+          <Button
+            size="sm"
+            onClick={handleSaveSettings}
+            className="ml-auto bg-[#34A853] text-white hover:bg-[#2D9249] text-xs"
+          >
+            <Save className="mr-1.5 h-3.5 w-3.5" />
+            {settingsSaved ? '保存しました' : '保存'}
+          </Button>
         </div>
       )}
 
@@ -385,8 +492,16 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
                   {/* タイムラインバー */}
                   <td className="p-0 py-0.5">
                     <div
-                      className="relative rounded border border-g-border bg-g-bg"
+                      className={cn(
+                        'relative rounded border bg-g-bg',
+                        draggingTask && dropTarget?.date === date
+                          ? 'border-[#4285F4] bg-blue-50/30'
+                          : 'border-g-border'
+                      )}
                       style={{ width: totalWidth, height: 40 }}
+                      onDragOver={(e) => handleDragOver(e, date)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, date)}
                     >
                       {/* 時刻グリッド線 */}
                       {Array.from({ length: workHours - 1 }, (_, i) => (
@@ -420,6 +535,26 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
                           </div>
                         );
                       })}
+
+                      {/* ドロップインジケーター */}
+                      {draggingTask && dropTarget?.date === date && (() => {
+                        const draggedSuggestion = data?.suggestions.find((s) => s.taskId === draggingTask);
+                        const hours = draggedSuggestion?.estimatedHours ?? 1;
+                        const indicatorStartMin = dropTarget.startMin;
+                        const indicatorEndMin = Math.min(indicatorStartMin + hours * 60, workEndMin);
+                        const left = ((indicatorStartMin - workStartMin) / 60) * HOUR_WIDTH;
+                        const width = ((indicatorEndMin - indicatorStartMin) / 60) * HOUR_WIDTH;
+                        return (
+                          <div
+                            className="absolute top-1 z-10 flex items-center rounded border-2 border-dashed border-[#4285F4] bg-[#4285F4]/10 px-1.5"
+                            style={{ left, width, height: 32 }}
+                          >
+                            <span className="text-[10px] font-medium text-[#4285F4]">
+                              {minutesToTime(indicatorStartMin)}〜{minutesToTime(indicatorEndMin)}
+                            </span>
+                          </div>
+                        );
+                      })()}
 
                       {/* タスクスロット（優先度色） */}
                       {dayTasks.map((task, i) => {
@@ -503,27 +638,37 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
         </div>
       )}
 
-      {/* サマリーカード */}
+      {/* タスク一覧（ドラッグ可能） */}
       {data && data.suggestions.length > 0 && (
         <div className="mt-6">
           <h3 className="mb-2 flex items-center gap-2 text-xs font-medium text-g-text-secondary">
             <Clock className="h-3.5 w-3.5" />
             タスク一覧
+            <span className="text-[10px] text-g-text-muted">（ドラッグしてタイムラインに配置）</span>
           </h3>
           <div className="space-y-1">
             {data.suggestions.map((s) => (
-              <button
+              <div
                 key={s.taskId}
-                onClick={() => openPanel(s.taskId)}
-                className="flex w-full items-center gap-3 rounded-md border border-g-border px-3 py-2 text-left text-xs hover:bg-g-surface"
+                draggable
+                onDragStart={(e) => handleDragStart(e, s.taskId, s.estimatedHours, s.priority)}
+                onDragEnd={handleDragEnd}
+                className={cn(
+                  'flex w-full cursor-grab items-center gap-3 rounded-md border border-g-border px-3 py-2 text-left text-xs hover:bg-g-surface active:cursor-grabbing',
+                  draggingTask === s.taskId && 'opacity-50'
+                )}
               >
+                <GripVertical className="h-3.5 w-3.5 shrink-0 text-g-text-muted" />
                 <span
                   className="h-2 w-2 shrink-0 rounded-full"
                   style={{ backgroundColor: PRIORITY_COLORS[s.priority] }}
                 />
-                <span className="min-w-0 flex-1 truncate font-medium text-g-text">
+                <button
+                  onClick={() => openPanel(s.taskId)}
+                  className="min-w-0 flex-1 truncate font-medium text-g-text text-left hover:underline"
+                >
                   {s.taskTitle}
-                </span>
+                </button>
                 <span className="shrink-0 text-g-text-muted">
                   {s.totalScheduledHours}/{s.estimatedHours}h
                 </span>
@@ -540,7 +685,7 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
                 >
                   {s.status === 'schedulable' ? '配置可能' : s.status === 'tight' ? '時間不足' : '期限超過'}
                 </span>
-              </button>
+              </div>
             ))}
           </div>
         </div>

@@ -52,6 +52,18 @@ export function useMindMapData(
     onRefetchRef.current?.();
   }, []);
 
+  // サブタスク作成後: sections 再取得 + 親タスクのサブタスクを即時ロード
+  const onSubtaskCreated = useCallback(async (parentTaskId: string) => {
+    onRefetchRef.current?.();
+    try {
+      const res = await fetch(`/api/tasks/${parentTaskId}/subtasks`);
+      if (res.ok) {
+        const data = await res.json();
+        setSubtasksMap((prev) => ({ ...prev, [parentTaskId]: data }));
+      }
+    } catch {}
+  }, []);
+
   // ツリー構築
   const fullTree = useMemo(() => {
     let tree = sectionsToTree(projectName, projectColor, sections);
@@ -105,6 +117,7 @@ export function useMindMapData(
           isAdding: addingNodeId === node.id,
           isSelected: selectedNodeId === node.id,
           onRefetch: stableOnRefetch,
+          onSubtaskCreated,
           hasChildren: node.type === 'section'
             ? (node.data.taskCount ?? 0) > 0
             : (node.data.subtaskCount ?? 0) > 0,
@@ -121,7 +134,7 @@ export function useMindMapData(
         },
       };
     });
-  }, [visibleTree, layoutMap, collapsed, subtasksMap, loadingSubtasks, projectId, editingNodeId, addingNodeId, selectedNodeId, stableOnRefetch]);
+  }, [visibleTree, layoutMap, collapsed, subtasksMap, loadingSubtasks, projectId, editingNodeId, addingNodeId, selectedNodeId, stableOnRefetch, onSubtaskCreated]);
 
   // React Flow エッジ生成
   const edges: Edge[] = useMemo(() => {
