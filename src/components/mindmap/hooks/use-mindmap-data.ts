@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import type { Node, Edge } from '@xyflow/react';
 import type { Section, Task } from '@/types';
-import { sectionsToTree, filterCollapsed, insertSubtasks, PRIORITY_COLORS, type MindMapTreeNode } from '@/lib/mindmap-utils';
+import { sectionsToTree, filterCollapsed, insertSubtasks, buildNavMap, PRIORITY_COLORS, type MindMapTreeNode } from '@/lib/mindmap-utils';
 import { useMindMapStore } from '@/stores/mindmap-store';
 import { useMindMapLayout } from './use-mindmap-layout';
 
@@ -159,6 +159,9 @@ export function useMindMapData(
     }
   }, []);
 
+  // ナビゲーションマップ（矢印キー移動用）
+  const navMap = useMemo(() => buildNavMap(visibleTree), [visibleTree]);
+
   // 全ノードIDの収集（collapseAll用）
   const allNodeIds = useMemo(() => {
     const ids: string[] = [];
@@ -170,5 +173,5 @@ export function useMindMapData(
     return ids;
   }, [fullTree]);
 
-  return { nodes, edges, loadSubtasks, allNodeIds };
+  return { nodes, edges, loadSubtasks, allNodeIds, navMap };
 }

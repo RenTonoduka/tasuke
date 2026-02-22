@@ -28,6 +28,7 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 import type { Node, Edge } from '@xyflow/react';
+import type { NavInfo } from '@/lib/mindmap-utils';
 
 const nodeTypes = {
   rootNode: RootNode,
@@ -43,11 +44,12 @@ interface MindMapCanvasProps {
   nodes: Node[];
   edges: Edge[];
   projectId: string;
+  navMap: Map<string, NavInfo>;
   onLoadSubtasks: (taskId: string) => void;
   onRefetch?: () => void;
 }
 
-export function MindMapCanvas({ nodes, edges, projectId, onLoadSubtasks, onRefetch }: MindMapCanvasProps) {
+export function MindMapCanvas({ nodes, edges, projectId, navMap, onLoadSubtasks, onRefetch }: MindMapCanvasProps) {
   const openPanel = useTaskPanelStore((s) => s.open);
   const toggleCollapse = useMindMapStore((s) => s.toggleCollapse);
   const setEditingNodeId = useMindMapStore((s) => s.setEditingNodeId);
@@ -136,10 +138,35 @@ export function MindMapCanvas({ nodes, edges, projectId, onLoadSubtasks, onRefet
 
   // キーボードショートカット
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    const { selectedNodeId, editingNodeId, addingNodeId } = useMindMapStore.getState();
+    const { selectedNodeId, editingNodeId, addingNodeId, direction } = useMindMapStore.getState();
 
     // 編集/追加中はショートカット無効
     if (editingNodeId || addingNodeId) return;
+
+    // 矢印キー: 未選択時は root を選択
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+      if (!selectedNodeId) {
+        setSelectedNodeId('root');
+        return;
+      }
+      const nav = navMap.get(selectedNodeId);
+      if (!nav) return;
+
+      const toChild = direction === 'RIGHT' ? 'ArrowRight' : 'ArrowDown';
+      const toParent = direction === 'RIGHT' ? 'ArrowLeft' : 'ArrowUp';
+      const toNext = direction === 'RIGHT' ? 'ArrowDown' : 'ArrowRight';
+      const toPrev = direction === 'RIGHT' ? 'ArrowUp' : 'ArrowLeft';
+
+      let target: string | null = null;
+      if (e.key === toChild) target = nav.firstChild;
+      if (e.key === toParent) target = nav.parent;
+      if (e.key === toNext) target = nav.nextSibling;
+      if (e.key === toPrev) target = nav.prevSibling;
+
+      if (target) setSelectedNodeId(target);
+      return;
+    }
 
     if (!selectedNodeId) return;
 
@@ -164,7 +191,7 @@ export function MindMapCanvas({ nodes, edges, projectId, onLoadSubtasks, onRefet
     if (e.key === 'Escape') {
       setSelectedNodeId(null);
     }
-  }, [setAddingNodeId, setEditingNodeId, setSelectedNodeId]);
+  }, [navMap, setAddingNodeId, setEditingNodeId, setSelectedNodeId]);
 
   // 削除実行
   const handleDelete = useCallback(async () => {

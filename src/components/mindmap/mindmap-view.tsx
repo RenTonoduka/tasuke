@@ -18,7 +18,7 @@ interface MindMapViewProps {
 export function MindMapView({ sections, projectId, projectName, projectColor = '#4285F4', onRefetch }: MindMapViewProps) {
   const hasTasks = sections.some((s) => s.tasks.length > 0);
 
-  const { nodes, edges, loadSubtasks, allNodeIds } = useMindMapData(
+  const { nodes, edges, loadSubtasks, allNodeIds, navMap } = useMindMapData(
     sections,
     projectId,
     projectName,
@@ -44,6 +44,7 @@ export function MindMapView({ sections, projectId, projectName, projectColor = '
             nodes={nodes}
             edges={edges}
             projectId={projectId}
+            navMap={navMap}
             onLoadSubtasks={loadSubtasks}
             onRefetch={onRefetch}
           />

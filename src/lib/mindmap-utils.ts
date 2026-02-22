@@ -75,6 +75,36 @@ export function filterCollapsed(
   };
 }
 
+export interface NavInfo {
+  parent: string | null;
+  firstChild: string | null;
+  prevSibling: string | null;
+  nextSibling: string | null;
+}
+
+export function buildNavMap(tree: MindMapTreeNode): Map<string, NavInfo> {
+  const map = new Map<string, NavInfo>();
+
+  function traverse(node: MindMapTreeNode, parentId: string | null) {
+    const children = node.children;
+    map.set(node.id, {
+      parent: parentId,
+      firstChild: children[0]?.id ?? null,
+      prevSibling: null,
+      nextSibling: null,
+    });
+    for (let i = 0; i < children.length; i++) {
+      traverse(children[i], node.id);
+      const info = map.get(children[i].id)!;
+      if (i > 0) info.prevSibling = children[i - 1].id;
+      if (i < children.length - 1) info.nextSibling = children[i + 1].id;
+    }
+  }
+
+  traverse(tree, null);
+  return map;
+}
+
 /**
  * サブタスクデータをツリーに挿入する
  */
