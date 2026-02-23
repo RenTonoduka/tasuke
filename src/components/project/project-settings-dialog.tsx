@@ -151,26 +151,110 @@ export function ProjectSettingsDialog({ projectId, workspaceId, children }: Proj
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>プロジェクト設定</DialogTitle>
+          <DialogTitle>共有</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* 公開/非公開トグル */}
-          <div className="flex items-center justify-between rounded-lg border border-g-border p-4">
-            <div className="flex items-center gap-3">
+        <div className="space-y-5">
+          {/* メール招待フォーム（最優先） */}
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <Input
+                type="email"
+                placeholder="メールアドレスを入力して招待"
+                value={inviteEmail}
+                onChange={(e) => { setInviteEmail(e.target.value); setInviteError(''); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') inviteByEmail(); }}
+                className="h-9 text-sm"
+              />
+              <Button
+                size="sm"
+                className="h-9 shrink-0 bg-[#4285F4] hover:bg-[#3367d6]"
+                onClick={inviteByEmail}
+                disabled={inviting || !inviteEmail.trim()}
+              >
+                {inviting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="mr-1.5 h-3.5 w-3.5" />}
+                招待
+              </Button>
+            </div>
+            {inviteError && (
+              <p className="text-xs text-red-500">{inviteError}</p>
+            )}
+          </div>
+
+          {/* メンバー一覧 */}
+          {members.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-g-text-muted">メンバー ({members.length})</p>
+              <div className="max-h-48 space-y-1 overflow-y-auto">
+                {members.map((m) => (
+                  <div key={m.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-g-surface-hover">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={m.user.image ?? ''} />
+                      <AvatarFallback className="bg-[#4285F4] text-[10px] text-white">
+                        {m.user.name?.charAt(0) ?? 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <span className="block truncate text-sm text-g-text">
+                        {m.user.name ?? m.user.email}
+                      </span>
+                      {m.user.name && (
+                        <span className="block truncate text-[11px] text-g-text-muted">{m.user.email}</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => removeMember(m.userId)}
+                      className="rounded p-0.5 text-g-text-muted hover:bg-g-border hover:text-g-text"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* WSメンバーから追加 */}
+          {nonMembers.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-g-text-muted">ワークスペースから追加</p>
+              <div className="max-h-36 space-y-1 overflow-y-auto">
+                {nonMembers.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => addMember(m.userId)}
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-g-surface-hover"
+                  >
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={m.user.image ?? ''} />
+                      <AvatarFallback className="bg-gray-400 text-[10px] text-white">
+                        {m.user.name?.charAt(0) ?? 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="flex-1 truncate text-sm text-g-text-secondary">
+                      {m.user.name ?? m.user.email}
+                    </span>
+                    <UserPlus className="h-3.5 w-3.5 text-g-text-muted" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 公開/非公開トグル（下部に配置） */}
+          <div className="flex items-center justify-between rounded-lg border border-g-border p-3">
+            <div className="flex items-center gap-2.5">
               {isPrivate ? (
-                <Lock className="h-5 w-5 text-amber-500" />
+                <Lock className="h-4 w-4 text-amber-500" />
               ) : (
-                <Globe className="h-5 w-5 text-green-500" />
+                <Globe className="h-4 w-4 text-green-500" />
               )}
               <div>
-                <p className="text-sm font-medium text-g-text">
-                  {isPrivate ? '非公開プロジェクト' : '公開プロジェクト'}
+                <p className="text-xs font-medium text-g-text">
+                  {isPrivate ? '非公開' : '公開'}
                 </p>
-                <p className="text-xs text-g-text-muted">
-                  {isPrivate
-                    ? '選択されたメンバーのみアクセス可能'
-                    : 'ワークスペース全メンバーがアクセス可能'}
+                <p className="text-[11px] text-g-text-muted">
+                  {isPrivate ? 'メンバーのみアクセス可' : 'WS全員がアクセス可'}
                 </p>
               </div>
             </div>
@@ -179,93 +263,6 @@ export function ProjectSettingsDialog({ projectId, workspaceId, children }: Proj
               onCheckedChange={togglePrivate}
               disabled={loading}
             />
-          </div>
-
-          {/* メンバー管理 */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-g-text">メンバー管理</h3>
-
-            {/* メール招待フォーム */}
-            <div className="space-y-2">
-              <p className="text-xs text-g-text-muted">メールアドレスで招待</p>
-              <div className="flex gap-2">
-                <Input
-                  type="email"
-                  placeholder="email@example.com"
-                  value={inviteEmail}
-                  onChange={(e) => { setInviteEmail(e.target.value); setInviteError(''); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') inviteByEmail(); }}
-                  className="h-8 text-sm"
-                />
-                <Button
-                  size="sm"
-                  className="h-8 shrink-0 bg-[#4285F4] hover:bg-[#3367d6]"
-                  onClick={inviteByEmail}
-                  disabled={inviting || !inviteEmail.trim()}
-                >
-                  {inviting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="mr-1 h-3.5 w-3.5" />}
-                  招待
-                </Button>
-              </div>
-              {inviteError && (
-                <p className="text-xs text-red-500">{inviteError}</p>
-              )}
-            </div>
-
-            {/* 現在のメンバー */}
-            <div className="max-h-48 space-y-1 overflow-y-auto">
-              {members.map((m) => (
-                <div key={m.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-g-surface-hover">
-                  <Avatar className="h-6 w-6">
-                    <AvatarImage src={m.user.image ?? ''} />
-                    <AvatarFallback className="bg-[#4285F4] text-[10px] text-white">
-                      {m.user.name?.charAt(0) ?? 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <span className="block truncate text-sm text-g-text">
-                      {m.user.name ?? m.user.email}
-                    </span>
-                    {m.user.name && (
-                      <span className="block truncate text-[11px] text-g-text-muted">{m.user.email}</span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => removeMember(m.userId)}
-                    className="rounded p-0.5 text-g-text-muted hover:bg-g-border hover:text-g-text"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* WSメンバーから追加 */}
-            {nonMembers.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-xs text-g-text-muted">ワークスペースメンバーから追加</p>
-                <div className="max-h-36 space-y-1 overflow-y-auto">
-                  {nonMembers.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => addMember(m.userId)}
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-g-surface-hover"
-                    >
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={m.user.image ?? ''} />
-                        <AvatarFallback className="bg-gray-400 text-[10px] text-white">
-                          {m.user.name?.charAt(0) ?? 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="flex-1 truncate text-sm text-g-text-secondary">
-                        {m.user.name ?? m.user.email}
-                      </span>
-                      <UserPlus className="h-3.5 w-3.5 text-g-text-muted" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </DialogContent>

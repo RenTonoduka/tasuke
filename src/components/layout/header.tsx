@@ -210,6 +210,14 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
             <SaveTemplateButton projectId={projectId} projectName={projectName || title} />
           )}
         </span>
+        {projectId && workspaceId && (
+          <ProjectSettingsDialog projectId={projectId} workspaceId={workspaceId}>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+              <Users className="h-3.5 w-3.5" />
+              共有
+            </Button>
+          </ProjectSettingsDialog>
+        )}
         {projectId && workspaceSlug && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -231,14 +239,6 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
                   自動化ルール
                 </Link>
               </DropdownMenuItem>
-              {workspaceId && (
-                <ProjectSettingsDialog projectId={projectId!} workspaceId={workspaceId}>
-                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <Users className="mr-2 h-4 w-4" />
-                    共有・メンバー管理
-                  </DropdownMenuItem>
-                </ProjectSettingsDialog>
-              )}
               <DropdownMenuSeparator />
               <AlertDialog>
                 <AlertDialogTrigger asChild>
