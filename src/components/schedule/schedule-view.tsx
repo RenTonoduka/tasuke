@@ -215,6 +215,29 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     [workEndMin, registeredBlocks, setRegisteredBlocks, setRegisteringSlot, fetchSchedule],
   );
 
+  // カレンダーイベント削除
+  const handleDeleteEvent = useCallback(
+    async (eventId: string) => {
+      try {
+        const res = await fetch('/api/calendar/events', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId }),
+        });
+        if (res.ok) {
+          toast({ title: '予定を削除しました' });
+          fetchSchedule();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          toast({ title: '予定の削除に失敗', description: err.error, variant: 'destructive' });
+        }
+      } catch {
+        toast({ title: '予定の削除に失敗', variant: 'destructive' });
+      }
+    },
+    [fetchSchedule],
+  );
+
   // カレンダー登録/解除
   const handleRegisterBlock = useCallback(
     async (taskId: string, date: string, startMin: number, endMin: number) => {
@@ -313,6 +336,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
           onDrop={handleDrop}
           onRegisterBlock={handleRegisterBlock}
           onOpenTask={openPanel}
+          onDeleteEvent={handleDeleteEvent}
           suggestions={data.suggestions}
         />
       )}

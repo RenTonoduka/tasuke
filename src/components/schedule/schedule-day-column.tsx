@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useCallback, useEffect, useState } from 'react';
-import { CalendarPlus, CalendarCheck, RefreshCw } from 'lucide-react';
+import { CalendarPlus, CalendarCheck, RefreshCw, Trash2, Clock, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   HOUR_HEIGHT,
@@ -36,6 +36,7 @@ interface ScheduleDayColumnProps {
   onDrop: (e: React.DragEvent, date: string, startMin: number) => void;
   onRegisterBlock: (taskId: string, date: string, startMin: number, endMin: number) => void;
   onOpenTask: (taskId: string) => void;
+  onDeleteEvent: (eventId: string) => void;
   // ドロップインジケーター用
   suggestions: TaskSuggestion[] | null;
   allDaysEvents: DayEvent[];
@@ -79,9 +80,11 @@ export function ScheduleDayColumn({
   onDrop,
   onRegisterBlock,
   onOpenTask,
+  onDeleteEvent,
   suggestions,
   allDaysEvents,
 }: ScheduleDayColumnProps) {
+  const [selectedEvent, setSelectedEvent] = useState<DayEvent | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -218,34 +221,72 @@ export function ScheduleDayColumn({
           if (clampedStart >= clampedEnd) return null;
           const top = ((clampedStart - workStartMin) / 60) * HOUR_HEIGHT;
           const height = ((clampedEnd - clampedStart) / 60) * HOUR_HEIGHT;
-          const durationMin = ev.endMin - ev.startMin;
           const gcalColor = (ev.colorId && GCAL_COLORS[ev.colorId]) || GCAL_DEFAULT_COLOR;
+          const isSelected = selectedEvent?.id === ev.id;
           return (
-            <div
-              key={`ev-${i}`}
-              draggable
-              onDragStart={(e) => {
-                e.stopPropagation();
-                onDragStartEvent(e, ev);
-              }}
-              onDragEnd={onDragEnd}
-              className={cn(
-                'absolute left-1 right-1 cursor-grab overflow-hidden rounded-md px-1.5 py-0.5 text-[10px] font-medium shadow-sm active:cursor-grabbing',
-                draggingTask === `cal-${ev.id}` && 'opacity-40',
-              )}
-              style={{
-                top,
-                height: Math.max(height, 20),
-                backgroundColor: gcalColor.bg,
-                color: gcalColor.text,
-              }}
-              title={`${ev.summary} — ドラッグで移動`}
-            >
-              <span className="line-clamp-1 leading-tight">{ev.summary}</span>
-              {height >= 32 && (
-                <span className="block text-[9px] opacity-70">
-                  {minutesToTime(ev.startMin)}〜{minutesToTime(ev.endMin)}
-                </span>
+            <div key={`ev-${i}`} className="absolute left-1 right-1" style={{ top, height: Math.max(height, 20) }}>
+              <div
+                draggable
+                onDragStart={(e) => {
+                  e.stopPropagation();
+                  onDragStartEvent(e, ev);
+                }}
+                onDragEnd={onDragEnd}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedEvent(isSelected ? null : ev);
+                }}
+                className={cn(
+                  'h-full w-full cursor-pointer overflow-hidden rounded-md px-1.5 py-0.5 text-[10px] font-medium shadow-sm',
+                  draggingTask === `cal-${ev.id}` && 'opacity-40',
+                  isSelected && 'ring-2 ring-offset-1 ring-g-text',
+                )}
+                style={{
+                  backgroundColor: gcalColor.bg,
+                  color: gcalColor.text,
+                }}
+                title={`${ev.summary} — クリックで詳細 / ドラッグで移動`}
+              >
+                <span className="line-clamp-1 leading-tight">{ev.summary}</span>
+                {height >= 32 && (
+                  <span className="block text-[9px] opacity-70">
+                    {minutesToTime(ev.startMin)}〜{minutesToTime(ev.endMin)}
+                  </span>
+                )}
+              </div>
+
+              {/* イベント詳細ポップオーバー */}
+              {isSelected && (
+                <div
+                  className="absolute left-0 top-full z-30 mt-1 w-48 rounded-lg border border-g-border bg-white p-2 shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-start justify-between">
+                    <span className="text-xs font-medium text-g-text line-clamp-2">{ev.summary}</span>
+                    <button
+                      onClick={() => setSelectedEvent(null)}
+                      className="ml-1 shrink-0 rounded p-0.5 hover:bg-g-surface-hover"
+                    >
+                      <X className="h-3 w-3 text-g-text-muted" />
+                    </button>
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-1 text-[10px] text-g-text-secondary">
+                    <Clock className="h-3 w-3" />
+                    {minutesToTime(ev.startMin)}〜{minutesToTime(ev.endMin)}
+                  </div>
+                  <div className="mt-2 flex gap-1">
+                    <button
+                      onClick={() => {
+                        setSelectedEvent(null);
+                        onDeleteEvent(ev.id);
+                      }}
+                      className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium text-[#EA4335] hover:bg-red-50"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      削除
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           );

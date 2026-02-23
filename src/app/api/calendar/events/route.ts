@@ -52,6 +52,39 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// DELETE: Googleカレンダーイベントを削除
+export async function DELETE(req: NextRequest) {
+  try {
+    const user = await requireAuthUser();
+    const { eventId } = await req.json();
+
+    if (!eventId) {
+      return errorResponse('eventId は必須です', 400);
+    }
+
+    const auth = await getGoogleClient(user.id);
+    const calendar = getCalendarClient(auth);
+
+    await calendar.events.delete({
+      calendarId: 'primary',
+      eventId,
+    });
+
+    return successResponse({ success: true });
+  } catch (error) {
+    if (error instanceof GaxiosError) {
+      const status = error.response?.status;
+      if (status === 404 || status === 410) {
+        return successResponse({ success: true });
+      }
+    }
+    if (error instanceof Error && error.message.includes('Google')) {
+      return errorResponse(error.message, 401);
+    }
+    return handleApiError(error);
+  }
+}
+
 // PATCH: Googleカレンダーイベントの時間を更新
 export async function PATCH(req: NextRequest) {
   try {

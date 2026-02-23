@@ -147,8 +147,17 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
       daysMap.set(date, { date, allDayEvents: [], events: [], tasks: [] });
     }
 
-    // イベント配置
+    // 登録済みタスクIDのセット（提案から除外するため）
+    const blockKeys = Array.from(registeredBlocks.keys());
+    const registeredTaskIds = new Set<string>();
+    for (const key of blockKeys) {
+      registeredTaskIds.add(key.split('|')[0]);
+    }
+
+    // イベント配置（[tasuke]プレフィックスは登録済みタスクなので除外）
     for (const ev of events) {
+      if (ev.summary.startsWith('[tasuke]')) continue;
+
       const date = ev.start.split('T')[0];
       const day = daysMap.get(date);
       if (!day) continue;
@@ -164,26 +173,47 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
       day.events.push({ id: ev.id, summary: ev.summary, startMin, endMin, colorId: ev.colorId });
     }
 
-    // タスクスロット配置
+    // タスクスロット配置（登録済みタスクは提案スロットではなく登録位置で表示）
     if (data) {
       for (const sug of data.suggestions) {
-        for (const slot of sug.scheduledSlots) {
-          const day = daysMap.get(slot.date);
-          if (!day) continue;
-          day.tasks.push({
-            taskId: sug.taskId,
-            title: sug.taskTitle,
-            priority: sug.priority,
-            startMin: timeToMinutes(slot.start),
-            endMin: timeToMinutes(slot.end),
-            status: sug.status,
-          });
+        if (registeredTaskIds.has(sug.taskId)) {
+          // 登録済み: registeredBlocksのキーから位置を復元して表示
+          for (const key of blockKeys) {
+            const [taskId, date, startTime] = key.split('|');
+            if (taskId !== sug.taskId) continue;
+            const day = daysMap.get(date);
+            if (!day) continue;
+            const startMin = timeToMinutes(startTime);
+            const endMin = startMin + sug.estimatedHours * 60;
+            day.tasks.push({
+              taskId: sug.taskId,
+              title: sug.taskTitle,
+              priority: sug.priority,
+              startMin,
+              endMin,
+              status: sug.status,
+            });
+          }
+        } else {
+          // 未登録: 提案スロットをそのまま表示
+          for (const slot of sug.scheduledSlots) {
+            const day = daysMap.get(slot.date);
+            if (!day) continue;
+            day.tasks.push({
+              taskId: sug.taskId,
+              title: sug.taskTitle,
+              priority: sug.priority,
+              startMin: timeToMinutes(slot.start),
+              endMin: timeToMinutes(slot.end),
+              status: sug.status,
+            });
+          }
         }
       }
     }
 
     return allDates.map((date) => daysMap.get(date)!);
-  }, [data, events, savedSettings]);
+  }, [data, events, savedSettings, registeredBlocks]);
 
   return {
     data,

@@ -25,6 +25,7 @@ interface ScheduleTimelineProps {
   onDrop: (e: React.DragEvent, date: string, startMin: number) => void;
   onRegisterBlock: (taskId: string, date: string, startMin: number, endMin: number) => void;
   onOpenTask: (taskId: string) => void;
+  onDeleteEvent: (eventId: string) => void;
   suggestions: TaskSuggestion[] | null;
 }
 
