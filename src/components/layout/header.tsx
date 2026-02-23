@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Menu, LayoutGrid, List, GanttChart, CalendarClock, BarChart3, Network, Search, Settings, Zap, Pencil, Users } from 'lucide-react';
+import { Menu, LayoutGrid, List, GanttChart, CalendarClock, BarChart3, Network, Search, Settings, Zap, Pencil, Users, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,19 @@ import { NotificationBell } from './notification-bell';
 import { ExportSheetButton } from '@/components/project/export-sheet-button';
 import { SaveTemplateButton } from '@/components/project/save-template-button';
 import { ProjectSettingsDialog } from '@/components/project/project-settings-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
@@ -59,6 +72,21 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
       console.error('プロジェクト名更新エラー:', err);
     }
     setEditing(false);
+  };
+
+  const deleteProject = async () => {
+    if (!projectId) return;
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        toast({ title: 'プロジェクトの削除に失敗しました', variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'プロジェクトを削除しました' });
+      router.push(`/${workspaceSlug}`);
+    } catch {
+      toast({ title: 'プロジェクトの削除に失敗しました', variant: 'destructive' });
+    }
   };
 
   return (
@@ -211,6 +239,29 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
                   </DropdownMenuItem>
                 </ProjectSettingsDialog>
               )}
+              <DropdownMenuSeparator />
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 focus:text-red-500">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    プロジェクトを削除
+                  </DropdownMenuItem>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>プロジェクトを削除しますか？</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      「{title}」とそのタスクをすべて削除します。この操作は取り消せません。
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>キャンセル</AlertDialogCancel>
+                    <AlertDialogAction onClick={deleteProject} className="bg-red-500 hover:bg-red-600">
+                      削除
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
