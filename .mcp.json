@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "tasuke": {
+      "command": "npx",
+      "args": ["tsx", "src/mcp/server.ts"],
+      "cwd": "/Users/tonodukaren/AI/01_APP/tasuke"
+    }
+  }
+}

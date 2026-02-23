@@ -3,6 +3,10 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { registerTaskTools } from './tools/tasks.js';
 import { registerProjectTools } from './tools/projects.js';
 import { registerSectionTools } from './tools/sections.js';
+import { registerSubtaskTools } from './tools/subtasks.js';
+import { registerLabelTools } from './tools/labels.js';
+import { registerCommentTools } from './tools/comments.js';
+import { registerDashboardTools } from './tools/dashboard.js';
 
 const server = new McpServer({
   name: 'tasuke',
@@ -12,6 +16,10 @@ const server = new McpServer({
 registerTaskTools(server);
 registerProjectTools(server);
 registerSectionTools(server);
+registerSubtaskTools(server);
+registerLabelTools(server);
+registerCommentTools(server);
+registerDashboardTools(server);
 
 async function main() {
   const transport = new StdioServerTransport();

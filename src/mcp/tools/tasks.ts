@@ -13,10 +13,16 @@ export function registerTaskTools(server: McpServer) {
       sectionId: z.string().optional().describe('セクションID'),
       status: z.enum(['TODO', 'IN_PROGRESS', 'DONE', 'ARCHIVED']).optional().describe('ステータス'),
       priority: z.enum(['P0', 'P1', 'P2', 'P3']).optional().describe('優先度'),
+      dueBefore: z.string().optional().describe('この日付より前に期限のタスク（ISO8601）'),
+      dueAfter: z.string().optional().describe('この日付より後に期限のタスク（ISO8601）'),
       limit: z.number().optional().describe('取得件数（デフォルト50）'),
     },
     async (params) => {
       try {
+        const dueDate: Record<string, Date> = {};
+        if (params.dueBefore) dueDate.lt = new Date(params.dueBefore);
+        if (params.dueAfter) dueDate.gte = new Date(params.dueAfter);
+
         const tasks = await prisma.task.findMany({
           where: {
             parentId: null,
@@ -24,6 +30,7 @@ export function registerTaskTools(server: McpServer) {
             ...(params.sectionId && { sectionId: params.sectionId }),
             ...(params.status && { status: params.status }),
             ...(params.priority && { priority: params.priority }),
+            ...(Object.keys(dueDate).length > 0 && { dueDate }),
           },
           include: {
             section: { select: { id: true, name: true } },
@@ -107,6 +114,7 @@ export function registerTaskTools(server: McpServer) {
       title: z.string().optional().describe('タイトル'),
       status: z.enum(['TODO', 'IN_PROGRESS', 'DONE', 'ARCHIVED']).optional().describe('ステータス'),
       priority: z.enum(['P0', 'P1', 'P2', 'P3']).optional().describe('優先度'),
+      startDate: z.string().optional().nullable().describe('開始日（ISO8601 or null）'),
       dueDate: z.string().optional().nullable().describe('期限（ISO8601 or null）'),
       estimatedHours: z.number().optional().nullable().describe('見積もり時間'),
       description: z.string().optional().nullable().describe('説明'),
@@ -123,6 +131,7 @@ export function registerTaskTools(server: McpServer) {
           if (data.status === 'DONE') updateData.completedAt = new Date();
         }
         if (data.priority !== undefined) updateData.priority = data.priority;
+        if (data.startDate !== undefined) updateData.startDate = data.startDate ? new Date(data.startDate) : null;
         if (data.dueDate !== undefined) updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
         if (data.estimatedHours !== undefined) updateData.estimatedHours = data.estimatedHours;
         if (data.description !== undefined) updateData.description = data.description;
@@ -153,6 +162,40 @@ export function registerTaskTools(server: McpServer) {
       try {
         await prisma.task.delete({ where: { id: taskId } });
         return ok({ success: true, deletedId: taskId });
+      } catch (e: unknown) {
+        return err(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
+  server.tool(
+    'task_move',
+    'タスクを別のセクションに移動します',
+    {
+      taskId: z.string().describe('タスクID'),
+      sectionId: z.string().nullable().describe('移動先セクションID（nullでセクション未所属）'),
+      position: z.number().optional().describe('表示位置（省略時は末尾）'),
+    },
+    async (params) => {
+      try {
+        let position = params.position;
+        if (position === undefined) {
+          const maxPos = await prisma.task.aggregate({
+            where: { sectionId: params.sectionId },
+            _max: { position: true },
+          });
+          position = (maxPos._max.position ?? 0) + 1;
+        }
+
+        const task = await prisma.task.update({
+          where: { id: params.taskId },
+          data: { sectionId: params.sectionId, position },
+          include: {
+            section: { select: { id: true, name: true } },
+            project: { select: { id: true, name: true } },
+          },
+        });
+        return ok(task);
       } catch (e: unknown) {
         return err(e instanceof Error ? e.message : String(e));
       }
