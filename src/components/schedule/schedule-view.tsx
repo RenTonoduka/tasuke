@@ -39,7 +39,24 @@ interface CalendarEvent {
   start: string;
   end: string;
   allDay: boolean;
+  colorId: string | null;
 }
+
+// Google Calendar colorId → 色マッピング
+const GCAL_COLORS: Record<string, { bg: string; text: string }> = {
+  '1': { bg: '#a4bdfc', text: '#1d1d1d' },   // ラベンダー
+  '2': { bg: '#7ae7bf', text: '#1d1d1d' },   // セージ
+  '3': { bg: '#dbadff', text: '#1d1d1d' },   // ぶどう
+  '4': { bg: '#ff887c', text: '#fff' },       // フラミンゴ
+  '5': { bg: '#fbd75b', text: '#1d1d1d' },   // バナナ
+  '6': { bg: '#ffb878', text: '#1d1d1d' },   // みかん
+  '7': { bg: '#46d6db', text: '#1d1d1d' },   // ピーコック
+  '8': { bg: '#e1e1e1', text: '#1d1d1d' },   // グラファイト
+  '9': { bg: '#5484ed', text: '#fff' },       // ブルーベリー
+  '10': { bg: '#51b749', text: '#fff' },      // バジル
+  '11': { bg: '#dc2127', text: '#fff' },      // トマト
+};
+const GCAL_DEFAULT_COLOR = { bg: '#4285F4', text: '#fff' };
 
 interface ScheduleData {
   suggestions: TaskSuggestion[];
@@ -252,8 +269,8 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const rawMin = workStartMin + (y / HOUR_HEIGHT) * 60;
-    const snappedMin = Math.round(rawMin / 30) * 30;
-    const clampedMin = Math.max(workStartMin, Math.min(snappedMin, workEndMin - 30));
+    const snappedMin = Math.round(rawMin / 15) * 15;
+    const clampedMin = Math.max(workStartMin, Math.min(snappedMin, workEndMin - 15));
     return clampedMin;
   }, [workStartMin, workEndMin]);
 
@@ -352,7 +369,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
 
     const daysMap = new Map<string, {
       allDayEvents: string[];
-      events: { id: string; summary: string; startMin: number; endMin: number }[];
+      events: { id: string; summary: string; startMin: number; endMin: number; colorId: string | null }[];
       tasks: { taskId: string; title: string; priority: string; startMin: number; endMin: number; status: string }[];
     }>();
 
@@ -369,7 +386,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
       const startMin = timeToMinutes(ev.start.split('T')[1]?.substring(0, 5) ?? '09:00');
       const endMin = timeToMinutes(ev.end.split('T')[1]?.substring(0, 5) ?? '10:00');
       if (endMin <= workStartMin || startMin >= workEndMin) continue;
-      day.events.push({ id: ev.id, summary: ev.summary, startMin, endMin });
+      day.events.push({ id: ev.id, summary: ev.summary, startMin, endMin, colorId: ev.colorId });
     }
 
     for (const sug of data.suggestions) {
@@ -561,14 +578,22 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                           style={{ top: i * HOUR_HEIGHT }}
                         />
                       ))}
-                      {/* 30分線 */}
-                      {Array.from({ length: workHours }, (_, i) => (
-                        <div
-                          key={`half-${i}`}
-                          className="absolute left-0 w-full border-t border-dashed border-g-surface-hover/50"
-                          style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2 }}
-                        />
-                      ))}
+                      {/* 15分刻み線 */}
+                      {Array.from({ length: workHours * 3 }, (_, i) => {
+                        const hourIdx = Math.floor(i / 3);
+                        const quarter = (i % 3) + 1; // 1=15min, 2=30min, 3=45min
+                        const isHalf = quarter === 2;
+                        return (
+                          <div
+                            key={`q-${i}`}
+                            className={cn(
+                              'absolute left-0 w-full border-t',
+                              isHalf ? 'border-dashed border-g-surface-hover/50' : 'border-dotted border-g-surface-hover/30'
+                            )}
+                            style={{ top: hourIdx * HOUR_HEIGHT + (quarter * HOUR_HEIGHT) / 4 }}
+                          />
+                        );
+                      })}
 
                       {/* Googleカレンダー予定（ドラッグ移動可能） */}
                       {dayEvents.map((ev, i) => {
@@ -578,6 +603,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                         const top = ((clampedStart - workStartMin) / 60) * HOUR_HEIGHT;
                         const height = ((clampedEnd - clampedStart) / 60) * HOUR_HEIGHT;
                         const durationMin = ev.endMin - ev.startMin;
+                        const gcalColor = (ev.colorId && GCAL_COLORS[ev.colorId]) || GCAL_DEFAULT_COLOR;
                         return (
                           <div
                             key={`ev-${i}`}
@@ -594,17 +620,23 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                             }}
                             onDragEnd={handleDragEnd}
                             className={cn(
-                              'absolute left-1 right-1 cursor-grab overflow-hidden rounded px-1.5 py-0.5 text-[10px] text-g-text-secondary active:cursor-grabbing',
+                              'absolute left-1 right-1 cursor-grab overflow-hidden rounded-md px-1.5 py-0.5 text-[10px] font-medium shadow-sm active:cursor-grabbing',
                               draggingTask === `cal-${ev.id}` && 'opacity-40'
                             )}
                             style={{
                               top,
-                              height: Math.max(height, 18),
-                              backgroundColor: 'var(--g-border)',
+                              height: Math.max(height, 20),
+                              backgroundColor: gcalColor.bg,
+                              color: gcalColor.text,
                             }}
                             title={`${ev.summary} — ドラッグで移動`}
                           >
-                            <span className="line-clamp-2 leading-tight">{ev.summary}</span>
+                            <span className="line-clamp-1 leading-tight">{ev.summary}</span>
+                            {height >= 32 && (
+                              <span className="block text-[9px] opacity-70">
+                                {minutesToTime(ev.startMin)}〜{minutesToTime(ev.endMin)}
+                              </span>
+                            )}
                           </div>
                         );
                       })}
