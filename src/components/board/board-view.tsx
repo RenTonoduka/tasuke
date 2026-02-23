@@ -17,6 +17,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { BoardColumn } from './board-column';
 import { TaskCard } from './task-card';
 import { useFilterStore } from '@/stores/filter-store';
+import { useSubtaskExpand } from '@/hooks/use-subtask-expand';
 import { filterTasks } from '@/lib/task-filters';
 import type { FilterState } from '@/stores/filter-store';
 import { SearchX } from 'lucide-react';
@@ -33,6 +34,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const { expanded: stExpanded, subtasks: stSubtasks, loading: stLoading, toggle: stToggle, toggleStatus: stToggleStatus, deleteSubtask: stDelete } = useSubtaskExpand();
 
   const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder, hasActiveFilters } = useFilterStore();
   const isFiltered = hasActiveFilters();
@@ -224,6 +226,10 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
             onRenameSection={handleRenameSection}
             onDeleteSection={handleDeleteSection}
             listenNewTask={index === 0}
+            subtaskState={{ expanded: stExpanded, subtasks: stSubtasks, loading: stLoading }}
+            onToggleSubtask={stToggle}
+            onToggleSubtaskStatus={stToggleStatus}
+            onDeleteSubtask={stDelete}
           />
         ))}
       </div>

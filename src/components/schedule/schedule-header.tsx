@@ -69,12 +69,14 @@ export function ScheduleHeader({
             <label className="text-xs text-g-text-secondary">営業時間:</label>
             <select
               value={editingSettings.workStart}
-              onChange={(e) =>
-                onSettingsChange({ ...editingSettings, workStart: Number(e.target.value) })
-              }
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                const newEnd = editingSettings.workEnd <= v ? v + 1 : editingSettings.workEnd;
+                onSettingsChange({ ...editingSettings, workStart: v, workEnd: newEnd });
+              }}
               className="rounded border border-g-border px-2 py-1 text-xs"
             >
-              {Array.from({ length: 12 }, (_, i) => i + 6).map((h) => (
+              {Array.from({ length: 17 }, (_, i) => i + 6).map((h) => (
                 <option key={h} value={h}>
                   {h}:00
                 </option>
@@ -88,7 +90,7 @@ export function ScheduleHeader({
               }
               className="rounded border border-g-border px-2 py-1 text-xs"
             >
-              {Array.from({ length: 12 }, (_, i) => i + 12).map((h) => (
+              {Array.from({ length: 23 - editingSettings.workStart }, (_, i) => i + editingSettings.workStart + 1).map((h) => (
                 <option key={h} value={h}>
                   {h}:00
                 </option>

@@ -6,7 +6,6 @@ import { GripVertical, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
-import { useSubtaskExpand } from '@/hooks/use-subtask-expand';
 import { SubtaskToggle, SubtaskList } from '@/components/task/subtask-inline';
 import type { Task } from '@/types';
 import { cn } from '@/lib/utils';
@@ -18,14 +17,34 @@ const priorityConfig = {
   P3: { label: 'P3', color: 'bg-g-border text-g-text-secondary' },
 };
 
+interface Subtask {
+  id: string;
+  title: string;
+  status: string;
+}
+
 interface TaskCardProps {
   task: Task;
   overlay?: boolean;
+  subtaskExpanded?: boolean;
+  subtaskItems?: Subtask[];
+  subtaskLoading?: boolean;
+  onToggleSubtask?: () => void;
+  onToggleSubtaskStatus?: (parentId: string, subtaskId: string, currentStatus: string) => void;
+  onDeleteSubtask?: (parentId: string, subtaskId: string) => void;
 }
 
-export function TaskCard({ task, overlay }: TaskCardProps) {
+export function TaskCard({
+  task,
+  overlay,
+  subtaskExpanded,
+  subtaskItems,
+  subtaskLoading,
+  onToggleSubtask,
+  onToggleSubtaskStatus,
+  onDeleteSubtask,
+}: TaskCardProps) {
   const openPanel = useTaskPanelStore((s) => s.open);
-  const { expanded, subtasks, loading, toggle: toggleSubtask, toggleStatus, deleteSubtask } = useSubtaskExpand();
   const {
     attributes,
     listeners,
@@ -41,6 +60,7 @@ export function TaskCard({ task, overlay }: TaskCardProps) {
   };
 
   const p = priorityConfig[task.priority];
+  const doneCount = (subtaskItems ?? []).filter((s) => s.status === 'DONE').length;
 
   return (
     <div
@@ -94,23 +114,23 @@ export function TaskCard({ task, overlay }: TaskCardProps) {
               </span>
             )}
 
-            {task._count.subtasks > 0 && (
+            {task._count.subtasks > 0 && onToggleSubtask && (
               <SubtaskToggle
                 count={task._count.subtasks}
-                doneCount={expanded[task.id] ? (subtasks[task.id] ?? []).filter((s) => s.status === 'DONE').length : 0}
-                expanded={!!expanded[task.id]}
-                onToggle={() => toggleSubtask(task.id)}
+                doneCount={doneCount}
+                expanded={!!subtaskExpanded}
+                onToggle={onToggleSubtask}
               />
             )}
           </div>
 
-          {expanded[task.id] && (
+          {subtaskExpanded && onToggleSubtaskStatus && onDeleteSubtask && (
             <SubtaskList
-              subtasks={subtasks[task.id] ?? []}
-              loading={loading[task.id]}
+              subtasks={subtaskItems ?? []}
+              loading={subtaskLoading}
               parentId={task.id}
-              onToggleStatus={toggleStatus}
-              onDelete={deleteSubtask}
+              onToggleStatus={onToggleSubtaskStatus}
+              onDelete={onDeleteSubtask}
               className="mt-1 -mx-1 pl-4"
             />
           )}

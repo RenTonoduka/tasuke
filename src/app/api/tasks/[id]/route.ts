@@ -5,6 +5,7 @@ import { updateTaskSchema } from '@/lib/validations/task';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { logActivity } from '@/lib/activity';
 import { executeAutomationRules } from '@/lib/automation';
+import { getGoogleClient, getCalendarClient } from '@/lib/google';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -159,6 +160,25 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       where: { workspaceId: existing.project.workspaceId, userId: user.id },
     });
     if (member?.role === 'VIEWER') return errorResponse('閲覧者はタスクを削除できません', 403);
+
+    // ScheduleBlock に紐づくGoogleカレンダーイベントを削除
+    const scheduleBlocks = await prisma.scheduleBlock.findMany({
+      where: { taskId: params.id },
+      select: { googleCalendarEventId: true },
+    });
+    if (scheduleBlocks.length > 0) {
+      try {
+        const auth = await getGoogleClient(user.id);
+        const calendar = getCalendarClient(auth);
+        await Promise.allSettled(
+          scheduleBlocks.map((b) =>
+            calendar.events.delete({ calendarId: 'primary', eventId: b.googleCalendarEventId }).catch(() => {}),
+          ),
+        );
+      } catch {
+        // Google認証エラーでもタスク削除は続行
+      }
+    }
 
     await prisma.task.delete({ where: { id: params.id } });
     return successResponse({ success: true });

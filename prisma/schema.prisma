@@ -18,15 +18,16 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts          Account[]
-  sessions          Session[]
-  workspaceMembers  WorkspaceMember[]
-  projectMembers    ProjectMember[]
-  taskAssignments   TaskAssignment[]
-  comments          Comment[]
-  createdTasks      Task[]         @relation("CreatedBy")
-  activities        Activity[]
-  notifications     Notification[]
+  accounts               Account[]
+  sessions               Session[]
+  workspaceMembers       WorkspaceMember[]
+  projectMembers         ProjectMember[]
+  taskAssignments        TaskAssignment[]
+  comments               Comment[]
+  createdTasks           Task[]         @relation("CreatedBy")
+  activities             Activity[]
+  notifications          Notification[]
+  googleTaskListMappings GoogleTaskListMapping[]
 }
 
 model Account {
@@ -113,11 +114,12 @@ model Project {
   updatedAt   DateTime @updatedAt
   workspaceId String
 
-  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  sections        Section[]
-  tasks           Task[]
-  automationRules AutomationRule[]
-  members         ProjectMember[]
+  workspace              Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sections               Section[]
+  tasks                  Task[]
+  automationRules        AutomationRule[]
+  members                ProjectMember[]
+  googleTaskListMappings GoogleTaskListMapping[]
 }
 
 model ProjectMember {
@@ -188,6 +190,8 @@ model Task {
   googleCalendarSyncedAt  DateTime?
   googleTaskId            String?
   googleTaskSyncedAt      DateTime?
+  googleTaskListId        String?
+  importedFromGoogle      Boolean    @default(false)
 
   section   Section? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -365,4 +369,22 @@ model Notification {
 
   @@index([userId, read])
   @@index([createdAt])
+}
+
+// ========== Google Tasks Import ==========
+
+model GoogleTaskListMapping {
+  id                 String   @id @default(cuid())
+  googleTaskListId   String
+  googleTaskListName String
+  projectId          String
+  workspaceId        String
+  userId             String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, googleTaskListId])
 }

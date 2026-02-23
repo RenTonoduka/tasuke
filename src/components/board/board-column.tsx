@@ -26,15 +26,25 @@ import {
 import type { Section } from '@/types';
 import { cn } from '@/lib/utils';
 
+interface SubtaskState {
+  expanded: Record<string, boolean>;
+  subtasks: Record<string, { id: string; title: string; status: string }[]>;
+  loading: Record<string, boolean>;
+}
+
 interface BoardColumnProps {
   section: Section;
   onAddTask: (sectionId: string, title: string) => void;
   onRenameSection?: (sectionId: string, name: string) => void;
   onDeleteSection?: (sectionId: string) => void;
   listenNewTask?: boolean;
+  subtaskState?: SubtaskState;
+  onToggleSubtask?: (taskId: string) => void;
+  onToggleSubtaskStatus?: (parentId: string, subtaskId: string, currentStatus: string) => void;
+  onDeleteSubtask?: (parentId: string, subtaskId: string) => void;
 }
 
-export function BoardColumn({ section, onAddTask, onRenameSection, onDeleteSection, listenNewTask }: BoardColumnProps) {
+export function BoardColumn({ section, onAddTask, onRenameSection, onDeleteSection, listenNewTask, subtaskState, onToggleSubtask, onToggleSubtaskStatus, onDeleteSubtask }: BoardColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `section-${section.id}`,
     data: { type: 'section', sectionId: section.id },
@@ -110,7 +120,16 @@ export function BoardColumn({ section, onAddTask, onRenameSection, onDeleteSecti
         >
           <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
             {section.tasks.map((task) => (
-              <TaskCard key={task.id} task={task} />
+              <TaskCard
+                key={task.id}
+                task={task}
+                subtaskExpanded={subtaskState?.expanded[task.id]}
+                subtaskItems={subtaskState?.subtasks[task.id]}
+                subtaskLoading={subtaskState?.loading[task.id]}
+                onToggleSubtask={onToggleSubtask ? () => onToggleSubtask(task.id) : undefined}
+                onToggleSubtaskStatus={onToggleSubtaskStatus}
+                onDeleteSubtask={onDeleteSubtask}
+              />
             ))}
           </SortableContext>
         </div>

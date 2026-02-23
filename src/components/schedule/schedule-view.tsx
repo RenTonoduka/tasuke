@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { CalendarClock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
@@ -30,6 +30,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ date: string; startMin: number } | null>(null);
+  const droppingRef = useRef(false); // D&D連続ドロップ防止
   const openPanel = useTaskPanelStore((s) => s.open);
 
   const workEndMin = savedSettings.workEnd * 60;
@@ -80,6 +81,10 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
       setDropTarget(null);
       setDraggingTask(null);
 
+      // 連続ドロップ防止
+      if (droppingRef.current) return;
+      droppingRef.current = true;
+
       let payload: {
         taskId?: string;
         estimatedHours?: number;
@@ -90,6 +95,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
       try {
         payload = JSON.parse(e.dataTransfer.getData('text/plain'));
       } catch {
+        droppingRef.current = false;
         return;
       }
 
@@ -97,7 +103,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
       if (payload.calendarEventId) {
         const durationMin = payload.durationMin ?? 60;
         const endMin = Math.min(startMin + durationMin, workEndMin);
-        if (endMin <= startMin) return;
+        if (endMin <= startMin) { droppingRef.current = false; return; }
 
         const startISO = `${date}T${minutesToTime(startMin)}:00`;
         const endISO = `${date}T${minutesToTime(endMin)}:00`;
@@ -125,15 +131,16 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
         } catch {
           toast({ title: 'カレンダーイベントの移動に失敗', variant: 'destructive' });
         }
+        droppingRef.current = false;
         return;
       }
 
       // タスクの配置/移動
       const { taskId, estimatedHours, fromSlotKey } = payload;
-      if (!taskId || !estimatedHours) return;
+      if (!taskId || !estimatedHours) { droppingRef.current = false; return; }
 
       const endMin = Math.min(startMin + estimatedHours * 60, workEndMin);
-      if (endMin <= startMin) return;
+      if (endMin <= startMin) { droppingRef.current = false; return; }
 
       const start = minutesToTime(startMin);
       const end = minutesToTime(endMin);
@@ -210,6 +217,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
         }
       } finally {
         setRegisteringSlot(null);
+        droppingRef.current = false;
       }
     },
     [workEndMin, registeredBlocks, setRegisteredBlocks, setRegisteringSlot, fetchSchedule],

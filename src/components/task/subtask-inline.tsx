@@ -24,8 +24,9 @@ export function SubtaskToggle({ count, doneCount, expanded, onToggle }: SubtaskT
         e.stopPropagation();
         onToggle();
       }}
-      className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-g-text-secondary hover:bg-g-surface-hover"
-      title="サブタスクを展開"
+      aria-expanded={expanded}
+      aria-label={`サブタスク ${doneCount}/${count} 完了`}
+      className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[11px] text-g-text-secondary hover:bg-g-surface-hover focus:outline-none focus:ring-1 focus:ring-g-border"
     >
       {expanded ? (
         <ChevronDown className="h-3 w-3" />

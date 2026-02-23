@@ -228,7 +228,7 @@ function TaskRow({
       {task._count.subtasks > 0 && (
         <SubtaskToggle
           count={task._count.subtasks}
-          doneCount={subtaskExpanded ? subtaskDoneCount : 0}
+          doneCount={subtaskDoneCount}
           expanded={subtaskExpanded}
           onToggle={onToggleSubtask}
         />

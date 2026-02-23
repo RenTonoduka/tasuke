@@ -17,6 +17,7 @@ import {
   Moon,
   GripVertical,
   Lock,
+  Download,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
@@ -185,6 +186,11 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
       label: 'インボックス',
       href: `/${currentWorkspaceSlug}/inbox`,
       icon: Inbox,
+    },
+    {
+      label: 'タスク取り込み',
+      href: `/${currentWorkspaceSlug}/import-tasks`,
+      icon: Download,
     },
     {
       label: '設定',

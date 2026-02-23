@@ -115,26 +115,32 @@ export function timeToMinutes(time: string): number {
   return h * 60 + m;
 }
 
+// タイムゾーン安全な日付パース（"YYYY-MM-DD" → ローカル Date）
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export function formatDateLabel(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
+  const d = parseLocalDate(dateStr);
   const days = ['日', '月', '火', '水', '木', '金', '土'];
   return `${d.getMonth() + 1}/${d.getDate()}(${days[d.getDay()]})`;
 }
 
 export function isWeekendDate(dateStr: string): boolean {
-  const d = new Date(dateStr + 'T00:00:00');
+  const d = parseLocalDate(dateStr);
   const day = d.getDay();
   return day === 0 || day === 6;
 }
 
 export function isTodayDate(dateStr: string): boolean {
   const today = new Date();
-  const d = new Date(dateStr + 'T00:00:00');
+  const d = parseLocalDate(dateStr);
   return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
 }
 
 export function formatDueDate(dateStr: string): string {
-  const d = new Date(dateStr);
+  const d = parseLocalDate(dateStr);
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
