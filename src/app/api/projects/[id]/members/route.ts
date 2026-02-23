@@ -4,9 +4,8 @@ import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { z } from 'zod';
 
-const addMemberSchema = z.object({
-  userId: z.string(),
-});
+const addMemberByUserIdSchema = z.object({ userId: z.string() });
+const addMemberByEmailSchema = z.object({ email: z.string().email() });
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -52,13 +51,41 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     });
     if (!membership) return errorResponse('OWNER/ADMINのみメンバーを追加できます', 403);
 
-    const { userId: targetUserId } = addMemberSchema.parse(await req.json());
+    const body = await req.json();
+    const byUserId = addMemberByUserIdSchema.safeParse(body);
+    const byEmail = addMemberByEmailSchema.safeParse(body);
 
-    // ワークスペースメンバーか確認
-    const wsMember = await prisma.workspaceMember.findFirst({
-      where: { workspaceId: project.workspaceId, userId: targetUserId },
-    });
-    if (!wsMember) return errorResponse('ワークスペースメンバーではありません', 400);
+    let targetUserId: string;
+
+    if (byUserId.success) {
+      targetUserId = byUserId.data.userId;
+      // ワークスペースメンバーか確認
+      const wsMember = await prisma.workspaceMember.findFirst({
+        where: { workspaceId: project.workspaceId, userId: targetUserId },
+      });
+      if (!wsMember) return errorResponse('ワークスペースメンバーではありません', 400);
+    } else if (byEmail.success) {
+      const email = byEmail.data.email;
+      // ユーザー検索（なければ作成）
+      let targetUser = await prisma.user.findUnique({ where: { email } });
+      if (!targetUser) {
+        targetUser = await prisma.user.create({
+          data: { email, name: email.split('@')[0] },
+        });
+      }
+      targetUserId = targetUser.id;
+      // WSメンバー確認（なければ追加）
+      const wsMember = await prisma.workspaceMember.findFirst({
+        where: { workspaceId: project.workspaceId, userId: targetUserId },
+      });
+      if (!wsMember) {
+        await prisma.workspaceMember.create({
+          data: { workspaceId: project.workspaceId, userId: targetUserId, role: 'MEMBER' },
+        });
+      }
+    } else {
+      return errorResponse('userId または email を指定してください', 400);
+    }
 
     const existing = await prisma.projectMember.findUnique({
       where: { projectId_userId: { projectId: params.id, userId: targetUserId } },
@@ -95,7 +122,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     });
     if (!membership) return errorResponse('OWNER/ADMINのみメンバーを削除できます', 403);
 
-    const { userId: targetUserId } = addMemberSchema.parse(await req.json());
+    const { userId: targetUserId } = addMemberByUserIdSchema.parse(await req.json());
 
     await prisma.projectMember.deleteMany({
       where: { projectId: params.id, userId: targetUserId },

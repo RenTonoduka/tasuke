@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Menu, LayoutGrid, List, GanttChart, CalendarClock, BarChart3, Network, Search, Settings, Zap, Pencil, Lock } from 'lucide-react';
+import { Menu, LayoutGrid, List, GanttChart, CalendarClock, BarChart3, Network, Search, Settings, Zap, Pencil, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -206,8 +206,8 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
               {workspaceId && (
                 <ProjectSettingsDialog projectId={projectId!} workspaceId={workspaceId}>
                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <Lock className="mr-2 h-4 w-4" />
-                    アクセス制御
+                    <Users className="mr-2 h-4 w-4" />
+                    共有・メンバー管理
                   </DropdownMenuItem>
                 </ProjectSettingsDialog>
               )}
