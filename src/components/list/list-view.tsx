@@ -8,6 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { useFilterStore } from '@/stores/filter-store';
 import { useSelectionStore } from '@/stores/selection-store';
+import { useSubtaskExpand } from '@/hooks/use-subtask-expand';
+import { SubtaskToggle, SubtaskList } from '@/components/task/subtask-inline';
 import { filterTasks } from '@/lib/task-filters';
 import { AddTaskInline } from '@/components/board/add-task-inline';
 import type { FilterState } from '@/stores/filter-store';
@@ -32,6 +34,7 @@ export function ListView({ sections, projectId, onAddTask, onToggleTask }: ListV
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const openPanel = useTaskPanelStore((s) => s.open);
   const { selectedIds, toggle: toggleSelection, selectAll, clear: clearSelection } = useSelectionStore();
+  const { expanded, subtasks, loading, toggle: toggleSubtask, toggleStatus, deleteSubtask } = useSubtaskExpand();
 
   const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder, hasActiveFilters } = useFilterStore();
   const isFiltered = hasActiveFilters();
@@ -94,15 +97,28 @@ export function ListView({ sections, projectId, onAddTask, onToggleTask }: ListV
           {!collapsed[section.id] && (
             <div>
               {section.tasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  selected={selectedIds.has(task.id)}
-                  selectionMode={selectedIds.size > 0}
-                  onSelect={() => toggleSelection(task.id)}
-                  onOpen={() => openPanel(task.id)}
-                  onToggle={() => onToggleTask(task.id, task.status)}
-                />
+                <div key={task.id}>
+                  <TaskRow
+                    task={task}
+                    selected={selectedIds.has(task.id)}
+                    selectionMode={selectedIds.size > 0}
+                    onSelect={() => toggleSelection(task.id)}
+                    onOpen={() => openPanel(task.id)}
+                    onToggle={() => onToggleTask(task.id, task.status)}
+                    subtaskExpanded={!!expanded[task.id]}
+                    subtaskDoneCount={(subtasks[task.id] ?? []).filter((s) => s.status === 'DONE').length}
+                    onToggleSubtask={() => toggleSubtask(task.id)}
+                  />
+                  {expanded[task.id] && (
+                    <SubtaskList
+                      subtasks={subtasks[task.id] ?? []}
+                      loading={loading[task.id]}
+                      parentId={task.id}
+                      onToggleStatus={toggleStatus}
+                      onDelete={deleteSubtask}
+                    />
+                  )}
+                </div>
               ))}
               <div className="px-4 py-1">
                 <AddTaskInline onAdd={(title) => onAddTask(section.id, title)} />
@@ -129,6 +145,9 @@ function TaskRow({
   onSelect,
   onOpen,
   onToggle,
+  subtaskExpanded,
+  subtaskDoneCount,
+  onToggleSubtask,
 }: {
   task: Task;
   selected: boolean;
@@ -136,6 +155,9 @@ function TaskRow({
   onSelect: () => void;
   onOpen: () => void;
   onToggle: () => void;
+  subtaskExpanded: boolean;
+  subtaskDoneCount: number;
+  onToggleSubtask: () => void;
 }) {
   const p = priorityConfig[task.priority];
 
@@ -155,6 +177,15 @@ function TaskRow({
         }}
         onClick={(e) => e.stopPropagation()}
       />
+
+      {task._count.subtasks > 0 && (
+        <SubtaskToggle
+          count={task._count.subtasks}
+          doneCount={subtaskExpanded ? subtaskDoneCount : 0}
+          expanded={subtaskExpanded}
+          onToggle={onToggleSubtask}
+        />
+      )}
 
       <span
         className={cn(

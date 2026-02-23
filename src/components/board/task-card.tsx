@@ -6,6 +6,8 @@ import { GripVertical, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
+import { useSubtaskExpand } from '@/hooks/use-subtask-expand';
+import { SubtaskToggle, SubtaskList } from '@/components/task/subtask-inline';
 import type { Task } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +25,7 @@ interface TaskCardProps {
 
 export function TaskCard({ task, overlay }: TaskCardProps) {
   const openPanel = useTaskPanelStore((s) => s.open);
+  const { expanded, subtasks, loading, toggle: toggleSubtask, toggleStatus, deleteSubtask } = useSubtaskExpand();
   const {
     attributes,
     listeners,
@@ -92,11 +95,25 @@ export function TaskCard({ task, overlay }: TaskCardProps) {
             )}
 
             {task._count.subtasks > 0 && (
-              <span className="text-[10px] text-g-text-secondary">
-                サブ {task._count.subtasks}
-              </span>
+              <SubtaskToggle
+                count={task._count.subtasks}
+                doneCount={expanded[task.id] ? (subtasks[task.id] ?? []).filter((s) => s.status === 'DONE').length : 0}
+                expanded={!!expanded[task.id]}
+                onToggle={() => toggleSubtask(task.id)}
+              />
             )}
           </div>
+
+          {expanded[task.id] && (
+            <SubtaskList
+              subtasks={subtasks[task.id] ?? []}
+              loading={loading[task.id]}
+              parentId={task.id}
+              onToggleStatus={toggleStatus}
+              onDelete={deleteSubtask}
+              className="mt-1 -mx-1 pl-4"
+            />
+          )}
         </div>
 
         {task.assignees.length > 0 && (

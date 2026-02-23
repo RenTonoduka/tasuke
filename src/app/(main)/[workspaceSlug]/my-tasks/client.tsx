@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Calendar, Flag, FolderKanban, List, CalendarClock } from 'lucide-react';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
+import { useSubtaskExpand } from '@/hooks/use-subtask-expand';
+import { SubtaskToggle, SubtaskList } from '@/components/task/subtask-inline';
 import { TaskDetailPanel } from '@/components/task/task-detail-panel';
 import { ScheduleView } from '@/components/schedule/schedule-view';
 import { cn } from '@/lib/utils';
@@ -42,6 +44,7 @@ export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksCli
   const [view, setView] = useState<ViewType>('list');
   const openPanel = useTaskPanelStore((s) => s.open);
   const activeTaskId = useTaskPanelStore((s) => s.activeTaskId);
+  const { expanded, subtasks, loading, toggle: toggleSubtask, toggleStatus, deleteSubtask } = useSubtaskExpand();
   const router = useRouter();
   const prevActiveRef = useRef(activeTaskId);
 
@@ -122,13 +125,26 @@ export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksCli
                     </span>
                   </div>
                   {pending.map((task) => (
-                    <TaskRow
-                      key={task.id}
-                      task={task}
-                      workspaceSlug={workspaceSlug}
-                      onOpen={() => openPanel(task.id)}
-                      onToggle={() => handleToggle(task.id, task.status)}
-                    />
+                    <div key={task.id}>
+                      <TaskRow
+                        task={task}
+                        workspaceSlug={workspaceSlug}
+                        onOpen={() => openPanel(task.id)}
+                        onToggle={() => handleToggle(task.id, task.status)}
+                        subtaskExpanded={!!expanded[task.id]}
+                        subtaskDoneCount={(subtasks[task.id] ?? []).filter((s) => s.status === 'DONE').length}
+                        onToggleSubtask={() => toggleSubtask(task.id)}
+                      />
+                      {expanded[task.id] && (
+                        <SubtaskList
+                          subtasks={subtasks[task.id] ?? []}
+                          loading={loading[task.id]}
+                          parentId={task.id}
+                          onToggleStatus={toggleStatus}
+                          onDelete={deleteSubtask}
+                        />
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
@@ -141,13 +157,26 @@ export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksCli
                     </span>
                   </div>
                   {done.map((task) => (
-                    <TaskRow
-                      key={task.id}
-                      task={task}
-                      workspaceSlug={workspaceSlug}
-                      onOpen={() => openPanel(task.id)}
-                      onToggle={() => handleToggle(task.id, task.status)}
-                    />
+                    <div key={task.id}>
+                      <TaskRow
+                        task={task}
+                        workspaceSlug={workspaceSlug}
+                        onOpen={() => openPanel(task.id)}
+                        onToggle={() => handleToggle(task.id, task.status)}
+                        subtaskExpanded={!!expanded[task.id]}
+                        subtaskDoneCount={(subtasks[task.id] ?? []).filter((s) => s.status === 'DONE').length}
+                        onToggleSubtask={() => toggleSubtask(task.id)}
+                      />
+                      {expanded[task.id] && (
+                        <SubtaskList
+                          subtasks={subtasks[task.id] ?? []}
+                          loading={loading[task.id]}
+                          parentId={task.id}
+                          onToggleStatus={toggleStatus}
+                          onDelete={deleteSubtask}
+                        />
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
@@ -171,11 +200,17 @@ function TaskRow({
   workspaceSlug,
   onOpen,
   onToggle,
+  subtaskExpanded,
+  subtaskDoneCount,
+  onToggleSubtask,
 }: {
   task: MyTask;
   workspaceSlug: string;
   onOpen: () => void;
   onToggle: () => void;
+  subtaskExpanded: boolean;
+  subtaskDoneCount: number;
+  onToggleSubtask: () => void;
 }) {
   const p = priorityConfig[task.priority] ?? priorityConfig.P3;
 
@@ -189,6 +224,15 @@ function TaskRow({
         onCheckedChange={() => onToggle()}
         onClick={(e) => e.stopPropagation()}
       />
+
+      {task._count.subtasks > 0 && (
+        <SubtaskToggle
+          count={task._count.subtasks}
+          doneCount={subtaskExpanded ? subtaskDoneCount : 0}
+          expanded={subtaskExpanded}
+          onToggle={onToggleSubtask}
+        />
+      )}
 
       <span
         className={cn(
