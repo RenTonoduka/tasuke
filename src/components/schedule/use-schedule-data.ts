@@ -66,11 +66,13 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
         }),
       ]);
 
+      let calEvents: CalendarEvent[] = [];
       if (!eventsRes.ok) {
         const err = await eventsRes.json().catch(() => ({}));
         toast({ title: 'カレンダーイベントの取得に失敗', description: err.error, variant: 'destructive' });
       } else {
-        setEvents(await eventsRes.json());
+        calEvents = await eventsRes.json();
+        setEvents(calEvents);
       }
 
       if (!suggestionRes.ok) {
@@ -86,10 +88,36 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
             signal: controller.signal,
           });
           if (blocksRes.ok) {
-            const blocks: { taskId: string; date: string; startTime: string; id: string }[] =
+            const blocks: { taskId: string; date: string; startTime: string; id: string; googleCalendarEventId: string }[] =
               await blocksRes.json();
-            const map = new Map<string, string>();
+
+            // Googleカレンダー側で削除されたブロックを検出・クリーンアップ
+            const calEventIds = new Set(calEvents.map((ev) => ev.id));
+            const validBlocks: typeof blocks = [];
+            const orphanedBlockIds: string[] = [];
+
             for (const b of blocks) {
+              if (calEventIds.has(b.googleCalendarEventId)) {
+                validBlocks.push(b);
+              } else if (calEvents.length > 0) {
+                // イベント取得成功時のみ孤立判定（イベント取得失敗時は誤削除を防ぐ）
+                orphanedBlockIds.push(b.id);
+              } else {
+                validBlocks.push(b);
+              }
+            }
+
+            // 孤立ブロックをバックグラウンドで削除
+            for (const blockId of orphanedBlockIds) {
+              fetch('/api/calendar/schedule-block', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scheduleBlockId: blockId }),
+              }).catch(() => {});
+            }
+
+            const map = new Map<string, string>();
+            for (const b of validBlocks) {
               map.set(`${b.taskId}|${b.date}|${b.startTime}`, b.id);
             }
             setRegisteredBlocks(map);
