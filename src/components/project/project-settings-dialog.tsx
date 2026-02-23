@@ -49,15 +49,15 @@ export function ProjectSettingsDialog({ projectId, workspaceId, children }: Proj
       fetch(`/api/workspaces/${workspaceId}/members`),
     ]);
     if (projRes.ok) {
-      const { data } = await projRes.json();
-      setIsPrivate(data.isPrivate ?? false);
+      const proj = await projRes.json();
+      setIsPrivate(proj.isPrivate ?? false);
     }
     if (membersRes.ok) {
-      const { data } = await membersRes.json();
+      const data = await membersRes.json();
       setMembers(data);
     }
     if (wsMembersRes.ok) {
-      const { data } = await wsMembersRes.json();
+      const data = await wsMembersRes.json();
       setWsMembers(data);
     }
   }, [projectId, workspaceId]);
@@ -91,8 +91,8 @@ export function ProjectSettingsDialog({ projectId, workspaceId, children }: Proj
       body: JSON.stringify({ userId }),
     });
     if (res.ok) {
-      const { data } = await res.json();
-      setMembers((prev) => [...prev, data]);
+      const member = await res.json();
+      setMembers((prev) => [...prev, member]);
     }
   };
 
@@ -123,13 +123,13 @@ export function ProjectSettingsDialog({ projectId, workspaceId, children }: Proj
         body: JSON.stringify({ email }),
       });
       if (res.ok) {
-        const { data } = await res.json();
-        setMembers((prev) => [...prev, data]);
+        const member = await res.json();
+        setMembers((prev) => [...prev, member]);
         setInviteEmail('');
         // WSメンバーリストも更新
         const wsRes = await fetch(`/api/workspaces/${workspaceId}/members`);
         if (wsRes.ok) {
-          const { data: wsData } = await wsRes.json();
+          const wsData = await wsRes.json();
           setWsMembers(wsData);
         }
       } else {
