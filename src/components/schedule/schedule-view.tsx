@@ -225,9 +225,15 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     }
   };
 
-  // D&D: ドラッグ開始
-  const handleDragStart = useCallback((e: React.DragEvent, taskId: string, estimatedHours: number, priority: string) => {
-    e.dataTransfer.setData('text/plain', JSON.stringify({ taskId, estimatedHours, priority }));
+  // D&D: ドラッグ開始（タスク一覧 or タイムライン上のタスク）
+  const handleDragStart = useCallback((
+    e: React.DragEvent,
+    taskId: string,
+    estimatedHours: number,
+    priority: string,
+    fromSlotKey?: string,
+  ) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ taskId, estimatedHours, priority, fromSlotKey }));
     e.dataTransfer.effectAllowed = 'move';
     setDraggingTask(taskId);
   }, []);
@@ -259,7 +265,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     setDropTarget(null);
   }, []);
 
-  // D&D: ドロップ処理
+  // D&D: ドロップ処理（新規配置 or 移動）
   const handleDrop = useCallback(async (e: React.DragEvent, date: string) => {
     e.preventDefault();
     setDropTarget(null);
@@ -267,10 +273,12 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
 
     let taskId: string;
     let estimatedHours: number;
+    let fromSlotKey: string | undefined;
     try {
       const payload = JSON.parse(e.dataTransfer.getData('text/plain'));
       taskId = payload.taskId;
       estimatedHours = payload.estimatedHours;
+      fromSlotKey = payload.fromSlotKey;
     } catch { return; }
 
     const startMin = calcDropTime(e, date);
@@ -280,12 +288,26 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
 
     const start = minutesToTime(startMin);
     const end = minutesToTime(endMin);
-    const slotKey = `${taskId}|${date}|${start}`;
+    const newSlotKey = `${taskId}|${date}|${start}`;
 
-    if (registeredBlocks.has(slotKey)) return;
+    // 同じ位置へのドロップはスキップ
+    if (fromSlotKey && fromSlotKey === newSlotKey) return;
+    if (!fromSlotKey && registeredBlocks.has(newSlotKey)) return;
 
-    setRegisteringSlot(slotKey);
+    setRegisteringSlot(newSlotKey);
     try {
+      // 移動元のブロックを削除
+      if (fromSlotKey && registeredBlocks.has(fromSlotKey)) {
+        const oldBlockId = registeredBlocks.get(fromSlotKey)!;
+        await fetch('/api/calendar/schedule-block', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scheduleBlockId: oldBlockId }),
+        });
+        setRegisteredBlocks((prev) => { const m = new Map(prev); m.delete(fromSlotKey!); return m; });
+      }
+
+      // 新しい位置にブロック作成
       const res = await fetch('/api/calendar/schedule-block', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -293,8 +315,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
       });
       if (res.ok) {
         const block = await res.json();
-        setRegisteredBlocks((prev) => new Map(prev).set(slotKey, block.id));
-        // スケジュール再取得
+        setRegisteredBlocks((prev) => new Map(prev).set(newSlotKey, block.id));
         fetchSchedule();
       }
     } finally {
@@ -558,7 +579,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                         );
                       })()}
 
-                      {/* タスクスロット（優先度色） */}
+                      {/* タスクスロット（優先度色・ドラッグ移動可能） */}
                       {dayTasks.map((task, i) => {
                         const clampedStart = Math.max(task.startMin, workStartMin);
                         const clampedEnd = Math.min(task.endMin, workEndMin);
@@ -569,13 +590,21 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                         const slotKey = `${task.taskId}|${date}|${minutesToTime(task.startMin)}`;
                         const isRegistered = registeredBlocks.has(slotKey);
                         const isRegistering = registeringSlot === slotKey;
+                        const durationHours = (task.endMin - task.startMin) / 60;
                         return (
                           <div
                             key={`task-${i}`}
+                            draggable
+                            onDragStart={(e) => {
+                              e.stopPropagation();
+                              handleDragStart(e, task.taskId, durationHours, task.priority, isRegistered ? slotKey : undefined);
+                            }}
+                            onDragEnd={handleDragEnd}
                             className={cn(
-                              'absolute top-1 flex items-center overflow-hidden rounded px-1.5 text-[10px] font-medium text-white',
+                              'absolute top-1 flex cursor-grab items-center overflow-hidden rounded px-1.5 text-[10px] font-medium text-white active:cursor-grabbing',
                               task.status === 'tight' && 'border-2 border-dashed border-white',
-                              isRegistered && 'ring-2 ring-white/70'
+                              isRegistered && 'ring-2 ring-white/70',
+                              draggingTask === task.taskId && 'opacity-40'
                             )}
                             style={{
                               left,
@@ -583,7 +612,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                               height: 32,
                               backgroundColor: color,
                             }}
-                            title={`${task.title} (${task.priority})`}
+                            title={`${task.title} (${task.priority}) — ドラッグで移動`}
                           >
                             <button
                               onClick={() => openPanel(task.taskId)}
