@@ -146,8 +146,8 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
       const end = minutesToTime(endMin);
       const newSlotKey = `${taskId}|${date}|${start}`;
 
-      if (fromSlotKey && fromSlotKey === newSlotKey) return;
-      if (!fromSlotKey && registeredBlocks.has(newSlotKey)) return;
+      if (fromSlotKey && fromSlotKey === newSlotKey) { droppingRef.current = false; return; }
+      if (!fromSlotKey && registeredBlocks.has(newSlotKey)) { droppingRef.current = false; return; }
 
       setRegisteringSlot(newSlotKey);
       try {

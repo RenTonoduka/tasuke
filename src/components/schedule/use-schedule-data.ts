@@ -67,11 +67,13 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
       ]);
 
       let calEvents: CalendarEvent[] = [];
+      let eventsOk = false;
       if (!eventsRes.ok) {
         const err = await eventsRes.json().catch(() => ({}));
         toast({ title: 'カレンダーイベントの取得に失敗', description: err.error, variant: 'destructive' });
       } else {
         calEvents = await eventsRes.json();
+        eventsOk = true;
         setEvents(calEvents);
       }
 
@@ -97,23 +99,30 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
             const orphanedBlockIds: string[] = [];
 
             for (const b of blocks) {
-              if (calEventIds.has(b.googleCalendarEventId)) {
+              if (!eventsOk || calEventIds.has(b.googleCalendarEventId)) {
+                // イベント取得失敗時は全ブロックをvalidとして保持（誤削除防止）
                 validBlocks.push(b);
-              } else if (calEvents.length > 0) {
-                // イベント取得成功時のみ孤立判定（イベント取得失敗時は誤削除を防ぐ）
-                orphanedBlockIds.push(b.id);
               } else {
-                validBlocks.push(b);
+                orphanedBlockIds.push(b.id);
               }
             }
 
             // 孤立ブロックをバックグラウンドで削除
-            for (const blockId of orphanedBlockIds) {
-              fetch('/api/calendar/schedule-block', {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ scheduleBlockId: blockId }),
-              }).catch(() => {});
+            if (orphanedBlockIds.length > 0) {
+              Promise.allSettled(
+                orphanedBlockIds.map((blockId) =>
+                  fetch('/api/calendar/schedule-block', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scheduleBlockId: blockId }),
+                  }),
+                ),
+              ).then((results) => {
+                const failed = results.filter((r) => r.status === 'rejected').length;
+                if (failed > 0) {
+                  toast({ title: `${failed}件の孤立ブロック削除に失敗`, variant: 'destructive' });
+                }
+              });
             }
 
             const map = new Map<string, string>();
