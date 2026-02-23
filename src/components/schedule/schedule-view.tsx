@@ -56,7 +56,8 @@ const PRIORITY_COLORS: Record<string, string> = {
   P3: '#80868B',
 };
 
-const HOUR_WIDTH = 80;
+const HOUR_HEIGHT = 60;
+const DAY_COL_WIDTH = 140;
 
 function minutesToTime(min: number): string {
   const h = Math.floor(min / 60);
@@ -79,6 +80,12 @@ function isWeekendDate(dateStr: string): boolean {
   const d = new Date(dateStr + 'T00:00:00');
   const day = d.getDay();
   return day === 0 || day === 6;
+}
+
+function isTodayDate(dateStr: string): boolean {
+  const today = new Date();
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
 }
 
 function formatDueDate(dateStr: string): string {
@@ -127,7 +134,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
   }, [settingsKey, workStart, workEnd, skipWeekends]);
 
   const workHours = workEnd - workStart;
-  const totalWidth = workHours * HOUR_WIDTH;
+  const totalHeight = workHours * HOUR_HEIGHT;
   const workStartMin = workStart * 60;
   const workEndMin = workEnd * 60;
 
@@ -154,7 +161,6 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
         const scheduleData = await suggestionRes.json();
         setData(scheduleData);
 
-        // 登録済みブロック取得
         const taskIds = (scheduleData.suggestions ?? []).map((s: TaskSuggestion) => s.taskId).join(',');
         if (taskIds) {
           const blocksRes = await fetch(`/api/calendar/schedule-block?taskIds=${taskIds}`);
@@ -189,7 +195,6 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     const slotKey = `${taskId}|${date}|${start}`;
 
     if (registeredBlocks.has(slotKey)) {
-      // 登録解除
       const blockId = registeredBlocks.get(slotKey)!;
       setRegisteringSlot(slotKey);
       try {
@@ -207,7 +212,6 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
       return;
     }
 
-    // 新規登録
     setRegisteringSlot(slotKey);
     try {
       const end = minutesToTime(endMin);
@@ -225,7 +229,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     }
   };
 
-  // D&D: ドラッグ開始（タスク一覧 or タイムライン上のタスク）
+  // D&D: ドラッグ開始
   const handleDragStart = useCallback((
     e: React.DragEvent,
     taskId: string,
@@ -243,12 +247,11 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     setDropTarget(null);
   }, []);
 
-  // D&D: ドロップエリア上でのマウス位置から時間を計算
-  const calcDropTime = useCallback((e: React.DragEvent, date: string) => {
+  // 縦型: Y座標から時間を計算
+  const calcDropTime = useCallback((e: React.DragEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const rawMin = workStartMin + (x / HOUR_WIDTH) * 60;
-    // 30分単位でスナップ
+    const y = e.clientY - rect.top;
+    const rawMin = workStartMin + (y / HOUR_HEIGHT) * 60;
     const snappedMin = Math.round(rawMin / 30) * 30;
     const clampedMin = Math.max(workStartMin, Math.min(snappedMin, workEndMin - 30));
     return clampedMin;
@@ -257,7 +260,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
   const handleDragOver = useCallback((e: React.DragEvent, date: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    const startMin = calcDropTime(e, date);
+    const startMin = calcDropTime(e);
     setDropTarget({ date, startMin });
   }, [calcDropTime]);
 
@@ -265,7 +268,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     setDropTarget(null);
   }, []);
 
-  // D&D: ドロップ処理（新規配置 or 移動）
+  // D&D: ドロップ処理
   const handleDrop = useCallback(async (e: React.DragEvent, date: string) => {
     e.preventDefault();
     setDropTarget(null);
@@ -281,7 +284,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
       fromSlotKey = payload.fromSlotKey;
     } catch { return; }
 
-    const startMin = calcDropTime(e, date);
+    const startMin = calcDropTime(e);
     const endMin = Math.min(startMin + estimatedHours * 60, workEndMin);
 
     if (endMin <= startMin) return;
@@ -290,13 +293,11 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     const end = minutesToTime(endMin);
     const newSlotKey = `${taskId}|${date}|${start}`;
 
-    // 同じ位置へのドロップはスキップ
     if (fromSlotKey && fromSlotKey === newSlotKey) return;
     if (!fromSlotKey && registeredBlocks.has(newSlotKey)) return;
 
     setRegisteringSlot(newSlotKey);
     try {
-      // 移動元のブロックを削除
       if (fromSlotKey && registeredBlocks.has(fromSlotKey)) {
         const oldBlockId = registeredBlocks.get(fromSlotKey)!;
         await fetch('/api/calendar/schedule-block', {
@@ -307,7 +308,6 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
         setRegisteredBlocks((prev) => { const m = new Map(prev); m.delete(fromSlotKey!); return m; });
       }
 
-      // 新しい位置にブロック作成
       const res = await fetch('/api/calendar/schedule-block', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -345,7 +345,6 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
 
       const startMin = timeToMinutes(ev.start.split('T')[1]?.substring(0, 5) ?? '09:00');
       const endMin = timeToMinutes(ev.end.split('T')[1]?.substring(0, 5) ?? '10:00');
-      // 営業時間外のイベントはスキップ
       if (endMin <= workStartMin || startMin >= workEndMin) continue;
       day.events.push({ summary: ev.summary, startMin, endMin });
     }
@@ -469,92 +468,104 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
         </div>
       )}
 
-      {/* タイムライン */}
-      {data && (
-        <div className="overflow-x-auto">
-          <table className="border-collapse" style={{ minWidth: totalWidth + 120 }}>
-            {/* 時刻ヘッダー */}
-            <thead>
-              <tr>
-                <th className="sticky left-0 z-10 w-[110px] min-w-[110px] bg-g-bg" />
-                <th className="p-0">
-                  <div className="relative" style={{ width: totalWidth, height: 20 }}>
-                    {Array.from({ length: workHours + 1 }, (_, i) => (
-                      <span
-                        key={i}
-                        className="absolute text-[10px] text-g-text-muted"
-                        style={{ left: i * HOUR_WIDTH - 10, top: 0 }}
-                      >
-                        {workStart + i}:00
+      {/* 縦型タイムライン */}
+      {data && (() => {
+        const daysData = getDaysData();
+        return (
+          <div className="overflow-x-auto">
+            <div className="flex" style={{ minWidth: 60 + daysData.length * DAY_COL_WIDTH }}>
+              {/* 時刻ラベル列 */}
+              <div className="shrink-0" style={{ width: 52 }}>
+                <div className="h-10" />
+                <div className="relative" style={{ height: totalHeight }}>
+                  {Array.from({ length: workHours + 1 }, (_, i) => (
+                    <span
+                      key={i}
+                      className="absolute right-2 -translate-y-1/2 text-[10px] text-g-text-muted"
+                      style={{ top: i * HOUR_HEIGHT }}
+                    >
+                      {workStart + i}:00
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* 日付カラム */}
+              {daysData.map(({ date, allDayEvents, events: dayEvents, tasks: dayTasks }) => {
+                const isToday = isTodayDate(date);
+                return (
+                  <div
+                    key={date}
+                    className="shrink-0 border-l border-g-border"
+                    style={{ width: DAY_COL_WIDTH }}
+                  >
+                    {/* 日付ヘッダー */}
+                    <div className={cn(
+                      'flex flex-col items-center justify-center border-b border-g-border py-1.5',
+                      isToday ? 'bg-blue-50' : 'bg-g-surface'
+                    )}>
+                      <span className={cn(
+                        'text-xs font-medium',
+                        isToday ? 'text-[#4285F4]' : 'text-g-text'
+                      )}>
+                        {formatDateLabel(date)}
                       </span>
-                    ))}
-                  </div>
-                </th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {getDaysData().map(({ date, allDayEvents, events: dayEvents, tasks: dayTasks }) => (
-                <tr key={date}>
-                  {/* 日付ラベル（sticky） */}
-                  <td className="sticky left-0 z-10 bg-g-bg pr-2 text-right align-middle">
-                    <div className="whitespace-nowrap text-xs font-medium text-g-text">
-                      {formatDateLabel(date)}
+                      {allDayEvents.length > 0 && (
+                        <div className="mt-0.5">
+                          {allDayEvents.slice(0, 1).map((name, i) => (
+                            <span key={i} className="truncate text-[9px] text-g-text-muted">{name}</span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    {allDayEvents.length > 0 && (
-                      <div className="mt-0.5 space-y-0.5">
-                        {allDayEvents.map((name, i) => (
-                          <div key={i} className="truncate text-[9px] text-g-text-muted" style={{ maxWidth: 100 }}>
-                            {name}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </td>
 
-                  {/* タイムラインバー */}
-                  <td className="p-0 py-0.5">
+                    {/* タイムグリッド */}
                     <div
                       className={cn(
-                        'relative rounded border bg-g-bg',
-                        draggingTask && dropTarget?.date === date
-                          ? 'border-[#4285F4] bg-blue-50/30'
-                          : 'border-g-border'
+                        'relative',
+                        draggingTask && dropTarget?.date === date ? 'bg-blue-50/30' : 'bg-g-bg'
                       )}
-                      style={{ width: totalWidth, height: 40 }}
+                      style={{ height: totalHeight }}
                       onDragOver={(e) => handleDragOver(e, date)}
                       onDragLeave={handleDragLeave}
                       onDrop={(e) => handleDrop(e, date)}
                     >
                       {/* 時刻グリッド線 */}
-                      {Array.from({ length: workHours - 1 }, (_, i) => (
+                      {Array.from({ length: workHours }, (_, i) => (
                         <div
                           key={i}
-                          className="absolute top-0 h-full border-l border-g-surface-hover"
-                          style={{ left: (i + 1) * HOUR_WIDTH }}
+                          className="absolute left-0 w-full border-t border-g-surface-hover"
+                          style={{ top: i * HOUR_HEIGHT }}
+                        />
+                      ))}
+                      {/* 30分線 */}
+                      {Array.from({ length: workHours }, (_, i) => (
+                        <div
+                          key={`half-${i}`}
+                          className="absolute left-0 w-full border-t border-dashed border-g-surface-hover/50"
+                          style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2 }}
                         />
                       ))}
 
-                      {/* Googleカレンダー予定（灰色） */}
+                      {/* Googleカレンダー予定 */}
                       {dayEvents.map((ev, i) => {
                         const clampedStart = Math.max(ev.startMin, workStartMin);
                         const clampedEnd = Math.min(ev.endMin, workEndMin);
                         if (clampedStart >= clampedEnd) return null;
-                        const left = ((clampedStart - workStartMin) / 60) * HOUR_WIDTH;
-                        const width = ((clampedEnd - clampedStart) / 60) * HOUR_WIDTH;
+                        const top = ((clampedStart - workStartMin) / 60) * HOUR_HEIGHT;
+                        const height = ((clampedEnd - clampedStart) / 60) * HOUR_HEIGHT;
                         return (
                           <div
                             key={`ev-${i}`}
-                            className="absolute top-1 flex items-center overflow-hidden rounded px-1.5 text-[10px] text-g-text-secondary"
+                            className="absolute left-1 right-1 overflow-hidden rounded px-1.5 py-0.5 text-[10px] text-g-text-secondary"
                             style={{
-                              left,
-                              width,
-                              height: 32,
+                              top,
+                              height: Math.max(height, 18),
                               backgroundColor: 'var(--g-border)',
                             }}
                             title={ev.summary}
                           >
-                            <span className="truncate">{ev.summary}</span>
+                            <span className="line-clamp-2 leading-tight">{ev.summary}</span>
                           </div>
                         );
                       })}
@@ -565,12 +576,12 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                         const hours = draggedSuggestion?.estimatedHours ?? 1;
                         const indicatorStartMin = dropTarget.startMin;
                         const indicatorEndMin = Math.min(indicatorStartMin + hours * 60, workEndMin);
-                        const left = ((indicatorStartMin - workStartMin) / 60) * HOUR_WIDTH;
-                        const width = ((indicatorEndMin - indicatorStartMin) / 60) * HOUR_WIDTH;
+                        const top = ((indicatorStartMin - workStartMin) / 60) * HOUR_HEIGHT;
+                        const height = ((indicatorEndMin - indicatorStartMin) / 60) * HOUR_HEIGHT;
                         return (
                           <div
-                            className="absolute top-1 z-10 flex items-center rounded border-2 border-dashed border-[#4285F4] bg-[#4285F4]/10 px-1.5"
-                            style={{ left, width, height: 32 }}
+                            className="absolute left-1 right-1 z-10 flex items-start rounded border-2 border-dashed border-[#4285F4] bg-[#4285F4]/10 px-1.5 py-0.5"
+                            style={{ top, height }}
                           >
                             <span className="text-[10px] font-medium text-[#4285F4]">
                               {minutesToTime(indicatorStartMin)}〜{minutesToTime(indicatorEndMin)}
@@ -579,13 +590,13 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                         );
                       })()}
 
-                      {/* タスクスロット（優先度色・ドラッグ移動可能） */}
+                      {/* タスクスロット */}
                       {dayTasks.map((task, i) => {
                         const clampedStart = Math.max(task.startMin, workStartMin);
                         const clampedEnd = Math.min(task.endMin, workEndMin);
                         if (clampedStart >= clampedEnd) return null;
-                        const left = ((clampedStart - workStartMin) / 60) * HOUR_WIDTH;
-                        const width = ((clampedEnd - clampedStart) / 60) * HOUR_WIDTH;
+                        const top = ((clampedStart - workStartMin) / 60) * HOUR_HEIGHT;
+                        const height = ((clampedEnd - clampedStart) / 60) * HOUR_HEIGHT;
                         const color = PRIORITY_COLORS[task.priority] ?? '#4285F4';
                         const slotKey = `${task.taskId}|${date}|${minutesToTime(task.startMin)}`;
                         const isRegistered = registeredBlocks.has(slotKey);
@@ -601,29 +612,33 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                             }}
                             onDragEnd={handleDragEnd}
                             className={cn(
-                              'absolute top-1 flex cursor-grab items-center overflow-hidden rounded px-1.5 text-[10px] font-medium text-white active:cursor-grabbing',
+                              'absolute left-1 right-1 cursor-grab overflow-hidden rounded px-1.5 py-0.5 text-[10px] font-medium text-white active:cursor-grabbing',
                               task.status === 'tight' && 'border-2 border-dashed border-white',
                               isRegistered && 'ring-2 ring-white/70',
                               draggingTask === task.taskId && 'opacity-40'
                             )}
                             style={{
-                              left,
-                              width,
-                              height: 32,
+                              top,
+                              height: Math.max(height, 20),
                               backgroundColor: color,
                             }}
                             title={`${task.title} (${task.priority}) — ドラッグで移動`}
                           >
                             <button
                               onClick={() => openPanel(task.taskId)}
-                              className="min-w-0 flex-1 truncate text-left transition-opacity hover:opacity-80"
+                              className="block w-full truncate text-left leading-tight hover:opacity-80"
                             >
                               {task.title}
                             </button>
+                            {height >= 36 && (
+                              <span className="block text-[9px] opacity-70">
+                                {minutesToTime(task.startMin)}〜{minutesToTime(task.endMin)}
+                              </span>
+                            )}
                             <button
                               onClick={() => handleRegisterBlock(task.taskId, date, task.startMin, task.endMin)}
                               disabled={isRegistering}
-                              className="ml-0.5 shrink-0 rounded p-0.5 transition-opacity hover:bg-white/20"
+                              className="absolute right-1 top-0.5 rounded p-0.5 hover:bg-white/20"
                               title={isRegistered ? 'カレンダー登録解除' : 'Googleカレンダーに登録'}
                             >
                               {isRegistering ? (
@@ -638,13 +653,13 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                         );
                       })}
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* スケジュール不可タスク */}
       {data && data.unschedulable.length > 0 && (
