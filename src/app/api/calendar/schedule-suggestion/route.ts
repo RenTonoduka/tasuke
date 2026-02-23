@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       projectId,
+      myTasksOnly = false,
       workStart = 9,
       workEnd = 18,
       skipWeekends = true,
@@ -31,6 +32,10 @@ export async function POST(req: NextRequest) {
 
     if (projectId) {
       whereClause.projectId = projectId;
+    }
+
+    if (myTasksOnly) {
+      whereClause.assignees = { some: { userId: user.id } };
     }
 
     const tasks = await prisma.task.findMany({
@@ -120,6 +125,7 @@ export async function POST(req: NextRequest) {
           },
         },
         ...(projectId ? { projectId } : {}),
+        ...(myTasksOnly ? { assignees: { some: { userId: user.id } } } : {}),
       },
     });
 

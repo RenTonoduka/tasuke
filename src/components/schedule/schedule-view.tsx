@@ -87,23 +87,25 @@ function formatDueDate(dateStr: string): string {
 }
 
 interface ScheduleViewProps {
-  projectId: string;
+  projectId?: string;
+  myTasksOnly?: boolean;
 }
 
-function loadSettings(projectId: string) {
+function loadSettings(key: string) {
   if (typeof window === 'undefined') return { workStart: 9, workEnd: 18, skipWeekends: true };
   try {
-    const raw = localStorage.getItem(`schedule-settings:${projectId}`);
+    const raw = localStorage.getItem(`schedule-settings:${key}`);
     if (raw) return JSON.parse(raw);
   } catch {}
   return { workStart: 9, workEnd: 18, skipWeekends: true };
 }
 
-export function ScheduleView({ projectId }: ScheduleViewProps) {
+export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
   const [data, setData] = useState<ScheduleData | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
-  const saved = loadSettings(projectId);
+  const settingsKey = projectId ?? 'my-tasks';
+  const saved = loadSettings(settingsKey);
   const [workStart, setWorkStart] = useState(saved.workStart);
   const [workEnd, setWorkEnd] = useState(saved.workEnd);
   const [skipWeekends, setSkipWeekends] = useState(saved.skipWeekends);
@@ -117,12 +119,12 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
 
   const handleSaveSettings = useCallback(() => {
     localStorage.setItem(
-      `schedule-settings:${projectId}`,
+      `schedule-settings:${settingsKey}`,
       JSON.stringify({ workStart, workEnd, skipWeekends })
     );
     setSettingsSaved(true);
     setTimeout(() => setSettingsSaved(false), 2000);
-  }, [projectId, workStart, workEnd, skipWeekends]);
+  }, [settingsKey, workStart, workEnd, skipWeekends]);
 
   const workHours = workEnd - workStart;
   const totalWidth = workHours * HOUR_WIDTH;
@@ -141,7 +143,7 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
         fetch('/api/calendar/schedule-suggestion', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectId, workStart, workEnd, skipWeekends }),
+          body: JSON.stringify({ projectId, myTasksOnly, workStart, workEnd, skipWeekends }),
         }),
       ]);
 
@@ -171,7 +173,7 @@ export function ScheduleView({ projectId }: ScheduleViewProps) {
     } finally {
       setLoading(false);
     }
-  }, [projectId, workStart, workEnd, skipWeekends]);
+  }, [projectId, myTasksOnly, workStart, workEnd, skipWeekends]);
 
   useEffect(() => {
     fetchSchedule();

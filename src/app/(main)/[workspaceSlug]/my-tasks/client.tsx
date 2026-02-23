@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Calendar, Flag, FolderKanban } from 'lucide-react';
+import { Calendar, Flag, FolderKanban, List, CalendarClock } from 'lucide-react';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { TaskDetailPanel } from '@/components/task/task-detail-panel';
+import { ScheduleView } from '@/components/schedule/schedule-view';
 import { cn } from '@/lib/utils';
 
 const priorityConfig: Record<string, { label: string; color: string }> = {
@@ -34,8 +35,11 @@ interface MyTasksClientProps {
   workspaceSlug: string;
 }
 
+type ViewType = 'list' | 'schedule';
+
 export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksClientProps) {
   const [tasks, setTasks] = useState(initialTasks);
+  const [view, setView] = useState<ViewType>('list');
   const openPanel = useTaskPanelStore((s) => s.open);
   const activeTaskId = useTaskPanelStore((s) => s.activeTaskId);
   const router = useRouter();
@@ -68,56 +72,95 @@ export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksCli
   const done = tasks.filter((t) => t.status === 'DONE');
 
   return (
-    <div className="flex-1 overflow-auto">
-      {tasks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <p className="text-g-text-secondary">担当タスクがありません</p>
-          <p className="mt-1 text-sm text-g-text-muted">
-            プロジェクト内でタスクをアサインすると表示されます
-          </p>
+    <div className="flex flex-1 flex-col overflow-hidden">
+      {/* ビュー切替タブ */}
+      <div className="flex items-center gap-1 border-b border-g-border bg-g-bg px-4 py-1.5">
+        <button
+          onClick={() => setView('list')}
+          className={cn(
+            'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+            view === 'list'
+              ? 'bg-g-border text-g-text'
+              : 'text-g-text-secondary hover:bg-g-surface-hover'
+          )}
+        >
+          <List className="h-3.5 w-3.5" />
+          リスト
+        </button>
+        <button
+          onClick={() => setView('schedule')}
+          className={cn(
+            'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+            view === 'schedule'
+              ? 'bg-g-border text-g-text'
+              : 'text-g-text-secondary hover:bg-g-surface-hover'
+          )}
+        >
+          <CalendarClock className="h-3.5 w-3.5" />
+          スケジュール
+        </button>
+      </div>
+
+      {/* リストビュー */}
+      {view === 'list' && (
+        <div className="flex-1 overflow-auto">
+          {tasks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <p className="text-g-text-secondary">担当タスクがありません</p>
+              <p className="mt-1 text-sm text-g-text-muted">
+                プロジェクト内でタスクをアサインすると表示されます
+              </p>
+            </div>
+          ) : (
+            <>
+              {pending.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 bg-g-surface px-4 py-2">
+                    <span className="text-sm font-semibold text-g-text">未完了</span>
+                    <span className="rounded-full bg-g-border px-2 py-0.5 text-xs text-g-text-secondary">
+                      {pending.length}
+                    </span>
+                  </div>
+                  {pending.map((task) => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      workspaceSlug={workspaceSlug}
+                      onOpen={() => openPanel(task.id)}
+                      onToggle={() => handleToggle(task.id, task.status)}
+                    />
+                  ))}
+                </div>
+              )}
+              {done.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 bg-g-surface px-4 py-2 border-t border-g-border">
+                    <span className="text-sm font-semibold text-g-text">完了</span>
+                    <span className="rounded-full bg-g-border px-2 py-0.5 text-xs text-g-text-secondary">
+                      {done.length}
+                    </span>
+                  </div>
+                  {done.map((task) => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      workspaceSlug={workspaceSlug}
+                      onOpen={() => openPanel(task.id)}
+                      onToggle={() => handleToggle(task.id, task.status)}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </div>
-      ) : (
-        <>
-          {pending.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 bg-g-surface px-4 py-2">
-                <span className="text-sm font-semibold text-g-text">未完了</span>
-                <span className="rounded-full bg-g-border px-2 py-0.5 text-xs text-g-text-secondary">
-                  {pending.length}
-                </span>
-              </div>
-              {pending.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  workspaceSlug={workspaceSlug}
-                  onOpen={() => openPanel(task.id)}
-                  onToggle={() => handleToggle(task.id, task.status)}
-                />
-              ))}
-            </div>
-          )}
-          {done.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 bg-g-surface px-4 py-2 border-t border-g-border">
-                <span className="text-sm font-semibold text-g-text">完了</span>
-                <span className="rounded-full bg-g-border px-2 py-0.5 text-xs text-g-text-secondary">
-                  {done.length}
-                </span>
-              </div>
-              {done.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  workspaceSlug={workspaceSlug}
-                  onOpen={() => openPanel(task.id)}
-                  onToggle={() => handleToggle(task.id, task.status)}
-                />
-              ))}
-            </div>
-          )}
-        </>
       )}
+
+      {/* スケジュールビュー */}
+      {view === 'schedule' && (
+        <ScheduleView myTasksOnly />
+      )}
+
       <TaskDetailPanel />
     </div>
   );
