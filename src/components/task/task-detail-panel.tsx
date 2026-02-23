@@ -279,6 +279,30 @@ export function TaskDetailPanel() {
     if (task) fetchTask(task.id);
   };
 
+  const deleteSubtask = async (subtaskId: string) => {
+    const res = await fetch(`/api/tasks/${subtaskId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      toast({ title: 'サブタスク削除に失敗しました', variant: 'destructive' });
+      return;
+    }
+    if (task) fetchTask(task.id);
+  };
+
+  const editSubtask = async (subtaskId: string, newTitle: string) => {
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+    const res = await fetch(`/api/tasks/${subtaskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: trimmed }),
+    });
+    if (!res.ok) {
+      toast({ title: 'サブタスク更新に失敗しました', variant: 'destructive' });
+      return;
+    }
+    if (task) fetchTask(task.id);
+  };
+
   const completedSubtasks = task?.subtasks.filter((s) => s.status === 'DONE').length ?? 0;
   const totalSubtasks = task?.subtasks.length ?? 0;
 
@@ -623,20 +647,34 @@ export function TaskDetailPanel() {
                 {task.subtasks.map((sub) => (
                   <div
                     key={sub.id}
-                    className="flex items-center gap-2 rounded px-1 py-1 hover:bg-g-surface"
+                    className="group/sub flex items-center gap-2 rounded px-1 py-1 hover:bg-g-surface"
                   >
                     <Checkbox
                       checked={sub.status === 'DONE'}
                       onCheckedChange={() => toggleSubtask(sub.id, sub.status)}
                     />
-                    <span
+                    <input
+                      defaultValue={sub.title}
+                      onBlur={(e) => {
+                        if (e.target.value.trim() !== sub.title) {
+                          editSubtask(sub.id, e.target.value);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.currentTarget.blur();
+                        if (e.key === 'Escape') { e.currentTarget.value = sub.title; e.currentTarget.blur(); }
+                      }}
                       className={cn(
-                        'text-sm text-g-text',
+                        'flex-1 bg-transparent text-sm text-g-text outline-none',
                         sub.status === 'DONE' && 'text-g-text-muted line-through'
                       )}
+                    />
+                    <button
+                      onClick={() => deleteSubtask(sub.id)}
+                      className="hidden shrink-0 rounded p-0.5 text-g-text-muted hover:bg-g-border hover:text-g-text group-hover/sub:block"
                     >
-                      {sub.title}
-                    </span>
+                      <X className="h-3 w-3" />
+                    </button>
                   </div>
                 ))}
               </div>
