@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Download, ListTodo, Check, Loader2, Calendar, ChevronRight } from 'lucide-react';
+import { Download, ListTodo, Check, Loader2, Calendar, ChevronRight, AlertCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -49,6 +49,7 @@ interface ImportTasksClientProps {
 export function ImportTasksClient({ workspaceId, projects }: ImportTasksClientProps) {
   const [taskLists, setTaskLists] = useState<TaskList[]>([]);
   const [loadingLists, setLoadingLists] = useState(true);
+  const [googleError, setGoogleError] = useState<string | null>(null);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
   const [tasks, setTasks] = useState<GoogleTask[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
@@ -60,9 +61,18 @@ export function ImportTasksClient({ workspaceId, projects }: ImportTasksClientPr
   // タスクリスト一覧を取得
   const fetchLists = useCallback(async () => {
     setLoadingLists(true);
+    setGoogleError(null);
     try {
       const res = await fetch('/api/google-tasks/lists');
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const msg = data.error || '';
+        if (msg.includes('連携されていません') || msg.includes('再認証')) {
+          setGoogleError(msg);
+          return;
+        }
+        throw new Error(msg || 'リスト取得エラー');
+      }
       const data = await res.json();
       setTaskLists(data.lists);
     } catch {
@@ -93,12 +103,22 @@ export function ImportTasksClient({ workspaceId, projects }: ImportTasksClientPr
 
   const handleSelectList = (listId: string) => {
     setSelectedListId(listId);
+    setSelectedTaskIds(new Set());
     fetchTasks(listId);
-    // マッピング済みならプロジェクト自動選択
+    // マッピング済みならプロジェクト自動選択、なければリセット
     const list = taskLists.find((l) => l.id === listId);
     if (list?.mappedProjectId) {
       setProjectId(list.mappedProjectId);
+    } else {
+      setProjectId('');
     }
+    setSectionId('');
+  };
+
+  // プロジェクト変更時にセクションリセット
+  const handleProjectChange = (v: string) => {
+    setProjectId(v);
+    setSectionId('');
   };
 
   // タスク選択トグル
@@ -192,10 +212,31 @@ export function ImportTasksClient({ workspaceId, projects }: ImportTasksClientPr
   const selectedProject = projects.find((p) => p.id === projectId);
   const importableCount = tasks.filter((t) => !t.alreadyImported).length;
 
+  // Google未連携エラー
+  if (googleError) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="max-w-md text-center">
+          <AlertCircle className="mx-auto h-12 w-12 text-amber-500" />
+          <h3 className="mt-4 text-base font-semibold text-g-text">Googleアカウントの連携が必要です</h3>
+          <p className="mt-2 text-sm text-g-text-muted">
+            {googleError}
+          </p>
+          <p className="mt-4 text-xs text-g-text-muted">
+            一度ログアウトしてから再度Googleアカウントでログインしてください。
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-1 overflow-hidden">
-      {/* 左: タスクリスト一覧 */}
-      <div className="w-72 shrink-0 border-r border-g-border bg-g-surface/50">
+      {/* 左: タスクリスト一覧（モバイルではリスト未選択時のみ表示） */}
+      <div className={cn(
+        'w-full shrink-0 border-r border-g-border bg-g-surface/50 md:w-72',
+        selectedListId ? 'hidden md:block' : 'block'
+      )}>
         <div className="border-b border-g-border px-4 py-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-g-text">
             <ListTodo className="h-4 w-4" />
@@ -241,7 +282,10 @@ export function ImportTasksClient({ workspaceId, projects }: ImportTasksClientPr
       </div>
 
       {/* 右: タスク一覧 + 取り込みアクション */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className={cn(
+        'flex flex-1 flex-col overflow-hidden',
+        !selectedListId && 'hidden md:flex'
+      )}>
         {!selectedListId ? (
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center">
@@ -259,12 +303,21 @@ export function ImportTasksClient({ workspaceId, projects }: ImportTasksClientPr
             {/* タスクリスト */}
             <div className="flex-1 overflow-y-auto p-4">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-medium text-g-text">
-                  {taskLists.find((l) => l.id === selectedListId)?.title}
-                  <span className="ml-2 text-xs text-g-text-muted">
-                    {importableCount}件取り込み可能
-                  </span>
-                </h3>
+                <div className="flex items-center gap-2">
+                  {/* モバイル戻るボタン */}
+                  <button
+                    onClick={() => setSelectedListId(null)}
+                    className="md:hidden text-g-text-secondary hover:text-g-text"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                  <h3 className="text-sm font-medium text-g-text">
+                    {taskLists.find((l) => l.id === selectedListId)?.title}
+                    <span className="ml-2 text-xs text-g-text-muted">
+                      {importableCount}件取り込み可能
+                    </span>
+                  </h3>
+                </div>
                 {importableCount > 0 && (
                   <button
                     onClick={toggleAll}
@@ -336,16 +389,16 @@ export function ImportTasksClient({ workspaceId, projects }: ImportTasksClientPr
               )}
             </div>
 
-            {/* 下部: 取り込みアクション */}
+            {/* 下部: 取り込みアクション（レスポンシブ対応） */}
             <div className="border-t border-g-border bg-g-surface/50 px-4 py-3">
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-g-text-muted">プロジェクト:</span>
                   <Select
                     value={projectId}
-                    onValueChange={(v) => setProjectId(v)}
+                    onValueChange={handleProjectChange}
                   >
-                    <SelectTrigger className="h-8 w-48 text-xs">
+                    <SelectTrigger className="h-8 w-40 text-xs sm:w-48">
                       <SelectValue placeholder="選択してください" />
                     </SelectTrigger>
                     <SelectContent>
@@ -368,7 +421,7 @@ export function ImportTasksClient({ workspaceId, projects }: ImportTasksClientPr
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-g-text-muted">セクション:</span>
                     <Select value={sectionId} onValueChange={setSectionId}>
-                      <SelectTrigger className="h-8 w-36 text-xs">
+                      <SelectTrigger className="h-8 w-32 text-xs sm:w-36">
                         <SelectValue placeholder="指定なし" />
                       </SelectTrigger>
                       <SelectContent>

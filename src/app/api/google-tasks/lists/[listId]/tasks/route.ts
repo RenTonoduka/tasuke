@@ -19,9 +19,11 @@ export async function GET(
       showCompleted: false,
       showHidden: false,
     });
-    const gTasks = res.data.items ?? [];
+    // 空タイトルを除外し、IDがあるタスクのみ
+    const gTasks = (res.data.items ?? []).filter((t) => t.id && t.title?.trim());
 
-    const googleTaskIds = gTasks.map((t) => t.id!).filter(Boolean);
+    const googleTaskIds = gTasks.map((t) => t.id!);
+
     const existingTasks = await prisma.task.findMany({
       where: { googleTaskId: { in: googleTaskIds } },
       select: { id: true, googleTaskId: true },
