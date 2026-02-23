@@ -27,6 +27,17 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     const { userIds } = assigneesSchema.parse(await req.json());
 
+    // 指定されたユーザーがワークスペースメンバーであることを検証
+    if (userIds.length > 0) {
+      const validMembers = await prisma.workspaceMember.findMany({
+        where: { workspaceId: task.project.workspaceId, userId: { in: userIds } },
+        select: { userId: true },
+      });
+      const validIds = new Set(validMembers.map((m) => m.userId));
+      const invalid = userIds.filter((id) => !validIds.has(id));
+      if (invalid.length > 0) return errorResponse('ワークスペースに所属していないユーザーが含まれています', 400);
+    }
+
     const currentIds = task.assignees.map((a) => a.userId);
     const toAdd = userIds.filter((id) => !currentIds.includes(id));
     const toRemove = currentIds.filter((id) => !userIds.includes(id));

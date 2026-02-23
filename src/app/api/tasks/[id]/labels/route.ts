@@ -27,6 +27,17 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     const { labelIds } = labelsSchema.parse(await req.json());
 
+    // 指定されたラベルが同じワークスペースに属することを検証
+    if (labelIds.length > 0) {
+      const validLabels = await prisma.label.findMany({
+        where: { id: { in: labelIds }, workspaceId: task.project.workspaceId },
+        select: { id: true },
+      });
+      const validIds = new Set(validLabels.map((l) => l.id));
+      const invalid = labelIds.filter((id) => !validIds.has(id));
+      if (invalid.length > 0) return errorResponse('このワークスペースに存在しないラベルが含まれています', 400);
+    }
+
     const currentIds = task.labels.map((l) => l.labelId);
     const toAdd = labelIds.filter((id) => !currentIds.includes(id));
     const toRemove = currentIds.filter((id) => !labelIds.includes(id));

@@ -15,26 +15,24 @@ export function useSubtaskExpand() {
   const subtasksRef = useRef(subtasks);
   subtasksRef.current = subtasks;
 
-  const toggle = useCallback(async (taskId: string) => {
-    setExpanded((prev) => {
-      const isOpen = prev[taskId];
-      if (!isOpen && !subtasksRef.current[taskId]) {
-        // 初回展開時にサブタスク取得（非同期）
-        setLoading((p) => ({ ...p, [taskId]: true }));
-        fetch(`/api/tasks/${taskId}/subtasks`)
-          .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-          .then((data: Subtask[]) => {
-            setSubtasks((p) => ({ ...p, [taskId]: data }));
-          })
-          .catch(() => {
-            toast({ title: 'サブタスクの取得に失敗', variant: 'destructive' });
-          })
-          .finally(() => {
-            setLoading((p) => ({ ...p, [taskId]: false }));
-          });
-      }
-      return { ...prev, [taskId]: !isOpen };
-    });
+  const toggle = useCallback((taskId: string) => {
+    setExpanded((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
+
+    // 初回展開時にサブタスク取得（setStateの外で非同期処理）
+    if (!subtasksRef.current[taskId]) {
+      setLoading((p) => ({ ...p, [taskId]: true }));
+      fetch(`/api/tasks/${taskId}/subtasks`)
+        .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+        .then((data: Subtask[]) => {
+          setSubtasks((p) => ({ ...p, [taskId]: data }));
+        })
+        .catch(() => {
+          toast({ title: 'サブタスクの取得に失敗', variant: 'destructive' });
+        })
+        .finally(() => {
+          setLoading((p) => ({ ...p, [taskId]: false }));
+        });
+    }
   }, []);
 
   const toggleStatus = useCallback(async (parentId: string, subtaskId: string, currentStatus: string) => {
