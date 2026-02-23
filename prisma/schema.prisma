@@ -28,6 +28,7 @@ model User {
   activities             Activity[]
   notifications          Notification[]
   googleTaskListMappings GoogleTaskListMapping[]
+  apiTokens              ApiToken[]
 }
 
 model Account {
@@ -86,6 +87,7 @@ model Workspace {
   projects          Project[]
   labels            Label[]
   projectTemplates  ProjectTemplate[]
+  apiTokens         ApiToken[]
 }
 
 model WorkspaceMember {
@@ -369,6 +371,27 @@ model Notification {
 
   @@index([userId, read])
   @@index([createdAt])
+}
+
+// ========== API Token ==========
+
+model ApiToken {
+  id          String    @id @default(cuid())
+  name        String
+  tokenHash   String    @unique
+  tokenPrefix String
+  scope       String    @default("read_write")
+  userId      String
+  workspaceId String
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
 }
 
 // ========== Google Tasks Import ==========

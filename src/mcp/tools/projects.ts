@@ -1,7 +1,16 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { prisma, getDefaultWorkspace } from '../context.js';
-import { ok, err } from '../helpers.js';
+import { getDefaultUser, getDefaultWorkspace } from '../context.js';
+import {
+  handleProjectList,
+  handleProjectCreate,
+  handleProjectUpdate,
+  handleProjectDelete,
+} from '../tool-handlers.js';
+
+async function getCtx() {
+  return { userId: await getDefaultUser(), workspaceId: await getDefaultWorkspace() };
+}
 
 export function registerProjectTools(server: McpServer) {
 
@@ -9,22 +18,7 @@ export function registerProjectTools(server: McpServer) {
     'project_list',
     'プロジェクト一覧を取得します',
     {},
-    async () => {
-      try {
-        const workspaceId = await getDefaultWorkspace();
-        const projects = await prisma.project.findMany({
-          where: { workspaceId },
-          include: {
-            sections: { orderBy: { position: 'asc' }, select: { id: true, name: true } },
-            _count: { select: { tasks: true } },
-          },
-          orderBy: { position: 'asc' },
-        });
-        return ok(projects);
-      } catch (e: unknown) {
-        return err(e instanceof Error ? e.message : String(e));
-      }
-    }
+    async () => handleProjectList({} as Record<string, never>, await getCtx()),
   );
 
   server.tool(
@@ -35,37 +29,7 @@ export function registerProjectTools(server: McpServer) {
       color: z.string().optional().describe('色（HEX, デフォルト #4285F4）'),
       description: z.string().optional().describe('説明'),
     },
-    async (params) => {
-      try {
-        const workspaceId = await getDefaultWorkspace();
-
-        const maxPos = await prisma.project.aggregate({
-          where: { workspaceId },
-          _max: { position: true },
-        });
-
-        const project = await prisma.project.create({
-          data: {
-            name: params.name,
-            color: params.color ?? '#4285F4',
-            description: params.description ?? null,
-            workspaceId,
-            position: (maxPos._max.position ?? 0) + 1,
-            sections: {
-              create: [
-                { name: 'Todo', position: 0 },
-                { name: '進行中', position: 1 },
-                { name: '完了', position: 2 },
-              ],
-            },
-          },
-          include: { sections: { orderBy: { position: 'asc' } } },
-        });
-        return ok(project);
-      } catch (e: unknown) {
-        return err(e instanceof Error ? e.message : String(e));
-      }
-    }
+    async (params) => handleProjectCreate(params, await getCtx()),
   );
 
   server.tool(
@@ -77,38 +41,13 @@ export function registerProjectTools(server: McpServer) {
       color: z.string().optional().describe('色（HEX）'),
       description: z.string().optional().nullable().describe('説明'),
     },
-    async (params) => {
-      try {
-        const { projectId, ...data } = params;
-        const updateData: Record<string, unknown> = {};
-        if (data.name !== undefined) updateData.name = data.name;
-        if (data.color !== undefined) updateData.color = data.color;
-        if (data.description !== undefined) updateData.description = data.description;
-
-        const project = await prisma.project.update({
-          where: { id: projectId },
-          data: updateData,
-        });
-        return ok(project);
-      } catch (e: unknown) {
-        return err(e instanceof Error ? e.message : String(e));
-      }
-    }
+    async (params) => handleProjectUpdate(params, await getCtx()),
   );
 
   server.tool(
     'project_delete',
     'プロジェクトを削除します（配下のタスク・セクションも全削除）',
-    {
-      projectId: z.string().describe('プロジェクトID'),
-    },
-    async ({ projectId }) => {
-      try {
-        await prisma.project.delete({ where: { id: projectId } });
-        return ok({ success: true, deletedId: projectId });
-      } catch (e: unknown) {
-        return err(e instanceof Error ? e.message : String(e));
-      }
-    }
+    { projectId: z.string().describe('プロジェクトID') },
+    async (params) => handleProjectDelete(params, await getCtx()),
   );
 }
