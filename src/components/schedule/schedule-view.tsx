@@ -268,25 +268,48 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     setDropTarget(null);
   }, []);
 
-  // D&D: ドロップ処理
+  // D&D: ドロップ処理（タスク配置/移動 + カレンダーイベント移動）
   const handleDrop = useCallback(async (e: React.DragEvent, date: string) => {
     e.preventDefault();
     setDropTarget(null);
     setDraggingTask(null);
 
-    let taskId: string;
-    let estimatedHours: number;
-    let fromSlotKey: string | undefined;
+    let payload: { taskId?: string; estimatedHours?: number; fromSlotKey?: string; calendarEventId?: string; durationMin?: number };
     try {
-      const payload = JSON.parse(e.dataTransfer.getData('text/plain'));
-      taskId = payload.taskId;
-      estimatedHours = payload.estimatedHours;
-      fromSlotKey = payload.fromSlotKey;
+      payload = JSON.parse(e.dataTransfer.getData('text/plain'));
     } catch { return; }
 
     const startMin = calcDropTime(e);
-    const endMin = Math.min(startMin + estimatedHours * 60, workEndMin);
 
+    // Googleカレンダーイベントの移動
+    if (payload.calendarEventId) {
+      const durationMin = payload.durationMin ?? 60;
+      const endMin = Math.min(startMin + durationMin, workEndMin);
+      if (endMin <= startMin) return;
+
+      const startISO = `${date}T${minutesToTime(startMin)}:00`;
+      const endISO = `${date}T${minutesToTime(endMin)}:00`;
+
+      try {
+        const res = await fetch('/api/calendar/events', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: payload.calendarEventId, start: startISO, end: endISO }),
+        });
+        if (res.ok) {
+          fetchSchedule();
+        }
+      } catch (err) {
+        console.error('カレンダーイベント移動エラー:', err);
+      }
+      return;
+    }
+
+    // タスクの配置/移動
+    const { taskId, estimatedHours, fromSlotKey } = payload;
+    if (!taskId || !estimatedHours) return;
+
+    const endMin = Math.min(startMin + estimatedHours * 60, workEndMin);
     if (endMin <= startMin) return;
 
     const start = minutesToTime(startMin);
@@ -329,7 +352,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
 
     const daysMap = new Map<string, {
       allDayEvents: string[];
-      events: { summary: string; startMin: number; endMin: number }[];
+      events: { id: string; summary: string; startMin: number; endMin: number }[];
       tasks: { taskId: string; title: string; priority: string; startMin: number; endMin: number; status: string }[];
     }>();
 
@@ -346,7 +369,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
       const startMin = timeToMinutes(ev.start.split('T')[1]?.substring(0, 5) ?? '09:00');
       const endMin = timeToMinutes(ev.end.split('T')[1]?.substring(0, 5) ?? '10:00');
       if (endMin <= workStartMin || startMin >= workEndMin) continue;
-      day.events.push({ summary: ev.summary, startMin, endMin });
+      day.events.push({ id: ev.id, summary: ev.summary, startMin, endMin });
     }
 
     for (const sug of data.suggestions) {
@@ -547,23 +570,39 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                         />
                       ))}
 
-                      {/* Googleカレンダー予定 */}
+                      {/* Googleカレンダー予定（ドラッグ移動可能） */}
                       {dayEvents.map((ev, i) => {
                         const clampedStart = Math.max(ev.startMin, workStartMin);
                         const clampedEnd = Math.min(ev.endMin, workEndMin);
                         if (clampedStart >= clampedEnd) return null;
                         const top = ((clampedStart - workStartMin) / 60) * HOUR_HEIGHT;
                         const height = ((clampedEnd - clampedStart) / 60) * HOUR_HEIGHT;
+                        const durationMin = ev.endMin - ev.startMin;
                         return (
                           <div
                             key={`ev-${i}`}
-                            className="absolute left-1 right-1 overflow-hidden rounded px-1.5 py-0.5 text-[10px] text-g-text-secondary"
+                            draggable
+                            onDragStart={(e) => {
+                              e.stopPropagation();
+                              e.dataTransfer.setData('text/plain', JSON.stringify({
+                                calendarEventId: ev.id,
+                                durationMin,
+                                estimatedHours: durationMin / 60,
+                              }));
+                              e.dataTransfer.effectAllowed = 'move';
+                              setDraggingTask(`cal-${ev.id}`);
+                            }}
+                            onDragEnd={handleDragEnd}
+                            className={cn(
+                              'absolute left-1 right-1 cursor-grab overflow-hidden rounded px-1.5 py-0.5 text-[10px] text-g-text-secondary active:cursor-grabbing',
+                              draggingTask === `cal-${ev.id}` && 'opacity-40'
+                            )}
                             style={{
                               top,
                               height: Math.max(height, 18),
                               backgroundColor: 'var(--g-border)',
                             }}
-                            title={ev.summary}
+                            title={`${ev.summary} — ドラッグで移動`}
                           >
                             <span className="line-clamp-2 leading-tight">{ev.summary}</span>
                           </div>
@@ -573,7 +612,12 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                       {/* ドロップインジケーター */}
                       {draggingTask && dropTarget?.date === date && (() => {
                         const draggedSuggestion = data?.suggestions.find((s) => s.taskId === draggingTask);
-                        const hours = draggedSuggestion?.estimatedHours ?? 1;
+                        // カレンダーイベントまたはタスクのドラッグ中の時間を取得
+                        const draggedEvent = draggingTask.startsWith('cal-')
+                          ? daysData.flatMap(d => d.events).find(ev => `cal-${ev.id}` === draggingTask)
+                          : null;
+                        const hours = draggedSuggestion?.estimatedHours
+                          ?? (draggedEvent ? (draggedEvent.endMin - draggedEvent.startMin) / 60 : 1);
                         const indicatorStartMin = dropTarget.startMin;
                         const indicatorEndMin = Math.min(indicatorStartMin + hours * 60, workEndMin);
                         const top = ((indicatorStartMin - workStartMin) / 60) * HOUR_HEIGHT;
