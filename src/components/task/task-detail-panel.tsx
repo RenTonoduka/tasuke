@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Calendar, Clock, Flag, Tag, Users, CheckSquare, GripVertical, UserPlus, Check, Trash2 } from 'lucide-react';
+import { X, Calendar, Clock, Flag, Tag, Users, CheckSquare, GripVertical, UserPlus, Check, Trash2, FolderOpen, ArrowRightLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -70,7 +70,8 @@ interface TaskDetail {
   googleCalendarSyncedAt: string | null;
   googleTaskId: string | null;
   googleTaskSyncedAt: string | null;
-  project: { workspaceId: string };
+  projectId: string;
+  project: { id: string; name: string; color: string; workspaceId: string };
   subtasks: { id: string; title: string; status: string }[];
   assignees: { id: string; user: { id: string; name: string | null; image: string | null } }[];
   labels: { id: string; label: { id: string; name: string; color: string } }[];
@@ -95,7 +96,9 @@ export function TaskDetailPanel() {
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   const [labelOpen, setLabelOpen] = useState(false);
+  const [projectOpen, setProjectOpen] = useState(false);
   const [availableLabels, setAvailableLabels] = useState<{ id: string; name: string; color: string }[]>([]);
+  const [availableProjects, setAvailableProjects] = useState<{ id: string; name: string; color: string }[]>([]);
 
   const handleResizeStart = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
@@ -161,6 +164,30 @@ export function TaskDetailPanel() {
   useEffect(() => {
     if (labelOpen) fetchLabels();
   }, [labelOpen, fetchLabels]);
+
+  // プロジェクト一覧取得（Popover展開時）
+  const fetchProjects = useCallback(async () => {
+    if (!task?.project?.workspaceId) return;
+    try {
+      const res = await fetch(`/api/workspaces/${task.project.workspaceId}/projects`);
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableProjects(data.map((p: { id: string; name: string; color: string }) => ({ id: p.id, name: p.name, color: p.color })));
+      }
+    } catch {}
+  }, [task?.project?.workspaceId]);
+
+  useEffect(() => {
+    if (projectOpen) fetchProjects();
+  }, [projectOpen, fetchProjects]);
+
+  const moveToProject = async (projectId: string) => {
+    if (!task || projectId === task.project.id) return;
+    setProjectOpen(false);
+    await updateField('projectId', projectId);
+    toast({ title: 'プロジェクトを移動しました' });
+    router.refresh();
+  };
 
   const toggleLabel = async (labelId: string) => {
     if (!task) return;
@@ -598,6 +625,46 @@ export function TaskDetailPanel() {
                       })}
                       {availableLabels.length === 0 && (
                         <div className="px-2 py-3 text-center text-xs text-g-text-muted">ラベルなし</div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              {/* Project */}
+              <div className="flex items-center gap-3">
+                <FolderOpen className="h-4 w-4 text-g-text-muted" />
+                <div className="flex flex-1 items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-xs text-g-text">
+                    <span
+                      className="h-2.5 w-2.5 rounded"
+                      style={{ backgroundColor: task.project.color ?? '#4285F4' }}
+                    />
+                    {task.project.name}
+                  </div>
+                  <Popover open={projectOpen} onOpenChange={setProjectOpen}>
+                    <PopoverTrigger asChild>
+                      <button className="flex h-6 items-center gap-1 rounded-full border border-dashed border-g-border px-2 text-xs text-g-text-muted hover:border-g-text-secondary hover:text-g-text-secondary">
+                        <ArrowRightLeft className="h-3 w-3" />
+                        移動
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-1" align="start">
+                      <div className="px-2 py-1.5 text-xs font-medium text-g-text-secondary">プロジェクトに移動</div>
+                      {availableProjects.filter((p) => p.id !== task.project.id).map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => moveToProject(p.id)}
+                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-g-surface-hover"
+                        >
+                          <span
+                            className="h-3 w-3 rounded"
+                            style={{ backgroundColor: p.color }}
+                          />
+                          <span className="flex-1 truncate text-left text-g-text">{p.name}</span>
+                        </button>
+                      ))}
+                      {availableProjects.filter((p) => p.id !== task.project.id).length === 0 && (
+                        <div className="px-2 py-3 text-center text-xs text-g-text-muted">他のプロジェクトなし</div>
                       )}
                     </PopoverContent>
                   </Popover>

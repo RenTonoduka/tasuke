@@ -37,7 +37,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
           orderBy: { createdAt: 'desc' },
         },
         section: true,
-        project: { select: { workspaceId: true } },
+        project: { select: { id: true, name: true, color: true, workspaceId: true } },
         createdBy: { select: { id: true, name: true, image: true } },
       },
     });
@@ -70,9 +70,25 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     });
     if (member?.role === 'VIEWER') return errorResponse('閲覧者はタスクを編集できません', 403);
 
+    // プロジェクト移動時：移動先プロジェクトが同じワークスペース内か確認
+    if (data.projectId && data.projectId !== existing.projectId) {
+      const targetProject = await prisma.project.findFirst({
+        where: {
+          id: data.projectId,
+          workspace: { members: { some: { userId: user.id } } },
+          workspaceId: existing.project.workspaceId,
+        },
+      });
+      if (!targetProject) return errorResponse('移動先のプロジェクトが見つかりません', 404);
+    }
+
     const oldStatus = existing.status;
     const oldPriority = existing.priority;
     const updateData: Record<string, unknown> = { ...data };
+    // プロジェクト移動時はセクションをリセット
+    if (data.projectId && data.projectId !== existing.projectId) {
+      updateData.sectionId = null;
+    }
     if (data.startDate !== undefined) {
       updateData.startDate = data.startDate ? new Date(data.startDate) : null;
     }

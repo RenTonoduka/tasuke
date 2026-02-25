@@ -16,6 +16,7 @@ export const updateTaskSchema = z.object({
   priority: z.enum(['P0', 'P1', 'P2', 'P3']).optional(),
   status: z.enum(['TODO', 'IN_PROGRESS', 'DONE', 'ARCHIVED']).optional(),
   sectionId: z.string().optional().nullable(),
+  projectId: z.string().optional(),
   startDate: z.string().datetime().optional().nullable(),
   dueDate: z.string().datetime().optional().nullable(),
   estimatedHours: z.number().min(0.5).max(100).multipleOf(0.5).optional().nullable(),
