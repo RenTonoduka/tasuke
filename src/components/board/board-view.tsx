@@ -23,6 +23,12 @@ import type { FilterState } from '@/stores/filter-store';
 import { SearchX } from 'lucide-react';
 import type { Section, Task } from '@/types';
 
+const SECTION_STATUS_MAP: Record<string, 'TODO' | 'IN_PROGRESS' | 'DONE'> = {
+  'todo': 'TODO', 'Todo': 'TODO', 'TODO': 'TODO', 'やること': 'TODO', '未着手': 'TODO',
+  '進行中': 'IN_PROGRESS', 'In Progress': 'IN_PROGRESS', '対応中': 'IN_PROGRESS',
+  '完了': 'DONE', 'Done': 'DONE', 'done': 'DONE',
+};
+
 interface BoardViewProps {
   initialSections: Section[];
   projectId: string;
@@ -99,7 +105,12 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
           const overIndex = s.tasks.findIndex((t) => t.id === overId);
           const insertIndex = overIndex >= 0 ? overIndex : s.tasks.length;
           const newTasks = [...s.tasks];
-          newTasks.splice(insertIndex, 0, { ...task, sectionId: s.id });
+          const mappedStatus = SECTION_STATUS_MAP[s.name];
+          newTasks.splice(insertIndex, 0, {
+            ...task,
+            sectionId: s.id,
+            ...(mappedStatus && { status: mappedStatus }),
+          });
           return { ...s, tasks: newTasks };
         }
         return s;
