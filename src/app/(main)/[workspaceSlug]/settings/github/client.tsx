@@ -1,71 +1,46 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Github, Loader2, ExternalLink, Trash2, CheckCircle2 } from 'lucide-react';
+import { signIn } from 'next-auth/react';
+import { Github, Loader2, Trash2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 
 interface GitHubSettingsClientProps {
   workspaceSlug: string;
 }
 
-interface Integration {
-  githubUsername: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export function GitHubSettingsClient({ workspaceSlug }: GitHubSettingsClientProps) {
-  const [integration, setIntegration] = useState<Integration | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [githubUsername, setGithubUsername] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pat, setPat] = useState('');
-  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchIntegration = useCallback(async () => {
+  const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch('/api/github/integration');
       if (res.ok) {
         const data = await res.json();
-        setIntegration(data.integration);
+        setConnected(data.connected);
+        setGithubUsername(data.githubUsername ?? null);
       }
     } catch {} finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchIntegration(); }, [fetchIntegration]);
+  useEffect(() => { fetchStatus(); }, [fetchStatus]);
 
-  const handleSave = async () => {
-    if (!pat.trim()) return;
-    setSaving(true);
-    try {
-      const res = await fetch('/api/github/integration', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pat }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast({ title: data.error, variant: 'destructive' });
-        return;
-      }
-      setIntegration({ githubUsername: data.githubUsername, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-      setPat('');
-      toast({ title: `GitHub連携完了: @${data.githubUsername}` });
-    } catch {
-      toast({ title: '連携に失敗しました', variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
+  const handleConnect = () => {
+    signIn('github', { callbackUrl: `/${workspaceSlug}/settings/github` });
   };
 
-  const handleDelete = async () => {
+  const handleDisconnect = async () => {
     setDeleting(true);
     try {
       await fetch('/api/github/integration', { method: 'DELETE' });
-      setIntegration(null);
+      setConnected(false);
+      setGithubUsername(null);
       toast({ title: 'GitHub連携を解除しました' });
     } catch {
       toast({ title: '解除に失敗しました', variant: 'destructive' });
@@ -90,25 +65,24 @@ export function GitHubSettingsClient({ workspaceSlug }: GitHubSettingsClientProp
           <div>
             <h2 className="text-base font-semibold text-g-text">GitHub連携</h2>
             <p className="text-xs text-g-text-muted">
-              Personal Access Tokenを設定してGitHub Issuesを取り込めるようにします
+              GitHubアカウントを連携してIssueを取り込めるようにします
             </p>
           </div>
         </div>
 
-        {integration ? (
+        {connected ? (
           <div className="space-y-4">
             <div className="flex items-center gap-3 rounded-md bg-green-500/10 px-4 py-3">
               <CheckCircle2 className="h-5 w-5 text-green-600" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-g-text">連携中: @{integration.githubUsername}</p>
-                <p className="text-xs text-g-text-muted">
-                  {new Date(integration.updatedAt).toLocaleDateString('ja-JP')} に設定
+                <p className="text-sm font-medium text-g-text">
+                  連携中{githubUsername ? `: @${githubUsername}` : ''}
                 </p>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleDelete}
+                onClick={handleDisconnect}
                 disabled={deleting}
                 className="text-red-500 hover:bg-red-500/10 hover:text-red-600"
               >
@@ -128,45 +102,16 @@ export function GitHubSettingsClient({ workspaceSlug }: GitHubSettingsClientProp
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-g-text">Personal Access Token</label>
-              <div className="flex gap-2">
-                <Input
-                  type="password"
-                  value={pat}
-                  onChange={(e) => setPat(e.target.value)}
-                  placeholder="ghp_xxxxxxxxxxxx"
-                  className="flex-1"
-                  onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                />
-                <Button
-                  onClick={handleSave}
-                  disabled={!pat.trim() || saving}
-                  className="bg-[#4285F4] text-white hover:bg-[#3367D6]"
-                >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : '連携する'}
-                </Button>
-              </div>
-            </div>
-
-            <div className="rounded-md bg-g-bg px-4 py-3 text-xs text-g-text-muted space-y-2">
-              <p className="font-medium text-g-text-secondary">トークンの作成方法:</p>
-              <ol className="list-decimal list-inside space-y-1">
-                <li>
-                  <a
-                    href="https://github.com/settings/tokens/new"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#4285F4] hover:underline inline-flex items-center gap-1"
-                  >
-                    GitHub Token設定 <ExternalLink className="h-3 w-3" />
-                  </a>
-                  を開く
-                </li>
-                <li>「repo」スコープにチェック</li>
-                <li>トークンを生成してコピー</li>
-              </ol>
-            </div>
+            <Button
+              onClick={handleConnect}
+              className="w-full gap-3 bg-[#24292e] text-white hover:bg-[#1b1f23]"
+            >
+              <Github className="h-5 w-5" />
+              GitHubと連携する
+            </Button>
+            <p className="text-center text-xs text-g-text-muted">
+              GitHubのOAuth認証画面が開きます。リポジトリへのアクセス権限を許可してください。
+            </p>
           </div>
         )}
       </div>

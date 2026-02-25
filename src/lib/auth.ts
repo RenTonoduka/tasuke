@@ -1,5 +1,6 @@
 import { NextAuthOptions, getServerSession } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
+import GitHubProvider from 'next-auth/providers/github';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import prisma from './prisma';
 
@@ -44,6 +45,12 @@ export const authOptions: NextAuthOptions = {
         },
       },
     }),
+    GitHubProvider({
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      allowDangerousEmailAccountLinking: true,
+      authorization: { params: { scope: 'repo user:email' } },
+    }),
   ],
   session: {
     strategy: 'jwt',
@@ -74,9 +81,10 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       if (!user.email) return false;
       // 再ログイン時にOAuthトークンを更新（スコープ変更対応）
-      if (account?.provider === 'google' && user.id) {
+      // 再ログイン/再連携時にOAuthトークンを更新
+      if (account && user.id && (account.provider === 'google' || account.provider === 'github')) {
         const existing = await prisma.account.findFirst({
-          where: { userId: user.id, provider: 'google' },
+          where: { userId: user.id, provider: account.provider },
         });
         if (existing && account.access_token) {
           await prisma.account.update({

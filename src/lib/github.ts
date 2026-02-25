@@ -1,4 +1,3 @@
-import { decryptPAT } from './github-crypto';
 import prisma from './prisma';
 
 export class GitHubApiError extends Error {
@@ -9,13 +8,13 @@ export class GitHubApiError extends Error {
 }
 
 export async function getGitHubToken(userId: string): Promise<string> {
-  const integration = await prisma.gitHubIntegration.findUnique({
-    where: { userId },
+  const account = await prisma.account.findFirst({
+    where: { userId, provider: 'github' },
   });
-  if (!integration) {
+  if (!account?.access_token) {
     throw new Error('GitHub連携が設定されていません');
   }
-  return decryptPAT(integration.encryptedPat);
+  return account.access_token;
 }
 
 export async function githubApi<T = unknown>(

@@ -29,7 +29,6 @@ model User {
   notifications          Notification[]
   googleTaskListMappings GoogleTaskListMapping[]
   apiTokens              ApiToken[]
-  githubIntegration      GitHubIntegration?
   githubRepoMappings     GitHubRepoMapping[]
 }
 
@@ -425,17 +424,6 @@ model GoogleTaskListMapping {
 }
 
 // ========== GitHub Integration ==========
-
-model GitHubIntegration {
-  id             String   @id @default(cuid())
-  userId         String   @unique
-  encryptedPat   String   @db.Text
-  githubUsername String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
 
 model GitHubRepoMapping {
   id                 String   @id @default(cuid())

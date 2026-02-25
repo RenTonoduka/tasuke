@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
@@ -13,6 +13,8 @@ import {
   ChevronDown,
   LayoutDashboard,
   Inbox,
+  Trash2,
+  MoreHorizontal,
   Sun,
   Moon,
   GripVertical,
@@ -52,6 +54,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Project {
   id: string;
@@ -64,9 +76,10 @@ interface SortableProjectItemProps {
   project: Project;
   href: string;
   isActive: boolean;
+  onDelete: (projectId: string) => void;
 }
 
-function SortableProjectItem({ project, href, isActive }: SortableProjectItemProps) {
+function SortableProjectItem({ project, href, isActive, onDelete }: SortableProjectItemProps) {
   const {
     attributes,
     listeners,
@@ -86,7 +99,7 @@ function SortableProjectItem({ project, href, isActive }: SortableProjectItemPro
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex items-center rounded-md text-sm text-g-text-secondary hover:bg-g-border hover:text-g-text',
+        'group/proj flex items-center rounded-md text-sm text-g-text-secondary hover:bg-g-border hover:text-g-text',
         isActive && 'bg-g-border font-medium text-g-text',
         isDragging && 'z-50 opacity-50'
       )}
@@ -102,12 +115,31 @@ function SortableProjectItem({ project, href, isActive }: SortableProjectItemPro
       </button>
       <Link
         href={href}
-        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-3"
+        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-1"
       >
         <FolderKanban className="h-4 w-4 shrink-0" style={{ color: project.color }} />
         <span className="truncate">{project.name}</span>
         {project.isPrivate && <Lock className="ml-auto h-3 w-3 shrink-0 text-g-text-muted" />}
       </Link>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="mr-1 hidden shrink-0 rounded p-0.5 text-g-text-muted hover:bg-g-bg hover:text-g-text group-hover/proj:block"
+            tabIndex={-1}
+          >
+            <MoreHorizontal className="h-3.5 w-3.5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-40">
+          <DropdownMenuItem
+            className="text-red-500 focus:text-red-500"
+            onClick={() => onDelete(project.id)}
+          >
+            <Trash2 className="mr-2 h-3.5 w-3.5" />
+            削除
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
@@ -126,7 +158,9 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
   const { theme, setTheme } = useTheme();
 
   const [projects, setProjects] = useState<Project[]>(initialProjects);
+  useEffect(() => { setProjects(initialProjects); }, [initialProjects]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string; slug: string }[]>([]);
   const [wsLoaded, setWsLoaded] = useState(false);
 
@@ -171,6 +205,16 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
     } catch {
       setProjects(initialProjects);
     }
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setProjects((prev) => prev.filter((p) => p.id !== projectId));
+      }
+    } catch {}
+    setDeleteTarget(null);
   };
 
   const navItems = [
@@ -302,6 +346,10 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
                   project={project}
                   href={`/${currentWorkspaceSlug}/projects/${project.id}`}
                   isActive={!!pathname?.includes(project.id)}
+                  onDelete={(id) => {
+                    const p = projects.find((pr) => pr.id === id);
+                    if (p) setDeleteTarget(p);
+                  }}
                 />
               ))}
             </SortableContext>
@@ -359,6 +407,26 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>プロジェクトを削除</AlertDialogTitle>
+            <AlertDialogDescription>
+              「{deleteTarget?.name}」を削除しますか？この操作は取り消せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600"
+              onClick={() => deleteTarget && handleDeleteProject(deleteTarget.id)}
+            >
+              削除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

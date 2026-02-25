@@ -1,67 +1,45 @@
-import { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { encryptPAT } from '@/lib/github-crypto';
-import { githubApi, GitHubApiError } from '@/lib/github';
-import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
-
-const patSchema = z.object({
-  pat: z.string().min(1, 'トークンを入力してください'),
-});
+import { successResponse, handleApiError } from '@/lib/api-utils';
 
 export async function GET() {
   try {
     const user = await requireAuthUser();
-    const integration = await prisma.gitHubIntegration.findUnique({
-      where: { userId: user.id },
-      select: { githubUsername: true, createdAt: true, updatedAt: true },
+    const account = await prisma.account.findFirst({
+      where: { userId: user.id, provider: 'github' },
+      select: { providerAccountId: true, scope: true },
     });
-    return successResponse({ integration });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
 
-export async function PUT(req: NextRequest) {
-  try {
-    const user = await requireAuthUser();
-    const body = await req.json();
-    const { pat } = patSchema.parse(body);
+    if (!account) {
+      return successResponse({ connected: false });
+    }
 
-    // PATを検証（GitHub APIでユーザー情報取得）
-    let githubUsername: string;
+    // GitHubユーザー名を取得
+    let githubUsername: string | null = null;
     try {
-      const ghUser = await githubApi<{ login: string }>(pat, '/user');
-      githubUsername = ghUser.login;
-    } catch (err) {
-      if (err instanceof GitHubApiError && err.status === 401) {
-        return errorResponse('無効なトークンです。正しいPersonal Access Tokenを入力してください', 400);
+      const ghAccount = await prisma.account.findFirst({
+        where: { userId: user.id, provider: 'github' },
+        select: { access_token: true },
+      });
+      if (ghAccount?.access_token) {
+        const res = await fetch('https://api.github.com/user', {
+          headers: {
+            Authorization: `Bearer ${ghAccount.access_token}`,
+            Accept: 'application/vnd.github.v3+json',
+            'User-Agent': 'Tasuke-App',
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          githubUsername = data.login;
+        }
       }
-      throw err;
-    }
+    } catch {}
 
-    // スコープ確認（repoスコープが必要）
-    const res = await fetch('https://api.github.com/user', {
-      headers: {
-        Authorization: `Bearer ${pat}`,
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'Tasuke-App',
-      },
+    return successResponse({
+      connected: true,
+      githubUsername,
     });
-    const scopes = res.headers.get('x-oauth-scopes') || '';
-    if (!scopes.includes('repo')) {
-      return errorResponse('トークンにrepoスコープが必要です。Fine-grained tokenの場合はIssues権限が必要です', 400);
-    }
-
-    const encrypted = encryptPAT(pat);
-    await prisma.gitHubIntegration.upsert({
-      where: { userId: user.id },
-      create: { userId: user.id, encryptedPat: encrypted, githubUsername },
-      update: { encryptedPat: encrypted, githubUsername },
-    });
-
-    return successResponse({ githubUsername });
   } catch (error) {
     return handleApiError(error);
   }
@@ -70,7 +48,9 @@ export async function PUT(req: NextRequest) {
 export async function DELETE() {
   try {
     const user = await requireAuthUser();
-    await prisma.gitHubIntegration.deleteMany({ where: { userId: user.id } });
+    await prisma.account.deleteMany({
+      where: { userId: user.id, provider: 'github' },
+    });
     return successResponse({ ok: true });
   } catch (error) {
     return handleApiError(error);
