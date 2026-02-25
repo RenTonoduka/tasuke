@@ -242,16 +242,16 @@ export function ImportGitHubClient({ workspaceId, workspaceSlug, projects }: Imp
     <div className="flex flex-1 overflow-hidden">
       {/* 左: リポジトリ一覧 */}
       <div className={cn(
-        'w-full shrink-0 border-r border-g-border bg-g-surface/50 md:w-72',
-        selectedRepo ? 'hidden md:block' : 'block'
+        'flex w-full shrink-0 flex-col overflow-hidden border-r border-g-border bg-g-surface/50 md:w-72',
+        selectedRepo ? 'hidden md:flex' : 'flex'
       )}>
-        <div className="border-b border-g-border px-4 py-3">
+        <div className="shrink-0 border-b border-g-border px-4 py-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-g-text">
             <Github className="h-4 w-4" />
             リポジトリ
           </h2>
         </div>
-        <div className="overflow-y-auto p-2">
+        <div className="flex-1 overflow-y-auto p-2">
           {loadingRepos ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-g-text-muted" />
