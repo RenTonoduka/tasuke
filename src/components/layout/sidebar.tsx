@@ -19,6 +19,7 @@ import {
   Lock,
   Download,
   Key,
+  Github,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
@@ -194,6 +195,11 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
       icon: Download,
     },
     {
+      label: 'GitHub Issues',
+      href: `/${currentWorkspaceSlug}/import-github`,
+      icon: Github,
+    },
+    {
       label: '設定',
       href: `/${currentWorkspaceSlug}/settings/members`,
       icon: Settings,
@@ -242,6 +248,12 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
               <Link href={`/${currentWorkspaceSlug}/settings/api-tokens`}>
                 <Key className="mr-2 h-4 w-4" />
                 APIトークン
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/${currentWorkspaceSlug}/settings/github`}>
+                <Github className="mr-2 h-4 w-4" />
+                GitHub連携
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>

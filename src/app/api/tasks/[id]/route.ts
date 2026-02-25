@@ -6,6 +6,7 @@ import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils'
 import { logActivity } from '@/lib/activity';
 import { executeAutomationRules } from '@/lib/automation';
 import { getGoogleClient, getCalendarClient } from '@/lib/google';
+import { syncTaskToGitHub } from '@/lib/github-sync';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -126,6 +127,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         userId: user.id,
       }).catch((e) => console.error('[automation] STATUS_CHANGE エラー:', e));
     }
+    // GitHub Issue同期（ステータス変更時、非同期）
+    if (data.status && data.status !== oldStatus && existing.githubIssueId) {
+      syncTaskToGitHub(params.id, user.id).catch((e) =>
+        console.error('[github-sync] エラー:', e)
+      );
+    }
+
     if (data.priority && data.priority !== oldPriority) {
       executeAutomationRules(existing.projectId, 'PRIORITY_CHANGE', {
         taskId: params.id,

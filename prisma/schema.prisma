@@ -29,6 +29,8 @@ model User {
   notifications          Notification[]
   googleTaskListMappings GoogleTaskListMapping[]
   apiTokens              ApiToken[]
+  githubIntegration      GitHubIntegration?
+  githubRepoMappings     GitHubRepoMapping[]
 }
 
 model Account {
@@ -122,6 +124,7 @@ model Project {
   automationRules        AutomationRule[]
   members                ProjectMember[]
   googleTaskListMappings GoogleTaskListMapping[]
+  githubRepoMappings     GitHubRepoMapping[]
 }
 
 model ProjectMember {
@@ -195,6 +198,14 @@ model Task {
   googleTaskListId        String?
   importedFromGoogle      Boolean    @default(false)
 
+  // GitHub sync
+  githubIssueId           Int?
+  githubIssueNodeId       String?
+  githubRepoFullName      String?
+  githubIssueSyncedAt     DateTime?
+  importedFromGitHub      Boolean    @default(false)
+  githubSyncSource        String?
+
   section   Section? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parent    Task?    @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
@@ -211,6 +222,7 @@ model Task {
   @@index([projectId, status])
   @@index([sectionId])
   @@index([dueDate])
+  @@index([githubIssueNodeId])
 }
 
 model TaskAssignment {
@@ -410,4 +422,32 @@ model GoogleTaskListMapping {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, googleTaskListId])
+}
+
+// ========== GitHub Integration ==========
+
+model GitHubIntegration {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  encryptedPat   String   @db.Text
+  githubUsername String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GitHubRepoMapping {
+  id                 String   @id @default(cuid())
+  githubRepoFullName String
+  projectId          String
+  workspaceId        String
+  userId             String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, githubRepoFullName])
 }

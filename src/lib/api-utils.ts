@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
+import { GitHubApiError } from './github';
 
 export function successResponse(data: unknown, status = 200) {
   return NextResponse.json(data, { status });
@@ -30,6 +31,13 @@ export function handleApiError(error: unknown) {
   }
   if (error instanceof Error && error.message === '認証が必要です') {
     return errorResponse('認証が必要です', 401);
+  }
+  // GitHub API エラー
+  if (error instanceof GitHubApiError) {
+    if (error.status === 401) return errorResponse('GitHubトークンが無効です。設定を確認してください', 401);
+    if (error.status === 403) return errorResponse('GitHubへのアクセス権限がありません', 403);
+    if (error.status === 404) return errorResponse('GitHubリソースが見つかりません', 404);
+    return errorResponse(`GitHub APIエラー: ${error.message}`, 502);
   }
   // Google API エラー
   const googleMsg = getGoogleErrorMessage(error);
