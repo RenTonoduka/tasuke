@@ -85,9 +85,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const oldStatus = existing.status;
     const oldPriority = existing.priority;
     const updateData: Record<string, unknown> = { ...data };
-    // プロジェクト移動時はセクションをリセット
+    // プロジェクト移動時は移動先の最初のセクションに割り当て
     if (data.projectId && data.projectId !== existing.projectId) {
-      updateData.sectionId = null;
+      const firstSection = await prisma.section.findFirst({
+        where: { projectId: data.projectId },
+        orderBy: { position: 'asc' },
+      });
+      updateData.sectionId = firstSection?.id ?? null;
     }
     if (data.startDate !== undefined) {
       updateData.startDate = data.startDate ? new Date(data.startDate) : null;
