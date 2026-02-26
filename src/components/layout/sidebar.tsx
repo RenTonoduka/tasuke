@@ -22,6 +22,8 @@ import {
   Download,
   Key,
   Github,
+  Plus,
+  Pencil,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
@@ -168,6 +170,11 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string; slug: string }[]>([]);
   const [wsLoaded, setWsLoaded] = useState(false);
+  const [wsRenameTarget, setWsRenameTarget] = useState<{ id: string; name: string } | null>(null);
+  const [wsRenameName, setWsRenameName] = useState('');
+  const [wsDeleteTarget, setWsDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [wsCreateOpen, setWsCreateOpen] = useState(false);
+  const [wsCreateName, setWsCreateName] = useState('');
 
   const fetchWorkspaces = useCallback(async () => {
     if (wsLoaded) return;
@@ -180,6 +187,56 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
       }
     } catch {}
   }, [wsLoaded]);
+
+  const handleWsRename = async () => {
+    if (!wsRenameTarget || !wsRenameName.trim()) return;
+    try {
+      const res = await fetch(`/api/workspaces/${wsRenameTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: wsRenameName.trim() }),
+      });
+      if (res.ok) {
+        setWsLoaded(false);
+        if (workspaces.find((ws) => ws.id === wsRenameTarget.id)?.slug === currentWorkspaceSlug) {
+          window.location.reload();
+        }
+      }
+    } catch {}
+    setWsRenameTarget(null);
+  };
+
+  const handleWsDelete = async () => {
+    if (!wsDeleteTarget) return;
+    try {
+      const res = await fetch(`/api/workspaces/${wsDeleteTarget.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setWsLoaded(false);
+        const isCurrentWs = workspaces.find((ws) => ws.id === wsDeleteTarget.id)?.slug === currentWorkspaceSlug;
+        if (isCurrentWs) {
+          window.location.href = '/';
+        }
+      }
+    } catch {}
+    setWsDeleteTarget(null);
+  };
+
+  const handleWsCreate = async () => {
+    if (!wsCreateName.trim()) return;
+    try {
+      const res = await fetch('/api/workspaces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: wsCreateName.trim() }),
+      });
+      if (res.ok) {
+        const ws = await res.json();
+        window.location.href = `/${ws.slug}`;
+      }
+    } catch {}
+    setWsCreateOpen(false);
+    setWsCreateName('');
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -270,23 +327,38 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
-            {workspaces.length > 1 && (
-              <>
-                <div className="px-2 py-1.5 text-xs font-medium text-g-text-muted">ワークスペース</div>
-                {workspaces.map((ws) => (
-                  <DropdownMenuItem key={ws.id} asChild>
-                    <Link href={`/${ws.slug}`} className="flex items-center gap-2">
-                      <div className="flex h-5 w-5 items-center justify-center rounded bg-[#4285F4] text-[10px] font-bold text-white">
-                        {ws.name.charAt(0)}
-                      </div>
-                      <span className="flex-1 truncate">{ws.name}</span>
-                      {ws.slug === currentWorkspaceSlug && <Check className="h-4 w-4 text-[#34A853]" />}
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-              </>
-            )}
+            <div className="px-2 py-1.5 text-xs font-medium text-g-text-muted">ワークスペース</div>
+            {workspaces.map((ws) => (
+              <div key={ws.id} className="group/ws flex items-center">
+                <DropdownMenuItem asChild className="flex-1">
+                  <Link href={`/${ws.slug}`} className="flex items-center gap-2">
+                    <div className="flex h-5 w-5 items-center justify-center rounded bg-[#4285F4] text-[10px] font-bold text-white">
+                      {ws.name.charAt(0)}
+                    </div>
+                    <span className="flex-1 truncate">{ws.name}</span>
+                    {ws.slug === currentWorkspaceSlug && <Check className="h-4 w-4 text-[#34A853]" />}
+                  </Link>
+                </DropdownMenuItem>
+                <button
+                  className="mr-1 hidden rounded p-1 text-g-text-muted hover:bg-g-border hover:text-g-text group-hover/ws:block"
+                  onClick={(e) => { e.stopPropagation(); setWsRenameTarget({ id: ws.id, name: ws.name }); setWsRenameName(ws.name); }}
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+                <button
+                  className="mr-1 hidden rounded p-1 text-g-text-muted hover:bg-red-50 hover:text-red-500 group-hover/ws:block"
+                  onClick={(e) => { e.stopPropagation(); setWsDeleteTarget({ id: ws.id, name: ws.name }); }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => { setWsCreateOpen(true); setWsCreateName(''); }}>
+              <Plus className="mr-2 h-4 w-4" />
+              新規ワークスペース
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href={`/${currentWorkspaceSlug}/settings/members`}>
                 <Settings className="mr-2 h-4 w-4" />
@@ -413,6 +485,7 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
         </DropdownMenu>
       </div>
 
+      {/* Project delete dialog */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -428,6 +501,69 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
               onClick={() => deleteTarget && handleDeleteProject(deleteTarget.id)}
             >
               削除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Workspace rename dialog */}
+      <AlertDialog open={!!wsRenameTarget} onOpenChange={(open) => { if (!open) setWsRenameTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ワークスペース名を変更</AlertDialogTitle>
+          </AlertDialogHeader>
+          <input
+            value={wsRenameName}
+            onChange={(e) => setWsRenameName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleWsRename(); }}
+            className="w-full rounded border border-g-border px-3 py-2 text-sm"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction onClick={handleWsRename} disabled={!wsRenameName.trim()}>
+              変更
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Workspace delete dialog */}
+      <AlertDialog open={!!wsDeleteTarget} onOpenChange={(open) => { if (!open) setWsDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ワークスペースを削除</AlertDialogTitle>
+            <AlertDialogDescription>
+              「{wsDeleteTarget?.name}」を削除しますか？含まれるプロジェクト・タスクも全て削除されます。この操作は取り消せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-500 hover:bg-red-600" onClick={handleWsDelete}>
+              削除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Workspace create dialog */}
+      <AlertDialog open={wsCreateOpen} onOpenChange={setWsCreateOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>新規ワークスペース</AlertDialogTitle>
+          </AlertDialogHeader>
+          <input
+            value={wsCreateName}
+            onChange={(e) => setWsCreateName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleWsCreate(); }}
+            placeholder="ワークスペース名"
+            className="w-full rounded border border-g-border px-3 py-2 text-sm"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction onClick={handleWsCreate} disabled={!wsCreateName.trim()}>
+              作成
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
