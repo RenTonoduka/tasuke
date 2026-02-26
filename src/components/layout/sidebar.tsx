@@ -24,6 +24,7 @@ import {
   Github,
   Plus,
   Pencil,
+  UserPlus,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
@@ -353,11 +354,18 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
                       <MoreHorizontal className="h-3.5 w-3.5" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-40">
+                  <DropdownMenuContent align="start" className="w-44">
+                    <DropdownMenuItem asChild>
+                      <Link href={`/${ws.slug}/settings/members`}>
+                        <UserPlus className="mr-2 h-3.5 w-3.5" />
+                        メンバー管理
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setWsRenameTarget({ id: ws.id, name: ws.name }); setWsRenameName(ws.name); }}>
                       <Pencil className="mr-2 h-3.5 w-3.5" />
                       名前を変更
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-red-500 focus:text-red-500"
                       onClick={() => setWsDeleteTarget({ id: ws.id, name: ws.name })}
