@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -37,6 +37,7 @@ interface BoardViewProps {
 
 export function BoardView({ initialSections, projectId, onSectionsChange }: BoardViewProps) {
   const [sections, setSections] = useState<Section[]>(initialSections);
+  useEffect(() => { setSections(initialSections); }, [initialSections]);
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
   const [activeTask, setActiveTask] = useState<Task | null>(null);

@@ -41,6 +41,7 @@ type ViewType = 'list' | 'schedule';
 
 export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksClientProps) {
   const [tasks, setTasks] = useState(initialTasks);
+  useEffect(() => { setTasks(initialTasks); }, [initialTasks]);
   const [view, setView] = useState<ViewType>('list');
   const openPanel = useTaskPanelStore((s) => s.open);
   const activeTaskId = useTaskPanelStore((s) => s.activeTaskId);
