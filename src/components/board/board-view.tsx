@@ -276,6 +276,13 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
+      onDragCancel={() => {
+        setActiveTask(null);
+        cleanupRef.current?.();
+        cleanupRef.current = null;
+        pointerRef.current = null;
+        useDragToProjectStore.getState().reset();
+      }}
     >
       <div className="flex gap-4 overflow-x-auto p-4">
         {filteredSections.map((section, index) => (
