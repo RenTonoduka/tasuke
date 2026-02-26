@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Menu, LayoutGrid, List, GanttChart, CalendarClock, BarChart3, Network, Search, Settings, Zap, Pencil, Users, Trash2 } from 'lucide-react';
+import { Menu, LayoutGrid, List, GanttChart, CalendarClock, BarChart3, Network, Search, Settings, Zap, Pencil, Users, Trash2, FileSpreadsheet, Copy } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -13,9 +13,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useSidebarStore } from '@/stores/sidebar-store';
 import { NotificationBell } from './notification-bell';
-import { ExportSheetButton } from '@/components/project/export-sheet-button';
-import { SaveTemplateButton } from '@/components/project/save-template-button';
 import { ProjectSettingsDialog } from '@/components/project/project-settings-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +54,11 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(title);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [exporting, setExporting] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateDesc, setTemplateDesc] = useState('');
+  const [templateSaving, setTemplateSaving] = useState(false);
 
   useEffect(() => { setEditName(title); }, [title]);
   useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
@@ -74,6 +85,47 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
     setEditing(false);
   };
 
+  const handleExportSheet = async () => {
+    if (!projectId) return;
+    setExporting(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/export-sheet`, { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? 'エクスポートに失敗しました');
+      }
+      const { spreadsheetUrl } = await res.json();
+      window.open(spreadsheetUrl, '_blank');
+      toast({ title: 'エクスポート完了', description: 'スプレッドシートを新しいタブで開きました' });
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'エクスポート失敗', description: err instanceof Error ? err.message : 'エクスポートに失敗しました' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!templateName.trim() || !projectId) return;
+    setTemplateSaving(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/save-as-template`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: templateName.trim(), description: templateDesc.trim() || undefined }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? '保存に失敗しました');
+      }
+      setTemplateOpen(false);
+      toast({ title: 'テンプレートとして保存しました', description: `「${templateName}」をテンプレートに保存しました` });
+    } catch (err) {
+      toast({ variant: 'destructive', title: '保存エラー', description: err instanceof Error ? err.message : '保存に失敗しました' });
+    } finally {
+      setTemplateSaving(false);
+    }
+  };
+
   const deleteProject = async () => {
     if (!projectId) return;
     try {
@@ -90,6 +142,7 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
   };
 
   return (
+  <>
     <header className="flex h-12 min-w-0 items-center gap-3 overflow-hidden border-b border-g-border bg-g-bg px-4">
       <Button
         variant="ghost"
@@ -202,14 +255,6 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
       )}
 
       <div className="ml-auto flex flex-shrink-0 items-center gap-2">
-        <span className="hidden xl:inline-flex">
-          {projectId && <ExportSheetButton projectId={projectId} />}
-        </span>
-        <span className="hidden xl:inline-flex">
-          {projectId && (
-            <SaveTemplateButton projectId={projectId} projectName={projectName || title} />
-          )}
-        </span>
         {projectId && workspaceId && (
           <ProjectSettingsDialog projectId={projectId} workspaceId={workspaceId}>
             <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
@@ -226,6 +271,15 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportSheet} disabled={exporting}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                {exporting ? 'エクスポート中...' : 'スプレッドシートにエクスポート'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setTemplateName(projectName || title); setTemplateDesc(''); setTemplateOpen(true); }}>
+                <Copy className="mr-2 h-4 w-4" />
+                テンプレートとして保存
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setEditing(true)}>
                 <Pencil className="mr-2 h-4 w-4" />
                 名前を変更
@@ -275,5 +329,43 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
         {workspaceSlug && <NotificationBell workspaceSlug={workspaceSlug} />}
       </div>
     </header>
+
+    <Dialog open={templateOpen} onOpenChange={setTemplateOpen}>
+      <DialogContent className="sm:max-w-[380px]">
+        <DialogHeader>
+          <DialogTitle>テンプレートとして保存</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="template-name" className="text-sm">テンプレート名</Label>
+            <Input
+              id="template-name"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="テンプレート名"
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveTemplate()}
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="template-desc" className="text-sm">説明（任意）</Label>
+            <Input
+              id="template-desc"
+              value={templateDesc}
+              onChange={(e) => setTemplateDesc(e.target.value)}
+              placeholder="テンプレートの説明"
+            />
+          </div>
+          <Button
+            onClick={handleSaveTemplate}
+            disabled={!templateName.trim() || templateSaving}
+            className="w-full bg-[#4285F4] hover:bg-[#3367D6]"
+          >
+            {templateSaving ? '保存中...' : '保存'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  </>
   );
 }
