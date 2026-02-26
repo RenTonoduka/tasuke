@@ -176,8 +176,10 @@ model Task {
   priority    Priority   @default(P3)
   status      TaskStatus @default(TODO)
   position    Float      @default(0)
-  dueDate     DateTime?
-  startDate   DateTime?
+  dueDate        DateTime?
+  startDate      DateTime?
+  scheduledStart DateTime?
+  scheduledEnd   DateTime?
   estimatedHours Float?
   completedAt DateTime?
   createdAt   DateTime   @default(now())

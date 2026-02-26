@@ -35,11 +35,19 @@ export interface CalendarEvent {
   colorId: string | null;
 }
 
+export interface UnestimatedTask {
+  id: string;
+  title: string;
+  priority: string;
+  dueDate: string;
+}
+
 export interface ScheduleData {
   suggestions: TaskSuggestion[];
   unschedulable: UnschedulableTask[];
   totalFreeHours: number;
   unestimatedCount: number;
+  unestimatedTasks?: UnestimatedTask[];
   message?: string;
 }
 

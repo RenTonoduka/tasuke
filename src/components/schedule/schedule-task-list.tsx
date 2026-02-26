@@ -21,7 +21,7 @@ export function ScheduleTaskList({
   onOpenTask,
 }: ScheduleTaskListProps) {
   return (
-    <div className="mt-6">
+    <div className="mb-4">
       <h3 className="mb-2 flex items-center gap-2 text-xs font-medium text-g-text-secondary">
         <Clock className="h-3.5 w-3.5" />
         タスク一覧
@@ -78,7 +78,7 @@ interface ScheduleUnschedulableProps {
 
 export function ScheduleUnschedulable({ items, onOpenTask }: ScheduleUnschedulableProps) {
   return (
-    <div className="mt-6">
+    <div className="mb-4">
       <h3 className="mb-2 flex items-center gap-2 text-xs font-medium text-[#EA4335]">
         <AlertTriangle className="h-3.5 w-3.5" />
         スケジュール不可（空き時間不足）

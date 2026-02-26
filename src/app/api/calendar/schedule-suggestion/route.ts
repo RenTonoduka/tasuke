@@ -113,8 +113,8 @@ export async function POST(req: NextRequest) {
 
     const result = generateScheduleSuggestions(schedulableTasks, freeSlots);
 
-    // 見積もり未設定タスク数も返す
-    const unestimatedCount = await prisma.task.count({
+    // 見積もり未設定タスク一覧
+    const unestimatedTasks = await prisma.task.findMany({
       where: {
         status: { in: ['TODO', 'IN_PROGRESS'] },
         dueDate: { not: null },
@@ -127,11 +127,20 @@ export async function POST(req: NextRequest) {
         ...(projectId ? { projectId } : {}),
         ...(myTasksOnly ? { assignees: { some: { userId: user.id } } } : {}),
       },
+      select: { id: true, title: true, priority: true, dueDate: true },
+      orderBy: { dueDate: 'asc' },
+      take: 20,
     });
 
     return successResponse({
       ...result,
-      unestimatedCount,
+      unestimatedCount: unestimatedTasks.length,
+      unestimatedTasks: unestimatedTasks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        priority: t.priority,
+        dueDate: t.dueDate?.toISOString() ?? '',
+      })),
       calendarUnavailable,
     });
   } catch (error) {

@@ -15,6 +15,7 @@ interface CalendarSyncButtonProps {
   googleCalendarEventId: string | null;
   googleSyncedAt: string | null;
   dueDate: string | null;
+  scheduledStart?: string | null;
   onSync: () => void;
 }
 
@@ -33,17 +34,19 @@ export function CalendarSyncButton({
   googleCalendarEventId,
   googleSyncedAt,
   dueDate,
+  scheduledStart,
   onSync,
 }: CalendarSyncButtonProps) {
   const { syncing: isSyncing, unlinking: isUnlinking, errorMessage, sync: handleSync, unlink: handleUnlink } =
     useGoogleSync(taskId, 'sync-calendar', onSync);
 
   const isSynced = !!googleCalendarEventId;
+  const canSync = !!dueDate || !!scheduledStart;
 
   return (
     <TooltipProvider>
       <div className="space-y-1.5">
-        {!dueDate ? (
+        {!canSync ? (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -57,7 +60,7 @@ export function CalendarSyncButton({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>期限を設定してからカレンダー同期できます</p>
+              <p>期限または予定時間を設定してからカレンダー同期できます</p>
             </TooltipContent>
           </Tooltip>
         ) : !isSynced ? (

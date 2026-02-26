@@ -99,6 +99,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (data.dueDate !== undefined) {
       updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
     }
+    if (data.scheduledStart !== undefined) {
+      updateData.scheduledStart = data.scheduledStart ? new Date(data.scheduledStart) : null;
+    }
+    if (data.scheduledEnd !== undefined) {
+      updateData.scheduledEnd = data.scheduledEnd ? new Date(data.scheduledEnd) : null;
+    }
 
     const statusValue = data.status as string | undefined;
     if (statusValue === 'DONE') {

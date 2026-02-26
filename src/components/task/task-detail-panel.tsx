@@ -65,6 +65,8 @@ interface TaskDetail {
   status: string;
   startDate: string | null;
   dueDate: string | null;
+  scheduledStart: string | null;
+  scheduledEnd: string | null;
   estimatedHours: number | null;
   googleCalendarEventId: string | null;
   googleCalendarSyncedAt: string | null;
@@ -231,6 +233,28 @@ export function TaskDetailPanel() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value }),
+      });
+      if (!res.ok) {
+        toast({ title: '更新に失敗しました', variant: 'destructive' });
+        return;
+      }
+      await fetchTask(task.id);
+    } catch {
+      toast({ title: '更新に失敗しました', variant: 'destructive' });
+    } finally {
+      isUpdatingRef.current = false;
+    }
+  };
+
+  const updateFields = async (fields: Record<string, unknown>) => {
+    if (!task) return;
+    if (isUpdatingRef.current) return;
+    isUpdatingRef.current = true;
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fields),
       });
       if (!res.ok) {
         toast({ title: '更新に失敗しました', variant: 'destructive' });
@@ -484,6 +508,47 @@ export function TaskDetailPanel() {
                 />
               </div>
 
+              {/* Scheduled time */}
+              <div className="flex items-center gap-3">
+                <Clock className="h-4 w-4 text-g-text-muted" />
+                <span className="text-xs text-g-text-muted w-12">予定</span>
+                <input
+                  type="datetime-local"
+                  value={task.scheduledStart ? task.scheduledStart.slice(0, 16) : ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) {
+                      updateFields({ scheduledStart: null, scheduledEnd: null });
+                      return;
+                    }
+                    const startIso = new Date(val).toISOString();
+                    const endDate = task.scheduledEnd && new Date(val) < new Date(task.scheduledEnd)
+                      ? task.scheduledEnd
+                      : new Date(new Date(val).getTime() + (task.estimatedHours || 1) * 60 * 60 * 1000).toISOString();
+                    updateFields({ scheduledStart: startIso, scheduledEnd: endDate });
+                  }}
+                  className="h-8 rounded-md border border-g-border px-2 text-xs text-g-text"
+                />
+                <span className="text-xs text-g-text-muted">~</span>
+                <input
+                  type="datetime-local"
+                  value={task.scheduledEnd ? task.scheduledEnd.slice(0, 16) : ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    updateFields({ scheduledEnd: val ? new Date(val).toISOString() : null });
+                  }}
+                  className="h-8 rounded-md border border-g-border px-2 text-xs text-g-text"
+                />
+                {task.scheduledStart && (
+                  <button
+                    onClick={() => updateFields({ scheduledStart: null, scheduledEnd: null })}
+                    className="text-xs text-g-text-muted hover:text-[#EA4335]"
+                  >
+                    クリア
+                  </button>
+                )}
+              </div>
+
               {/* Google連携ボタン */}
               <div className="flex flex-wrap items-center gap-2 pl-7">
                 <CalendarSyncButton
@@ -491,6 +556,7 @@ export function TaskDetailPanel() {
                   googleCalendarEventId={task.googleCalendarEventId}
                   googleSyncedAt={task.googleCalendarSyncedAt}
                   dueDate={task.dueDate}
+                  scheduledStart={task.scheduledStart}
                   onSync={() => fetchTask(task.id)}
                 />
                 <GTasksSyncButton

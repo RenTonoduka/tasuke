@@ -307,9 +307,21 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
         onRefresh={fetchSchedule}
         totalFreeHours={data?.totalFreeHours}
         unestimatedCount={data?.unestimatedCount}
+        unestimatedTasks={data?.unestimatedTasks}
         editingSettings={editingSettings}
         onSettingsChange={setEditingSettings}
         onSaveSettings={handleSaveSettings}
+        onUpdateEstimate={async (taskId, hours) => {
+          try {
+            const res = await fetch(`/api/tasks/${taskId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ estimatedHours: hours }),
+            });
+            if (res.ok) fetchSchedule();
+          } catch { /* ignore */ }
+        }}
+        onOpenTask={openPanel}
       />
 
       {/* 初期状態 */}
@@ -325,6 +337,22 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
             タスクに「期限」と「見積もり時間」を設定してください
           </p>
         </div>
+      )}
+
+      {/* タスク一覧（カレンダーの上に表示） */}
+      {data && data.suggestions.length > 0 && (
+        <ScheduleTaskList
+          suggestions={data.suggestions}
+          draggingTask={draggingTask}
+          onDragStart={handleDragStartTask}
+          onDragEnd={handleDragEnd}
+          onOpenTask={openPanel}
+        />
+      )}
+
+      {/* スケジュール不可タスク */}
+      {data && data.unschedulable.length > 0 && (
+        <ScheduleUnschedulable items={data.unschedulable} onOpenTask={openPanel} />
       )}
 
       {/* タイムライン */}
@@ -346,22 +374,6 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
           onOpenTask={openPanel}
           onDeleteEvent={handleDeleteEvent}
           suggestions={data.suggestions}
-        />
-      )}
-
-      {/* スケジュール不可タスク */}
-      {data && data.unschedulable.length > 0 && (
-        <ScheduleUnschedulable items={data.unschedulable} onOpenTask={openPanel} />
-      )}
-
-      {/* タスク一覧 */}
-      {data && data.suggestions.length > 0 && (
-        <ScheduleTaskList
-          suggestions={data.suggestions}
-          draggingTask={draggingTask}
-          onDragStart={handleDragStartTask}
-          onDragEnd={handleDragEnd}
-          onOpenTask={openPanel}
         />
       )}
     </div>

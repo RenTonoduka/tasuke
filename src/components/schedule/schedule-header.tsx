@@ -1,9 +1,12 @@
 'use client';
 
-import { CalendarClock, RefreshCw, AlertTriangle, Settings2, Save } from 'lucide-react';
+import { useState } from 'react';
+import { CalendarClock, RefreshCw, AlertTriangle, Settings2, Save, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import type { ScheduleSettings } from './schedule-types';
+import { cn } from '@/lib/utils';
+import { PRIORITY_COLORS } from './schedule-types';
+import type { ScheduleSettings, UnestimatedTask } from './schedule-types';
 
 interface ScheduleHeaderProps {
   loading: boolean;
@@ -13,9 +16,12 @@ interface ScheduleHeaderProps {
   onRefresh: () => void;
   totalFreeHours?: number;
   unestimatedCount?: number;
+  unestimatedTasks?: UnestimatedTask[];
   editingSettings: ScheduleSettings;
   onSettingsChange: (settings: ScheduleSettings) => void;
   onSaveSettings: () => void;
+  onUpdateEstimate?: (taskId: string, hours: number) => void;
+  onOpenTask?: (taskId: string) => void;
 }
 
 export function ScheduleHeader({
@@ -26,10 +32,15 @@ export function ScheduleHeader({
   onRefresh,
   totalFreeHours,
   unestimatedCount,
+  unestimatedTasks,
   editingSettings,
   onSettingsChange,
   onSaveSettings,
+  onUpdateEstimate,
+  onOpenTask,
 }: ScheduleHeaderProps) {
+  const [showUnestimated, setShowUnestimated] = useState(false);
+
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -117,14 +128,57 @@ export function ScheduleHeader({
         </div>
       )}
 
-      {unestimatedCount !== undefined && unestimatedCount > 0 && (
+      {unestimatedTasks && unestimatedTasks.length > 0 ? (
+        <div className="mb-4 rounded-lg border border-[#FBBC04] bg-g-warning-bg">
+          <button
+            onClick={() => setShowUnestimated(!showUnestimated)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left"
+          >
+            <AlertTriangle className="h-4 w-4 shrink-0 text-[#FBBC04]" />
+            <span className="flex-1 text-xs text-g-text-secondary">
+              見積もり時間が未設定のタスクが {unestimatedTasks.length} 件あります
+            </span>
+            <ChevronDown className={cn('h-4 w-4 text-g-text-muted transition-transform', showUnestimated && 'rotate-180')} />
+          </button>
+          {showUnestimated && (
+            <div className="space-y-1 border-t border-[#FBBC04]/30 px-3 py-2">
+              {unestimatedTasks.map((t) => (
+                <div key={t.id} className="flex items-center gap-2">
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: PRIORITY_COLORS[t.priority] ?? '#80868B' }}
+                  />
+                  <button
+                    onClick={() => onOpenTask?.(t.id)}
+                    className="min-w-0 flex-1 truncate text-left text-xs text-g-text hover:underline"
+                  >
+                    {t.title}
+                  </button>
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) onUpdateEstimate?.(t.id, parseFloat(e.target.value));
+                    }}
+                    className="rounded border border-g-border bg-white px-2 py-1 text-xs"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>時間を設定</option>
+                    {[0.5, 1, 1.5, 2, 3, 4, 5, 6, 8].map((h) => (
+                      <option key={h} value={h}>{h}h</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : unestimatedCount !== undefined && unestimatedCount > 0 ? (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-[#FBBC04] bg-g-warning-bg px-3 py-2">
           <AlertTriangle className="h-4 w-4 text-[#FBBC04]" />
           <span className="text-xs text-g-text-secondary">
             見積もり時間が未設定のタスクが {unestimatedCount} 件あります。タスクを開いて設定してください。
           </span>
         </div>
-      )}
+      ) : null}
     </>
   );
 }

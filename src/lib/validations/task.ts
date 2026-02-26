@@ -19,6 +19,8 @@ export const updateTaskSchema = z.object({
   projectId: z.string().optional(),
   startDate: z.string().datetime().optional().nullable(),
   dueDate: z.string().datetime().optional().nullable(),
+  scheduledStart: z.string().datetime().optional().nullable(),
+  scheduledEnd: z.string().datetime().optional().nullable(),
   estimatedHours: z.number().min(0.5).max(100).multipleOf(0.5).optional().nullable(),
   position: z.number().optional(),
 });

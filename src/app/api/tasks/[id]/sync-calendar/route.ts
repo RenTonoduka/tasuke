@@ -50,31 +50,46 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         description: true,
         priority: true,
         dueDate: true,
+        scheduledStart: true,
+        scheduledEnd: true,
         googleCalendarEventId: true,
       },
     });
 
     if (!task) return errorResponse('タスクが見つかりません', 404);
-    if (!task.dueDate) return errorResponse('期限日を設定してからカレンダー同期を行ってください', 400);
+    if (!task.dueDate && !task.scheduledStart) {
+      return errorResponse('期限日または予定時間を設定してからカレンダー同期を行ってください', 400);
+    }
 
     const auth = await getGoogleClient(user.id).catch((err) => {
       throw new Error(getGoogleApiErrorMessage(err));
     });
     const calendar = getCalendarClient(auth);
 
-    const dateStr = formatDateForCalendar(task.dueDate);
-    const nextDateStr = formatDateForCalendar(
-      new Date(task.dueDate.getTime() + 24 * 60 * 60 * 1000)
-    );
     const colorId = String(PRIORITY_COLOR_MAP[task.priority] ?? 8);
 
-    const eventBody = {
-      summary: task.title,
-      description: task.description ?? undefined,
-      start: { date: dateStr },
-      end: { date: nextDateStr },
-      colorId,
-    };
+    let eventBody: Record<string, unknown>;
+    if (task.scheduledStart && task.scheduledEnd) {
+      eventBody = {
+        summary: task.title,
+        description: task.description ?? undefined,
+        start: { dateTime: task.scheduledStart.toISOString(), timeZone: 'Asia/Tokyo' },
+        end: { dateTime: task.scheduledEnd.toISOString(), timeZone: 'Asia/Tokyo' },
+        colorId,
+      };
+    } else {
+      const dateStr = formatDateForCalendar(task.dueDate!);
+      const nextDateStr = formatDateForCalendar(
+        new Date(task.dueDate!.getTime() + 24 * 60 * 60 * 1000)
+      );
+      eventBody = {
+        summary: task.title,
+        description: task.description ?? undefined,
+        start: { date: dateStr },
+        end: { date: nextDateStr },
+        colorId,
+      };
+    }
 
     let googleEventId = task.googleCalendarEventId;
 
