@@ -135,11 +135,19 @@ async function createTaskFromIssue(
   workspaceId: string,
   userId: string,
 ) {
+  // デフォルトセクション取得
+  const firstSection = await prisma.section.findFirst({
+    where: { projectId },
+    orderBy: { position: 'asc' },
+    select: { id: true },
+  });
+
   const task = await prisma.task.create({
     data: {
       title: issue.title,
       description: issue.body ?? null,
       projectId,
+      sectionId: firstSection?.id ?? null,
       createdById: userId,
       githubIssueId: issue.number,
       githubIssueNodeId: issue.node_id,

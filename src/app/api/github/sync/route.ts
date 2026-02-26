@@ -69,6 +69,14 @@ export async function POST(req: NextRequest) {
     });
     const existingMap = new Map(existingTasks.map((t) => [t.githubIssueNodeId, t]));
 
+    // デフォルトセクション取得
+    const firstSection = await prisma.section.findFirst({
+      where: { projectId },
+      orderBy: { position: 'asc' },
+      select: { id: true },
+    });
+    const defaultSectionId = firstSection?.id ?? null;
+
     // position計算
     const maxPos = await prisma.task.aggregate({
       where: { projectId },
@@ -90,7 +98,7 @@ export async function POST(req: NextRequest) {
           const status = issue.state === 'closed' ? 'DONE' as const : 'TODO' as const;
 
           if (existing) {
-            // 既存タスクを更新
+            // 既存タスクを更新（sectionIdがnullなら補完）
             await tx.task.update({
               where: { id: existing.id },
               data: {
@@ -98,6 +106,7 @@ export async function POST(req: NextRequest) {
                 description: issue.body ?? null,
                 status,
                 completedAt: status === 'DONE' ? (existing.completedAt ?? new Date()) : null,
+                ...(existing.sectionId ? {} : { sectionId: defaultSectionId }),
                 githubIssueSyncedAt: new Date(),
                 githubSyncSource: 'github',
               },
@@ -118,6 +127,7 @@ export async function POST(req: NextRequest) {
                 status,
                 completedAt: status === 'DONE' ? new Date() : null,
                 projectId,
+                sectionId: defaultSectionId,
                 createdById: user.id,
                 position: position++,
                 githubIssueId: issue.number,

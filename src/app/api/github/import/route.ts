@@ -52,6 +52,17 @@ export async function POST(req: NextRequest) {
       if (!pm) return errorResponse('プロジェクトへのアクセス権がありません', 403);
     }
 
+    // sectionId未指定時は最初のセクションに自動割り当て
+    let resolvedSectionId = sectionId ?? null;
+    if (!resolvedSectionId) {
+      const firstSection = await prisma.section.findFirst({
+        where: { projectId },
+        orderBy: { position: 'asc' },
+        select: { id: true },
+      });
+      resolvedSectionId = firstSection?.id ?? null;
+    }
+
     // 重複チェック
     const nodeIds = issues.map((i) => i.githubIssueNodeId);
     const existing = await prisma.task.findMany({
@@ -68,7 +79,7 @@ export async function POST(req: NextRequest) {
 
     // position計算
     const maxPos = await prisma.task.aggregate({
-      where: { projectId, sectionId: sectionId ?? undefined },
+      where: { projectId, sectionId: resolvedSectionId ?? undefined },
       _max: { position: true },
     });
     let position = (maxPos._max.position ?? 0) + 1;
@@ -82,7 +93,7 @@ export async function POST(req: NextRequest) {
             title: issue.title,
             description: issue.body ?? null,
             projectId,
-            sectionId: sectionId ?? null,
+            sectionId: resolvedSectionId,
             createdById: user.id,
             position: position++,
             githubIssueId: issue.githubIssueId,
@@ -105,7 +116,7 @@ export async function POST(req: NextRequest) {
                 title: item.text.trim(),
                 parentId: task.id,
                 projectId,
-                sectionId: sectionId ?? null,
+                sectionId: resolvedSectionId,
                 createdById: user.id,
                 position: subPos++,
                 status: item.checked ? 'DONE' : 'TODO',
