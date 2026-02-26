@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Key, Plus, Copy, Trash2, Check, Loader2 } from 'lucide-react';
+import { Key, Plus, Copy, Trash2, Check, Loader2, ChevronDown, Terminal, Monitor, Code2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -245,20 +245,135 @@ export function ApiTokensClient({ workspaceId }: ApiTokensClientProps) {
           </div>
         )}
 
-        {/* 接続方法 */}
-        <div className="rounded-lg border border-g-border bg-g-surface p-4">
-          <h3 className="text-sm font-medium mb-2">MCP接続方法</h3>
-          <p className="text-xs text-g-text-secondary mb-2">
-            以下のエンドポイントにJSON-RPC 2.0リクエストを送信してください:
-          </p>
-          <code className="block rounded bg-white border px-3 py-2 text-xs font-mono mb-2">
-            POST {typeof window !== 'undefined' ? window.location.origin : ''}/api/mcp
-          </code>
-          <p className="text-xs text-g-text-muted">
-            ヘッダー: <code>Authorization: Bearer tsk_...</code>
-          </p>
-        </div>
+        {/* 接続ガイド */}
+        <SetupGuide />
       </div>
+    </div>
+  );
+}
+
+// ── 接続ガイド ──
+
+function GuideSection({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-b border-g-border last:border-b-0">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-g-surface-hover"
+      >
+        {icon}
+        <span className="flex-1 text-sm font-medium text-g-text">{title}</span>
+        <ChevronDown className={cn('h-4 w-4 text-g-text-muted transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && <div className="px-4 pb-4 space-y-3">{children}</div>}
+    </div>
+  );
+}
+
+function CodeBlock({ children }: { children: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(children);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div className="group relative">
+      <pre className="overflow-x-auto rounded-md border bg-[#1e1e1e] px-4 py-3 text-xs text-green-400 font-mono leading-relaxed">
+        {children}
+      </pre>
+      <button
+        onClick={handleCopy}
+        className="absolute right-2 top-2 rounded p-1 text-gray-400 opacity-0 hover:text-white group-hover:opacity-100"
+      >
+        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
+    </div>
+  );
+}
+
+function SetupGuide() {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://tasuke-nu.vercel.app';
+
+  return (
+    <div className="rounded-lg border border-g-border overflow-hidden">
+      <div className="bg-g-surface px-4 py-3 border-b border-g-border">
+        <h3 className="text-sm font-semibold text-g-text">接続ガイド</h3>
+        <p className="text-xs text-g-text-muted mt-0.5">AIツールからタス助に接続する3つの方法</p>
+      </div>
+
+      {/* Claude Desktop (MCP) */}
+      <GuideSection icon={<Monitor className="h-4 w-4 text-[#4285F4]" />} title="Claude Desktop（MCP）">
+        <p className="text-xs text-g-text-secondary">
+          Claude Desktopの設定ファイルに以下を追加してください。
+        </p>
+        <CodeBlock>{`// ~/Library/Application Support/Claude/claude_desktop_config.json
+{
+  "mcpServers": {
+    "tasuke": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "${origin}/api/mcp"],
+      "env": {
+        "API_TOKEN": "tsk_あなたのトークン"
+      }
+    }
+  }
+}`}</CodeBlock>
+        <p className="text-xs text-g-text-muted">
+          24ツール（タスクCRUD、プロジェクト管理、ダッシュボード等）が自動で読み込まれます。
+        </p>
+      </GuideSection>
+
+      {/* Claude Code (CLI) */}
+      <GuideSection icon={<Terminal className="h-4 w-4 text-[#34A853]" />} title="Claude Code（CLI）">
+        <p className="text-xs text-g-text-secondary">
+          CLAUDE.mdに以下を記載すると、Claude CodeがCLIツールとして認識します。
+          CLIHub方式でトークンコスト94%削減。
+        </p>
+        <CodeBlock>{`# CLAUDE.md に追記
+
+## タス助 CLI
+タスク管理は \`tasuke\` CLIを使用。
+環境変数 TASUKE_API_TOKEN を設定済み。
+
+利用可能なコマンド一覧:
+  npx tsx src/cli/tasuke.ts --help
+
+例:
+  npx tsx src/cli/tasuke.ts dashboard
+  npx tsx src/cli/tasuke.ts task:list --projectId xxx
+  npx tsx src/cli/tasuke.ts task:create --title "タスク名" --projectId xxx`}</CodeBlock>
+        <p className="text-xs text-g-text-secondary mt-2">環境変数の設定:</p>
+        <CodeBlock>{`export TASUKE_API_TOKEN="tsk_あなたのトークン"
+export TASUKE_URL="${origin}"`}</CodeBlock>
+      </GuideSection>
+
+      {/* HTTP API (汎用) */}
+      <GuideSection icon={<Code2 className="h-4 w-4 text-[#FBBC04]" />} title="HTTP API（汎用）">
+        <p className="text-xs text-g-text-secondary">
+          任意のHTTPクライアントからJSON-RPC 2.0で接続できます。
+        </p>
+        <CodeBlock>{`# ツール一覧取得
+curl -X POST ${origin}/api/mcp \\
+  -H "Authorization: Bearer tsk_あなたのトークン" \\
+  -H "Content-Type: application/json" \\
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+# タスク作成
+curl -X POST ${origin}/api/mcp \\
+  -H "Authorization: Bearer tsk_あなたのトークン" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "jsonrpc":"2.0","id":2,"method":"tools/call",
+    "params":{"name":"task_create","arguments":{
+      "title":"新タスク","projectId":"xxx"
+    }}
+  }'`}</CodeBlock>
+        <p className="text-xs text-g-text-muted">
+          Zapier、Make、n8n等のノーコードツールからも接続可能です。
+        </p>
+      </GuideSection>
     </div>
   );
 }
