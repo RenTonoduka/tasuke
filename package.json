@@ -8,7 +8,8 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "next lint",
-    "mcp:start": "npx tsx src/mcp/server.ts"
+    "mcp:start": "npx tsx src/mcp/server.ts",
+    "cli": "npx tsx src/cli/tasuke.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
