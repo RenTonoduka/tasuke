@@ -110,17 +110,17 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
             if (e.key === 'Enter') saveProjectName();
             if (e.key === 'Escape') { setEditName(title); setEditing(false); }
           }}
-          className="h-8 rounded-md border border-[#4285F4] bg-g-bg px-2 text-base font-semibold text-g-text outline-none"
+          className="h-8 min-w-[120px] rounded-md border border-[#4285F4] bg-g-bg px-2 text-base font-semibold text-g-text outline-none"
           maxLength={100}
         />
       ) : (
         <button
-          className="group flex items-center gap-1.5 rounded-md px-1 py-0.5 text-base font-semibold text-g-text hover:bg-g-surface-hover"
+          className="group flex min-w-0 items-center gap-1.5 rounded-md px-1 py-0.5 text-base font-semibold text-g-text hover:bg-g-surface-hover"
           onClick={() => projectId && setEditing(true)}
           title={projectId ? 'クリックして名前を変更' : undefined}
         >
-          {title}
-          {projectId && <Pencil className="h-3 w-3 text-g-text-muted opacity-0 group-hover:opacity-100" />}
+          <span className="truncate">{title}</span>
+          {projectId && <Pencil className="h-3 w-3 flex-shrink-0 text-g-text-muted opacity-0 group-hover:opacity-100" />}
         </button>
       )}
 
@@ -136,7 +136,7 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
             )}
           >
             <LayoutGrid className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">ボード</span>
+            <span className="hidden md:inline">ボード</span>
           </button>
           <button
             onClick={() => onViewChange('list')}
@@ -148,7 +148,7 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
             )}
           >
             <List className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">リスト</span>
+            <span className="hidden md:inline">リスト</span>
           </button>
           <button
             onClick={() => onViewChange('timeline')}
@@ -160,7 +160,7 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
             )}
           >
             <GanttChart className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">タイムライン</span>
+            <span className="hidden md:inline">タイムライン</span>
           </button>
           <button
             onClick={() => onViewChange('schedule')}
@@ -172,7 +172,7 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
             )}
           >
             <CalendarClock className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">スケジュール</span>
+            <span className="hidden md:inline">スケジュール</span>
           </button>
           <button
             onClick={() => onViewChange('dashboard')}
@@ -184,7 +184,7 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
             )}
           >
             <BarChart3 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">ダッシュボード</span>
+            <span className="hidden md:inline">ダッシュボード</span>
           </button>
           <button
             onClick={() => onViewChange('mindmap')}
@@ -196,7 +196,7 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
             )}
           >
             <Network className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">マップ</span>
+            <span className="hidden md:inline">マップ</span>
           </button>
         </div>
       )}
@@ -214,7 +214,7 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
           <ProjectSettingsDialog projectId={projectId} workspaceId={workspaceId}>
             <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
               <Users className="h-3.5 w-3.5" />
-              共有
+              <span className="hidden lg:inline">共有</span>
             </Button>
           </ProjectSettingsDialog>
         )}
