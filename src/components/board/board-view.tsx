@@ -20,7 +20,9 @@ import { useFilterStore } from '@/stores/filter-store';
 import { useSubtaskExpand } from '@/hooks/use-subtask-expand';
 import { filterTasks } from '@/lib/task-filters';
 import type { FilterState } from '@/stores/filter-store';
+import { useRouter } from 'next/navigation';
 import { SearchX } from 'lucide-react';
+import { useDragToProjectStore } from '@/stores/drag-to-project-store';
 import type { Section, Task } from '@/types';
 
 const SECTION_STATUS_MAP: Record<string, 'TODO' | 'IN_PROGRESS' | 'DONE'> = {
@@ -36,11 +38,14 @@ interface BoardViewProps {
 }
 
 export function BoardView({ initialSections, projectId, onSectionsChange }: BoardViewProps) {
+  const router = useRouter();
   const [sections, setSections] = useState<Section[]>(initialSections);
   useEffect(() => { setSections(initialSections); }, [initialSections]);
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const pointerRef = useRef<{ x: number; y: number } | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
   const { expanded: stExpanded, subtasks: stSubtasks, loading: stLoading, toggle: stToggle, toggleStatus: stToggleStatus, deleteSubtask: stDelete } = useSubtaskExpand();
 
   const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder, hasActiveFilters } = useFilterStore();
@@ -69,6 +74,14 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
     const { active } = event;
     const task = active.data.current?.task as Task | undefined;
     if (task) setActiveTask(task);
+    // プロジェクト移動D&D: ストアとポインター追跡
+    const store = useDragToProjectStore.getState();
+    store.isDraggingTask = true;
+    store.sourceProjectId = projectId;
+    pointerRef.current = null;
+    const handler = (e: PointerEvent) => { pointerRef.current = { x: e.clientX, y: e.clientY }; };
+    window.addEventListener('pointermove', handler);
+    cleanupRef.current = () => window.removeEventListener('pointermove', handler);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -122,6 +135,38 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveTask(null);
+    cleanupRef.current?.();
+    cleanupRef.current = null;
+    useDragToProjectStore.getState().reset();
+
+    // ★ ボード外ドロップ → プロジェクト移動判定（over===nullの時のみ）
+    if (!over && pointerRef.current) {
+      const { x, y } = pointerRef.current;
+      const els = document.elementsFromPoint(x, y);
+      const projectEl = els.find((el) => el.getAttribute('data-project-drop-id'));
+      const targetProjectId = projectEl?.getAttribute('data-project-drop-id');
+      if (targetProjectId && targetProjectId !== projectId) {
+        const taskId = active.id as string;
+        const snapshot = [...sectionsRef.current.map((s) => ({ ...s, tasks: [...s.tasks] }))];
+        setSections((prev) => prev.map((s) => ({ ...s, tasks: s.tasks.filter((t) => t.id !== taskId) })));
+        try {
+          const res = await fetch(`/api/tasks/${taskId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId: targetProjectId }),
+          });
+          if (res.ok) {
+            router.refresh();
+          } else {
+            setSections(snapshot);
+          }
+        } catch {
+          setSections(snapshot);
+        }
+        return;
+      }
+    }
+    pointerRef.current = null;
 
     if (!over) return;
 
@@ -165,7 +210,6 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
         }),
       });
     } catch {
-      // 楽観的更新のロールバック - ページリロードで復帰
       setSections(initialSections);
     }
   };

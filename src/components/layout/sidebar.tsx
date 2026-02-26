@@ -43,6 +43,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
+import { useDragToProjectStore } from '@/stores/drag-to-project-store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProjectCreateDialog } from '@/components/project/project-create-dialog';
 import {
@@ -88,6 +89,8 @@ function SortableProjectItem({ project, href, isActive, onDelete }: SortableProj
     transition,
     isDragging,
   } = useSortable({ id: project.id });
+  const { isDraggingTask, sourceProjectId } = useDragToProjectStore();
+  const isDropCandidate = isDraggingTask && project.id !== sourceProjectId;
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -98,10 +101,12 @@ function SortableProjectItem({ project, href, isActive, onDelete }: SortableProj
     <div
       ref={setNodeRef}
       style={style}
+      data-project-drop-id={project.id}
       className={cn(
         'group/proj flex items-center rounded-md text-sm text-g-text-secondary hover:bg-g-border hover:text-g-text',
         isActive && 'bg-g-border font-medium text-g-text',
         isDragging && 'z-50 opacity-50',
+        isDropCandidate && 'border border-dashed border-[#4285F4] bg-[#4285F4]/10',
       )}
     >
       <button
