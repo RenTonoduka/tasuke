@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Header } from '@/components/layout/header';
 import { BoardView } from '@/components/board/board-view';
 import { ListView } from '@/components/list/list-view';
@@ -25,6 +25,7 @@ interface ProjectPageClientProps {
 export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientProps) {
   const [view, setView] = useState<'board' | 'list' | 'timeline' | 'schedule' | 'dashboard' | 'mindmap'>('board');
   const [sections, setSections] = useState<Section[]>(project.sections);
+  useEffect(() => { setSections(project.sections); }, [project.sections]);
   useFilterUrlSync();
 
   const handleViewChange = useCallback((v: typeof view) => {
