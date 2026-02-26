@@ -70,27 +70,32 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
 
   // グローバルポインター追跡でサイドバーのプロジェクトへのドロップを検知
   const isDraggingRef = useRef(false);
+  const lastPointerPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const detectProjectAtPoint = useCallback((x: number, y: number): string | null => {
+    const elements = document.elementsFromPoint(x, y);
+    const projectEl = elements.find(
+      (el) => el instanceof HTMLElement && el.dataset.projectDropId
+    ) as HTMLElement | undefined;
+    return projectEl?.dataset.projectDropId ?? null;
+  }, []);
 
   useEffect(() => {
     const onPointerMove = (e: PointerEvent) => {
       if (!isDraggingRef.current) return;
+      lastPointerPos.current = { x: e.clientX, y: e.clientY };
+
       const now = Date.now();
-      if (now - lastMoveTime.current < 80) return;
+      if (now - lastMoveTime.current < 50) return;
       lastMoveTime.current = now;
 
-      const elements = document.elementsFromPoint(e.clientX, e.clientY);
-      const projectEl = elements.find(
-        (el) => el instanceof HTMLElement && el.dataset.projectDropId
-      ) as HTMLElement | undefined;
-
-      useDragToProjectStore.getState().setHoveredProjectId(
-        projectEl?.dataset.projectDropId ?? null
-      );
+      const targetId = detectProjectAtPoint(e.clientX, e.clientY);
+      useDragToProjectStore.getState().setHoveredProjectId(targetId);
     };
 
     window.addEventListener('pointermove', onPointerMove, { passive: true });
     return () => window.removeEventListener('pointermove', onPointerMove);
-  }, []);
+  }, [detectProjectAtPoint]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -162,13 +167,19 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
     const { active, over } = event;
     isDraggingRef.current = false;
     const dragStore = useDragToProjectStore.getState();
-    const targetProjectId = dragStore.hoveredProjectId;
     dragStore.reset();
     setActiveTask(null);
 
+    // ドロップ時にポインター最終位置でサイドバーのプロジェクトを再判定
+    const { x, y } = lastPointerPos.current;
+    const targetProjectId = detectProjectAtPoint(x, y);
+
     // サイドバーのプロジェクトにドロップされた場合
-    if (targetProjectId && targetProjectId !== projectId) {
+    // over（ボード内のドロップ先）がある場合はボード内操作を優先
+    if (targetProjectId && targetProjectId !== projectId && !over) {
       const activeId = active.id as string;
+      // 現在のセクション状態を保存してからロールバック可能にする
+      const snapshotSections = sectionsRef.current;
       setSections((prev) =>
         prev.map((s) => ({ ...s, tasks: s.tasks.filter((t) => t.id !== activeId) }))
       );
@@ -181,7 +192,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
         if (!res.ok) throw new Error();
         router.refresh();
       } catch {
-        setSections(initialSections);
+        setSections(snapshotSections);
       }
       return;
     }
