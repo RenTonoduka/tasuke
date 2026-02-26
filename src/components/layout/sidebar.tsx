@@ -326,31 +326,42 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
               <ChevronDown className="ml-auto h-4 w-4 text-g-text-secondary" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-60">
             <div className="px-2 py-1.5 text-xs font-medium text-g-text-muted">ワークスペース</div>
             {workspaces.map((ws) => (
               <div key={ws.id} className="group/ws flex items-center">
-                <DropdownMenuItem asChild className="flex-1">
+                <DropdownMenuItem asChild className="flex-1 min-w-0">
                   <Link href={`/${ws.slug}`} className="flex items-center gap-2">
-                    <div className="flex h-5 w-5 items-center justify-center rounded bg-[#4285F4] text-[10px] font-bold text-white">
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[#4285F4] text-[10px] font-bold text-white">
                       {ws.name.charAt(0)}
                     </div>
                     <span className="flex-1 truncate">{ws.name}</span>
-                    {ws.slug === currentWorkspaceSlug && <Check className="h-4 w-4 text-[#34A853]" />}
+                    {ws.slug === currentWorkspaceSlug && <Check className="h-4 w-4 shrink-0 text-[#34A853]" />}
                   </Link>
                 </DropdownMenuItem>
-                <button
-                  className="mr-1 hidden rounded p-1 text-g-text-muted hover:bg-g-border hover:text-g-text group-hover/ws:block"
-                  onClick={(e) => { e.stopPropagation(); setWsRenameTarget({ id: ws.id, name: ws.name }); setWsRenameName(ws.name); }}
-                >
-                  <Pencil className="h-3 w-3" />
-                </button>
-                <button
-                  className="mr-1 hidden rounded p-1 text-g-text-muted hover:bg-red-50 hover:text-red-500 group-hover/ws:block"
-                  onClick={(e) => { e.stopPropagation(); setWsDeleteTarget({ id: ws.id, name: ws.name }); }}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="mr-1 shrink-0 rounded p-1 text-g-text-muted opacity-0 hover:bg-g-border hover:text-g-text group-hover/ws:opacity-100"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreHorizontal className="h-3.5 w-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-40">
+                    <DropdownMenuItem onClick={() => { setWsRenameTarget({ id: ws.id, name: ws.name }); setWsRenameName(ws.name); }}>
+                      <Pencil className="mr-2 h-3.5 w-3.5" />
+                      名前を変更
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-red-500 focus:text-red-500"
+                      onClick={() => setWsDeleteTarget({ id: ws.id, name: ws.name })}
+                    >
+                      <Trash2 className="mr-2 h-3.5 w-3.5" />
+                      削除
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ))}
             <DropdownMenuSeparator />
