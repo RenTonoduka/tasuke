@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
@@ -13,7 +13,6 @@ import {
   type DragStartEvent,
   type DragEndEvent,
   type DragOverEvent,
-  type DragMoveEvent,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { BoardColumn } from './board-column';
@@ -69,40 +68,45 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
     [sections]
   );
 
+  // グローバルポインター追跡でサイドバーのプロジェクトへのドロップを検知
+  const isDraggingRef = useRef(false);
+
+  useEffect(() => {
+    const onPointerMove = (e: PointerEvent) => {
+      if (!isDraggingRef.current) return;
+      const now = Date.now();
+      if (now - lastMoveTime.current < 80) return;
+      lastMoveTime.current = now;
+
+      const elements = document.elementsFromPoint(e.clientX, e.clientY);
+      const projectEl = elements.find(
+        (el) => el instanceof HTMLElement && el.dataset.projectDropId
+      ) as HTMLElement | undefined;
+
+      useDragToProjectStore.getState().setHoveredProjectId(
+        projectEl?.dataset.projectDropId ?? null
+      );
+    };
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    return () => window.removeEventListener('pointermove', onPointerMove);
+  }, []);
+
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const task = active.data.current?.task as Task | undefined;
     if (task) {
       setActiveTask(task);
+      isDraggingRef.current = true;
       const store = useDragToProjectStore.getState();
       store.setDraggingTask(true);
       store.setSourceProjectId(projectId);
     }
   };
 
-  const handleDragMove = useCallback((event: DragMoveEvent) => {
-    const now = Date.now();
-    if (now - lastMoveTime.current < 100) return;
-    lastMoveTime.current = now;
-
-    const translated = event.active.rect.current.translated;
-    if (!translated) return;
-
-    const x = translated.left + translated.width / 2;
-    const y = translated.top + translated.height / 2;
-
-    const elements = document.elementsFromPoint(x, y);
-    const projectEl = elements.find(
-      (el) => el instanceof HTMLElement && el.dataset.projectDropId
-    ) as HTMLElement | undefined;
-
-    useDragToProjectStore.getState().setHoveredProjectId(
-      projectEl?.dataset.projectDropId ?? null
-    );
-  }, []);
-
   const handleDragCancel = useCallback(() => {
     setActiveTask(null);
+    isDraggingRef.current = false;
     useDragToProjectStore.getState().reset();
   }, []);
 
@@ -156,6 +160,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    isDraggingRef.current = false;
     const dragStore = useDragToProjectStore.getState();
     const targetProjectId = dragStore.hoveredProjectId;
     dragStore.reset();
@@ -284,7 +289,6 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
       sensors={sensors}
       collisionDetection={closestCorners}
       onDragStart={handleDragStart}
-      onDragMove={handleDragMove}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}

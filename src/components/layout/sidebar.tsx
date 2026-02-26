@@ -93,11 +93,12 @@ function SortableProjectItem({ project, href, isActive, onDelete }: SortableProj
   const hoveredProjectId = useDragToProjectStore((s) => s.hoveredProjectId);
   const isDraggingTask = useDragToProjectStore((s) => s.isDraggingTask);
   const sourceProjectId = useDragToProjectStore((s) => s.sourceProjectId);
-  const isDropTarget = isDraggingTask && hoveredProjectId === project.id && project.id !== sourceProjectId;
+  const isDropCandidate = isDraggingTask && project.id !== sourceProjectId;
+  const isDropTarget = isDropCandidate && hoveredProjectId === project.id;
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition ?? 'all 150ms ease',
   };
 
   return (
@@ -106,10 +107,15 @@ function SortableProjectItem({ project, href, isActive, onDelete }: SortableProj
       style={style}
       data-project-drop-id={project.id}
       className={cn(
-        'group/proj flex items-center rounded-md text-sm text-g-text-secondary hover:bg-g-border hover:text-g-text',
-        isActive && 'bg-g-border font-medium text-g-text',
+        'group/proj flex items-center rounded-md text-sm transition-all duration-150',
+        // 通常時
+        !isDraggingTask && 'text-g-text-secondary hover:bg-g-border hover:text-g-text',
+        isActive && !isDraggingTask && 'bg-g-border font-medium text-g-text',
         isDragging && 'z-50 opacity-50',
-        isDropTarget && 'ring-2 ring-[#4285F4] bg-[#4285F4]/10'
+        // タスクドラッグ中: ドロップ候補を点線ボーダーで示す
+        isDropCandidate && !isDropTarget && 'border border-dashed border-[#4285F4]/40 text-g-text-secondary',
+        // ホバー中のドロップターゲット: 強調ハイライト + スケールアップ
+        isDropTarget && 'scale-[1.03] border-2 border-[#4285F4] bg-[#4285F4]/15 text-g-text font-medium shadow-md',
       )}
     >
       <button
