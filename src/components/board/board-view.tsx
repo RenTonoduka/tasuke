@@ -74,14 +74,16 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
     const { active } = event;
     const task = active.data.current?.task as Task | undefined;
     if (task) setActiveTask(task);
-    // プロジェクト移動D&D: ストアとポインター追跡
-    const store = useDragToProjectStore.getState();
-    store.isDraggingTask = true;
-    store.sourceProjectId = projectId;
+    // プロジェクト移動D&D: ストア通知 + ポインター追跡（capture phaseで確実に取得）
+    useDragToProjectStore.getState().startDrag(projectId);
     pointerRef.current = null;
     const handler = (e: PointerEvent) => { pointerRef.current = { x: e.clientX, y: e.clientY }; };
-    window.addEventListener('pointermove', handler);
-    cleanupRef.current = () => window.removeEventListener('pointermove', handler);
+    window.addEventListener('pointermove', handler, true);
+    window.addEventListener('pointerup', handler, true);
+    cleanupRef.current = () => {
+      window.removeEventListener('pointermove', handler, true);
+      window.removeEventListener('pointerup', handler, true);
+    };
   };
 
   const handleDragOver = (event: DragOverEvent) => {

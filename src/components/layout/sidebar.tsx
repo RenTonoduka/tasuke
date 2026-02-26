@@ -108,25 +108,30 @@ function SortableProjectItem({ project, href, isActive, onDelete }: SortableProj
         'group/proj flex items-center rounded-md text-sm text-g-text-secondary hover:bg-g-border hover:text-g-text',
         isActive && 'bg-g-border font-medium text-g-text',
         isDragging && 'z-50 opacity-50',
-        isDropCandidate && 'border border-dashed border-[#4285F4] bg-[#4285F4]/10',
+        isDropCandidate && 'animate-pulse border-2 border-dashed border-[#4285F4] bg-[#4285F4]/10 shadow-[0_0_8px_rgba(66,133,244,0.4)]',
       )}
     >
-      <button
-        {...attributes}
-        {...listeners}
-        className="flex shrink-0 cursor-grab items-center self-stretch px-1 text-g-text-muted hover:text-g-text-secondary active:cursor-grabbing"
-        style={{ touchAction: 'none' }}
-        tabIndex={-1}
-      >
-        <GripVertical className="h-3.5 w-3.5" />
-      </button>
+      {!isDropCandidate && (
+        <button
+          {...attributes}
+          {...listeners}
+          className="flex shrink-0 cursor-grab items-center self-stretch px-1 text-g-text-muted hover:text-g-text-secondary active:cursor-grabbing"
+          style={{ touchAction: 'none' }}
+          tabIndex={-1}
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+      )}
       <Link
         href={href}
-        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-1"
+        className={cn(
+          'flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-1',
+          isDropCandidate && 'pl-2',
+        )}
       >
-        <FolderKanban className="h-4 w-4 shrink-0" style={{ color: project.color }} />
-        <span className="truncate">{project.name}</span>
-        {project.isPrivate && <Lock className="ml-auto h-3 w-3 shrink-0 text-g-text-muted" />}
+        <FolderKanban className={cn('h-4 w-4 shrink-0', isDropCandidate && 'h-5 w-5')} style={{ color: project.color }} />
+        <span className={cn('truncate', isDropCandidate && 'font-medium text-[#4285F4]')}>{project.name}</span>
+        {project.isPrivate && !isDropCandidate && <Lock className="ml-auto h-3 w-3 shrink-0 text-g-text-muted" />}
       </Link>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
