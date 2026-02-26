@@ -14,6 +14,8 @@ import {
   Trash2,
   FolderOpen,
   ArrowRightLeft,
+  Github,
+  ExternalLink,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -91,6 +93,9 @@ interface TaskDetail {
   googleCalendarSyncedAt: string | null;
   googleTaskId: string | null;
   googleTaskSyncedAt: string | null;
+  githubIssueId: number | null;
+  githubRepoFullName: string | null;
+  githubIssueSyncedAt: string | null;
   projectId: string;
   project: {
     id: string;
@@ -782,6 +787,35 @@ export function TaskDetailPanel() {
                   />
                 </div>
               </div>
+
+              {/* GitHub連携 card */}
+              {task.githubIssueId && task.githubRepoFullName && (
+                <div className="space-y-2.5 rounded-lg border border-g-border/60 bg-g-surface/40 p-3">
+                  <div className="flex items-center gap-1.5">
+                    <Github className="h-3.5 w-3.5 text-g-text-muted" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-g-text-muted">
+                      GitHub
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={`https://github.com/${task.githubRepoFullName}/issues/${task.githubIssueId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-[#24292e]/10 px-2.5 py-1.5 text-xs font-medium text-g-text transition-colors hover:bg-[#24292e]/20"
+                    >
+                      <Github className="h-3.5 w-3.5" />
+                      #{task.githubIssueId}
+                      <ExternalLink className="h-3 w-3 text-g-text-muted" />
+                    </a>
+                    {task.githubIssueSyncedAt && (
+                      <span className="text-[10px] text-g-text-muted">
+                        最終同期: {new Date(task.githubIssueSyncedAt).toLocaleString('ja-JP')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Team & Details */}
               <div className="space-y-3">

@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   ListChecks,
   Lock,
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -81,6 +82,7 @@ export function ImportGitHubClient({ workspaceId, workspaceSlug, projects }: Imp
   const [sectionId, setSectionId] = useState<string>('');
   const [importSubtasks, setImportSubtasks] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [fullSyncing, setFullSyncing] = useState(false);
 
   const fetchRepos = useCallback(async () => {
     setLoadingRepos(true);
@@ -213,6 +215,32 @@ export function ImportGitHubClient({ workspaceId, workspaceSlug, projects }: Imp
       });
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleFullSync = async () => {
+    if (!projectId || !selectedRepo) return;
+    setFullSyncing(true);
+    try {
+      const res = await fetch('/api/github/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          githubRepoFullName: selectedRepo.fullName,
+          projectId,
+          workspaceId,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      toast({
+        title: `全件同期完了: ${data.created}件作成, ${data.updated}件更新（全${data.total}件）`,
+      });
+      fetchIssues(selectedRepo);
+    } catch {
+      toast({ title: '全件同期に失敗しました', variant: 'destructive' });
+    } finally {
+      setFullSyncing(false);
     }
   };
 
@@ -456,9 +484,23 @@ export function ImportGitHubClient({ workspaceId, workspaceSlug, projects }: Imp
                 </label>
 
                 <Button
+                  onClick={handleFullSync}
+                  disabled={!projectId || fullSyncing || importing}
+                  variant="outline"
+                  size="sm"
+                  className="ml-auto gap-2"
+                >
+                  {fullSyncing ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                  全件同期
+                </Button>
+                <Button
                   onClick={handleImport}
                   disabled={selectedIssueIds.size === 0 || !projectId || importing}
-                  className="ml-auto gap-2 bg-[#4285F4] text-white hover:bg-[#3367D6]"
+                  className="gap-2 bg-[#4285F4] text-white hover:bg-[#3367D6]"
                   size="sm"
                 >
                   {importing ? (

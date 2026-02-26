@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { syncTaskToGitHub } from '@/lib/github-sync';
 import { z } from 'zod';
 
 const assigneesSchema = z.object({
@@ -63,6 +64,13 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         },
       },
     });
+
+    // GitHub同期（担当者変更）
+    if (task.githubIssueId) {
+      syncTaskToGitHub(params.id, user.id, { fields: ['assignees'] }).catch((e) =>
+        console.error('[github-sync] assignees エラー:', e)
+      );
+    }
 
     return successResponse(updated?.assignees ?? []);
   } catch (error) {

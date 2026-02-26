@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { syncTaskToGitHub } from '@/lib/github-sync';
 import { z } from 'zod';
 
 const labelsSchema = z.object({
@@ -61,6 +62,13 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         labels: { include: { label: true } },
       },
     });
+
+    // GitHub同期（ラベル変更）
+    if (task.githubIssueId) {
+      syncTaskToGitHub(params.id, user.id, { fields: ['labels'] }).catch((e) =>
+        console.error('[github-sync] labels エラー:', e)
+      );
+    }
 
     return successResponse(updated?.labels ?? []);
   } catch (error) {

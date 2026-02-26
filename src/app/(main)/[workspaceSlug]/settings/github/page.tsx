@@ -24,7 +24,7 @@ export default async function GitHubSettingsPage({
   return (
     <>
       <Header title="GitHub連携" workspaceSlug={params.workspaceSlug} />
-      <GitHubSettingsClient workspaceSlug={params.workspaceSlug} />
+      <GitHubSettingsClient workspaceSlug={params.workspaceSlug} workspaceId={workspace.id} />
     </>
   );
 }

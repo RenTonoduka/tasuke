@@ -10,11 +10,13 @@ const mappingSchema = z.object({
   workspaceId: z.string().min(1),
 });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const user = await requireAuthUser();
+    const { searchParams } = new URL(req.url);
+    const workspaceId = searchParams.get('workspaceId');
     const mappings = await prisma.gitHubRepoMapping.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, ...(workspaceId ? { workspaceId } : {}) },
       include: { project: { select: { name: true, color: true } } },
     });
     return successResponse({ mappings });

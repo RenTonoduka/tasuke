@@ -433,6 +433,8 @@ model GitHubRepoMapping {
   projectId          String
   workspaceId        String
   userId             String
+  webhookId          Int?
+  webhookSecret      String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -440,4 +442,15 @@ model GitHubRepoMapping {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, githubRepoFullName])
+  @@unique([workspaceId, githubRepoFullName])
+}
+
+model GitHubUserMapping {
+  id          String @id @default(cuid())
+  workspaceId String
+  githubLogin String
+  userId      String
+
+  @@unique([workspaceId, githubLogin])
+  @@unique([workspaceId, userId])
 }
