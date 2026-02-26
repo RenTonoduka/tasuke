@@ -50,11 +50,45 @@ export async function POST(req: NextRequest) {
       orderBy: { dueDate: 'asc' },
     });
 
+    // 未設定タスク一覧（期限 or 見積もりが未設定）を先に取得
+    const incompleteWhere: Record<string, unknown> = {
+      status: { in: ['TODO', 'IN_PROGRESS'] },
+      OR: [
+        { dueDate: null },
+        { estimatedHours: null },
+      ],
+      project: {
+        workspace: {
+          members: { some: { userId: user.id } },
+        },
+      },
+    };
+    if (projectId) incompleteWhere.projectId = projectId;
+    if (myTasksOnly) incompleteWhere.assignees = { some: { userId: user.id } };
+
+    const incompleteTasks = await prisma.task.findMany({
+      where: incompleteWhere,
+      select: { id: true, title: true, priority: true, dueDate: true, estimatedHours: true },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    const unestimatedTasks = incompleteTasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      priority: t.priority,
+      dueDate: t.dueDate?.toISOString() ?? '',
+      missingDueDate: !t.dueDate,
+      missingEstimate: !t.estimatedHours,
+    }));
+
     if (tasks.length === 0) {
       return successResponse({
         suggestions: [],
         unschedulable: [],
         totalFreeHours: 0,
+        unestimatedCount: unestimatedTasks.length,
+        unestimatedTasks,
         message: '見積もり時間と期限が設定されたタスクがありません',
       });
     }
@@ -113,34 +147,10 @@ export async function POST(req: NextRequest) {
 
     const result = generateScheduleSuggestions(schedulableTasks, freeSlots);
 
-    // 見積もり未設定タスク一覧
-    const unestimatedTasks = await prisma.task.findMany({
-      where: {
-        status: { in: ['TODO', 'IN_PROGRESS'] },
-        dueDate: { not: null },
-        estimatedHours: null,
-        project: {
-          workspace: {
-            members: { some: { userId: user.id } },
-          },
-        },
-        ...(projectId ? { projectId } : {}),
-        ...(myTasksOnly ? { assignees: { some: { userId: user.id } } } : {}),
-      },
-      select: { id: true, title: true, priority: true, dueDate: true },
-      orderBy: { dueDate: 'asc' },
-      take: 20,
-    });
-
     return successResponse({
       ...result,
       unestimatedCount: unestimatedTasks.length,
-      unestimatedTasks: unestimatedTasks.map((t) => ({
-        id: t.id,
-        title: t.title,
-        priority: t.priority,
-        dueDate: t.dueDate?.toISOString() ?? '',
-      })),
+      unestimatedTasks,
       calendarUnavailable,
     });
   } catch (error) {

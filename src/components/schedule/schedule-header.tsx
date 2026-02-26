@@ -136,12 +136,12 @@ export function ScheduleHeader({
           >
             <AlertTriangle className="h-4 w-4 shrink-0 text-[#FBBC04]" />
             <span className="flex-1 text-xs text-g-text-secondary">
-              見積もり時間が未設定のタスクが {unestimatedTasks.length} 件あります
+              スケジュールに必要な設定が不足しているタスクが {unestimatedTasks.length} 件あります
             </span>
             <ChevronDown className={cn('h-4 w-4 text-g-text-muted transition-transform', showUnestimated && 'rotate-180')} />
           </button>
           {showUnestimated && (
-            <div className="space-y-1 border-t border-[#FBBC04]/30 px-3 py-2">
+            <div className="space-y-1.5 border-t border-[#FBBC04]/30 px-3 py-2">
               {unestimatedTasks.map((t) => (
                 <div key={t.id} className="flex items-center gap-2">
                   <span
@@ -154,29 +154,29 @@ export function ScheduleHeader({
                   >
                     {t.title}
                   </button>
-                  <select
-                    onChange={(e) => {
-                      if (e.target.value) onUpdateEstimate?.(t.id, parseFloat(e.target.value));
-                    }}
-                    className="rounded border border-g-border bg-white px-2 py-1 text-xs"
-                    defaultValue=""
-                  >
-                    <option value="" disabled>時間を設定</option>
-                    {[0.5, 1, 1.5, 2, 3, 4, 5, 6, 8].map((h) => (
-                      <option key={h} value={h}>{h}h</option>
-                    ))}
-                  </select>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {t.missingDueDate && (
+                      <span className="rounded bg-[#EA4335]/10 px-1.5 py-0.5 text-[10px] text-[#EA4335]">期限未設定</span>
+                    )}
+                    {t.missingEstimate && (
+                      <select
+                        onChange={(e) => {
+                          if (e.target.value) onUpdateEstimate?.(t.id, parseFloat(e.target.value));
+                        }}
+                        className="rounded border border-g-border bg-white px-2 py-1 text-xs"
+                        defaultValue=""
+                      >
+                        <option value="" disabled>見積もり</option>
+                        {[0.5, 1, 1.5, 2, 3, 4, 5, 6, 8].map((h) => (
+                          <option key={h} value={h}>{h}h</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
-      ) : unestimatedCount !== undefined && unestimatedCount > 0 ? (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-[#FBBC04] bg-g-warning-bg px-3 py-2">
-          <AlertTriangle className="h-4 w-4 text-[#FBBC04]" />
-          <span className="text-xs text-g-text-secondary">
-            見積もり時間が未設定のタスクが {unestimatedCount} 件あります。タスクを開いて設定してください。
-          </span>
         </div>
       ) : null}
     </>

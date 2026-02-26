@@ -40,6 +40,8 @@ export interface UnestimatedTask {
   title: string;
   priority: string;
   dueDate: string;
+  missingDueDate?: boolean;
+  missingEstimate?: boolean;
 }
 
 export interface ScheduleData {
