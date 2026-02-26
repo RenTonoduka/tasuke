@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -19,7 +18,6 @@ import { BoardColumn } from './board-column';
 import { TaskCard } from './task-card';
 import { useFilterStore } from '@/stores/filter-store';
 import { useSubtaskExpand } from '@/hooks/use-subtask-expand';
-import { useDragToProjectStore } from '@/stores/drag-to-project-store';
 import { filterTasks } from '@/lib/task-filters';
 import type { FilterState } from '@/stores/filter-store';
 import { SearchX } from 'lucide-react';
@@ -38,12 +36,10 @@ interface BoardViewProps {
 }
 
 export function BoardView({ initialSections, projectId, onSectionsChange }: BoardViewProps) {
-  const router = useRouter();
   const [sections, setSections] = useState<Section[]>(initialSections);
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
   const [activeTask, setActiveTask] = useState<Task | null>(null);
-  const lastMoveTime = useRef(0);
   const { expanded: stExpanded, subtasks: stSubtasks, loading: stLoading, toggle: stToggle, toggleStatus: stToggleStatus, deleteSubtask: stDelete } = useSubtaskExpand();
 
   const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder, hasActiveFilters } = useFilterStore();
@@ -68,52 +64,11 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
     [sections]
   );
 
-  // グローバルポインター追跡でサイドバーのプロジェクトへのドロップを検知
-  const isDraggingRef = useRef(false);
-  const lastPointerPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  const detectProjectAtPoint = useCallback((x: number, y: number): string | null => {
-    const elements = document.elementsFromPoint(x, y);
-    const projectEl = elements.find(
-      (el) => el instanceof HTMLElement && el.dataset.projectDropId
-    ) as HTMLElement | undefined;
-    return projectEl?.dataset.projectDropId ?? null;
-  }, []);
-
-  useEffect(() => {
-    const onPointerMove = (e: PointerEvent) => {
-      if (!isDraggingRef.current) return;
-      lastPointerPos.current = { x: e.clientX, y: e.clientY };
-
-      const now = Date.now();
-      if (now - lastMoveTime.current < 50) return;
-      lastMoveTime.current = now;
-
-      const targetId = detectProjectAtPoint(e.clientX, e.clientY);
-      useDragToProjectStore.getState().setHoveredProjectId(targetId);
-    };
-
-    window.addEventListener('pointermove', onPointerMove, { passive: true });
-    return () => window.removeEventListener('pointermove', onPointerMove);
-  }, [detectProjectAtPoint]);
-
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const task = active.data.current?.task as Task | undefined;
-    if (task) {
-      setActiveTask(task);
-      isDraggingRef.current = true;
-      const store = useDragToProjectStore.getState();
-      store.setDraggingTask(true);
-      store.setSourceProjectId(projectId);
-    }
+    if (task) setActiveTask(task);
   };
-
-  const handleDragCancel = useCallback(() => {
-    setActiveTask(null);
-    isDraggingRef.current = false;
-    useDragToProjectStore.getState().reset();
-  }, []);
 
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
@@ -165,37 +120,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    isDraggingRef.current = false;
-    const dragStore = useDragToProjectStore.getState();
-    dragStore.reset();
     setActiveTask(null);
-
-    // ドロップ時にポインター最終位置でサイドバーのプロジェクトを再判定
-    const { x, y } = lastPointerPos.current;
-    const targetProjectId = detectProjectAtPoint(x, y);
-
-    // サイドバーのプロジェクトにドロップされた場合
-    // over（ボード内のドロップ先）がある場合はボード内操作を優先
-    if (targetProjectId && targetProjectId !== projectId && !over) {
-      const activeId = active.id as string;
-      // 現在のセクション状態を保存してからロールバック可能にする
-      const snapshotSections = sectionsRef.current;
-      setSections((prev) =>
-        prev.map((s) => ({ ...s, tasks: s.tasks.filter((t) => t.id !== activeId) }))
-      );
-      try {
-        const res = await fetch(`/api/tasks/${activeId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectId: targetProjectId }),
-        });
-        if (!res.ok) throw new Error();
-        router.refresh();
-      } catch {
-        setSections(snapshotSections);
-      }
-      return;
-    }
 
     if (!over) return;
 
@@ -302,7 +227,6 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
     >
       <div className="flex gap-4 overflow-x-auto p-4">
         {filteredSections.map((section, index) => (
