@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   DndContext,
   DragOverlay,
@@ -12,12 +13,14 @@ import {
   type DragStartEvent,
   type DragEndEvent,
   type DragOverEvent,
+  type DragMoveEvent,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { BoardColumn } from './board-column';
 import { TaskCard } from './task-card';
 import { useFilterStore } from '@/stores/filter-store';
 import { useSubtaskExpand } from '@/hooks/use-subtask-expand';
+import { useDragToProjectStore } from '@/stores/drag-to-project-store';
 import { filterTasks } from '@/lib/task-filters';
 import type { FilterState } from '@/stores/filter-store';
 import { SearchX } from 'lucide-react';
@@ -36,10 +39,12 @@ interface BoardViewProps {
 }
 
 export function BoardView({ initialSections, projectId, onSectionsChange }: BoardViewProps) {
+  const router = useRouter();
   const [sections, setSections] = useState<Section[]>(initialSections);
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const lastMoveTime = useRef(0);
   const { expanded: stExpanded, subtasks: stSubtasks, loading: stLoading, toggle: stToggle, toggleStatus: stToggleStatus, deleteSubtask: stDelete } = useSubtaskExpand();
 
   const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder, hasActiveFilters } = useFilterStore();
@@ -67,8 +72,39 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const task = active.data.current?.task as Task | undefined;
-    if (task) setActiveTask(task);
+    if (task) {
+      setActiveTask(task);
+      const store = useDragToProjectStore.getState();
+      store.setDraggingTask(true);
+      store.setSourceProjectId(projectId);
+    }
   };
+
+  const handleDragMove = useCallback((event: DragMoveEvent) => {
+    const now = Date.now();
+    if (now - lastMoveTime.current < 100) return;
+    lastMoveTime.current = now;
+
+    const translated = event.active.rect.current.translated;
+    if (!translated) return;
+
+    const x = translated.left + translated.width / 2;
+    const y = translated.top + translated.height / 2;
+
+    const elements = document.elementsFromPoint(x, y);
+    const projectEl = elements.find(
+      (el) => el instanceof HTMLElement && el.dataset.projectDropId
+    ) as HTMLElement | undefined;
+
+    useDragToProjectStore.getState().setHoveredProjectId(
+      projectEl?.dataset.projectDropId ?? null
+    );
+  }, []);
+
+  const handleDragCancel = useCallback(() => {
+    setActiveTask(null);
+    useDragToProjectStore.getState().reset();
+  }, []);
 
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
@@ -120,7 +156,30 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    const dragStore = useDragToProjectStore.getState();
+    const targetProjectId = dragStore.hoveredProjectId;
+    dragStore.reset();
     setActiveTask(null);
+
+    // サイドバーのプロジェクトにドロップされた場合
+    if (targetProjectId && targetProjectId !== projectId) {
+      const activeId = active.id as string;
+      setSections((prev) =>
+        prev.map((s) => ({ ...s, tasks: s.tasks.filter((t) => t.id !== activeId) }))
+      );
+      try {
+        const res = await fetch(`/api/tasks/${activeId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId: targetProjectId }),
+        });
+        if (!res.ok) throw new Error();
+        router.refresh();
+      } catch {
+        setSections(initialSections);
+      }
+      return;
+    }
 
     if (!over) return;
 
@@ -225,8 +284,10 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
       sensors={sensors}
       collisionDetection={closestCorners}
       onDragStart={handleDragStart}
+      onDragMove={handleDragMove}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       <div className="flex gap-4 overflow-x-auto p-4">
         {filteredSections.map((section, index) => (

@@ -54,6 +54,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { useDragToProjectStore } from '@/stores/drag-to-project-store';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -89,6 +90,11 @@ function SortableProjectItem({ project, href, isActive, onDelete }: SortableProj
     isDragging,
   } = useSortable({ id: project.id });
 
+  const hoveredProjectId = useDragToProjectStore((s) => s.hoveredProjectId);
+  const isDraggingTask = useDragToProjectStore((s) => s.isDraggingTask);
+  const sourceProjectId = useDragToProjectStore((s) => s.sourceProjectId);
+  const isDropTarget = isDraggingTask && hoveredProjectId === project.id && project.id !== sourceProjectId;
+
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -98,10 +104,12 @@ function SortableProjectItem({ project, href, isActive, onDelete }: SortableProj
     <div
       ref={setNodeRef}
       style={style}
+      data-project-drop-id={project.id}
       className={cn(
         'group/proj flex items-center rounded-md text-sm text-g-text-secondary hover:bg-g-border hover:text-g-text',
         isActive && 'bg-g-border font-medium text-g-text',
-        isDragging && 'z-50 opacity-50'
+        isDragging && 'z-50 opacity-50',
+        isDropTarget && 'ring-2 ring-[#4285F4] bg-[#4285F4]/10'
       )}
     >
       <button
