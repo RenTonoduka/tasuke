@@ -139,8 +139,9 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
     cleanupRef.current = null;
     useDragToProjectStore.getState().reset();
 
-    // ★ ボード外ドロップ → プロジェクト移動判定（over===nullの時のみ）
-    if (!over && pointerRef.current) {
+    // ★ プロジェクト移動判定（ポインター位置にサイドバーのプロジェクト要素があるか）
+    // closestCornersはボード外でもoverを返すため、over===nullではなくelementsFromPointで判定
+    if (pointerRef.current) {
       const { x, y } = pointerRef.current;
       const els = document.elementsFromPoint(x, y);
       const projectEl = els.find((el) => el.getAttribute('data-project-drop-id'));
@@ -163,6 +164,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
         } catch {
           setSections(snapshot);
         }
+        pointerRef.current = null;
         return;
       }
     }
