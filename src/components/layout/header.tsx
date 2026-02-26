@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useSidebarStore } from '@/stores/sidebar-store';
 import { NotificationBell } from './notification-bell';
+import { eventBus, EVENTS } from '@/lib/event-bus';
 import { ProjectSettingsDialog } from '@/components/project/project-settings-dialog';
 import {
   Dialog,
@@ -77,7 +78,7 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
         body: JSON.stringify({ name: trimmed }),
       });
       if (res.ok) {
-        router.refresh();
+        eventBus.emit(EVENTS.PROJECTS_CHANGED);
       }
     } catch (err) {
       console.error('プロジェクト名更新エラー:', err);

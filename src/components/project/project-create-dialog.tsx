@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Layers } from 'lucide-react';
 import { TemplateListDialog } from './template-list-dialog';
+import { eventBus, EVENTS } from '@/lib/event-bus';
 
 const colorPresets = [
   '#4285F4', '#EA4335', '#FBBC04', '#34A853',
@@ -46,8 +47,8 @@ export function ProjectCreateDialog({ workspaceId, workspaceSlug }: ProjectCreat
         const project = await res.json();
         setOpen(false);
         setName('');
+        eventBus.emit(EVENTS.PROJECTS_CHANGED);
         router.push(`/${workspaceSlug}/projects/${project.id}`);
-        router.refresh();
       }
     } finally {
       setLoading(false);

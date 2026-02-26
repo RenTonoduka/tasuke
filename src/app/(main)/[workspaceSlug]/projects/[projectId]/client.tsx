@@ -14,6 +14,7 @@ import { BulkActionBar } from '@/components/shared/bulk-action-bar';
 import { useFilterUrlSync } from '@/hooks/use-filter-url-sync';
 import { useSelectionStore } from '@/stores/selection-store';
 import { useFilterStore } from '@/stores/filter-store';
+import { eventBus, EVENTS } from '@/lib/event-bus';
 import type { FilterBarMember, FilterBarLabel } from '@/components/shared/filter-bar';
 import type { Project, Section } from '@/types';
 
@@ -89,6 +90,12 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
       }
     } catch {}
   }, [project.id]);
+
+  // タスク詳細パネルからの更新を購読
+  useEffect(() => {
+    const unsub = eventBus.on(EVENTS.TASK_UPDATED, () => refetchSections());
+    return unsub;
+  }, [refetchSections]);
 
   const handleBulkAction = () => {
     refetchSections();

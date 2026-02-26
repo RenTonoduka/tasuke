@@ -49,6 +49,7 @@ import { cn } from '@/lib/utils';
 import { useDragToProjectStore } from '@/stores/drag-to-project-store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProjectCreateDialog } from '@/components/project/project-create-dialog';
+import { eventBus, EVENTS } from '@/lib/event-bus';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -172,6 +173,22 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'ãƒžã‚
 
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   useEffect(() => { setProjects(initialProjects); }, [initialProjects]);
+
+  const refetchProjects = useCallback(async () => {
+    if (!workspaceId) return;
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/projects`);
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data.map((p: Project & { isPrivate?: boolean }) => ({ id: p.id, name: p.name, color: p.color, isPrivate: p.isPrivate ?? false })));
+      }
+    } catch {}
+  }, [workspaceId]);
+
+  useEffect(() => {
+    const unsub = eventBus.on(EVENTS.PROJECTS_CHANGED, refetchProjects);
+    return unsub;
+  }, [refetchProjects]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string; slug: string }[]>([]);

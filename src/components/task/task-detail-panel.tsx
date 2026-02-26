@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { toast } from '@/hooks/use-toast';
+import { eventBus, EVENTS } from '@/lib/event-bus';
 import { cn } from '@/lib/utils';
 import { ActivityLog } from './activity-log';
 import { CommentSection } from './comment-section';
@@ -188,7 +189,6 @@ export function TaskDetailPanel() {
     setProjectOpen(false);
     await updateField('projectId', projectId);
     toast({ title: 'プロジェクトを移動しました' });
-    router.refresh();
   };
 
   const toggleLabel = async (labelId: string) => {
@@ -203,7 +203,10 @@ export function TaskDetailPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ labelIds: newIds }),
       });
-      if (res.ok) fetchTask(task.id);
+      if (res.ok) {
+        await fetchTask(task.id);
+        eventBus.emit(EVENTS.TASK_UPDATED, task.id);
+      }
     } catch {}
   };
 
@@ -220,7 +223,8 @@ export function TaskDetailPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userIds: newIds }),
       });
-      fetchTask(task.id);
+      await fetchTask(task.id);
+      eventBus.emit(EVENTS.TASK_UPDATED, task.id);
     } catch {}
   };
 
@@ -239,6 +243,7 @@ export function TaskDetailPanel() {
         return;
       }
       await fetchTask(task.id);
+      eventBus.emit(EVENTS.TASK_UPDATED, task.id);
     } catch {
       toast({ title: '更新に失敗しました', variant: 'destructive' });
     } finally {
@@ -261,6 +266,7 @@ export function TaskDetailPanel() {
         return;
       }
       await fetchTask(task.id);
+      eventBus.emit(EVENTS.TASK_UPDATED, task.id);
     } catch {
       toast({ title: '更新に失敗しました', variant: 'destructive' });
     } finally {

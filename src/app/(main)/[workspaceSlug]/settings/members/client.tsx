@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,7 +67,6 @@ const ROLE_COLORS: Record<Role, string> = {
 };
 
 export function MembersClient({ members: initialMembers, workspaceId, myRole, currentUserId }: MembersClientProps) {
-  const router = useRouter();
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'ADMIN' | 'MEMBER' | 'VIEWER'>('MEMBER');
@@ -98,7 +96,6 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
       }
       setMembers((prev) => [...prev, data]);
       setInviteEmail('');
-      router.refresh();
     } catch {
       setInviteError('ネットワークエラーが発生しました');
     } finally {
@@ -119,7 +116,6 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
     }
     const updated = await res.json();
     setMembers((prev) => prev.map((m) => (m.id === memberId ? updated : m)));
-    router.refresh();
   }
 
   async function handleDelete() {
@@ -136,7 +132,6 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
       }
       setMembers((prev) => prev.filter((m) => m.id !== deleteTarget.id));
       setDeleteTarget(null);
-      router.refresh();
     } finally {
       setDeleting(false);
     }

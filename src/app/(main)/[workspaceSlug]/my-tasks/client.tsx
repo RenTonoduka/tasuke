@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,6 +11,7 @@ import { SubtaskToggle, SubtaskList } from '@/components/task/subtask-inline';
 import { TaskDetailPanel } from '@/components/task/task-detail-panel';
 import { ScheduleView } from '@/components/schedule/schedule-view';
 import { cn } from '@/lib/utils';
+import { eventBus, EVENTS } from '@/lib/event-bus';
 
 const priorityConfig: Record<string, { label: string; color: string }> = {
   P0: { label: 'P0', color: '#EA4335' },
@@ -46,15 +46,34 @@ export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksCli
   const openPanel = useTaskPanelStore((s) => s.open);
   const activeTaskId = useTaskPanelStore((s) => s.activeTaskId);
   const { expanded, subtasks, loading, toggle: toggleSubtask, toggleStatus, deleteSubtask } = useSubtaskExpand();
-  const router = useRouter();
-  const prevActiveRef = useRef(activeTaskId);
+
+  // タスク更新イベントで該当タスクをリフレッシュ
+  const refreshTask = useCallback(async (taskId: unknown) => {
+    if (typeof taskId !== 'string') return;
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`);
+      if (res.ok) {
+        const updated = await res.json();
+        setTasks((prev) =>
+          prev.map((t) => t.id === taskId ? {
+            ...t,
+            title: updated.title,
+            status: updated.status,
+            priority: updated.priority,
+            dueDate: updated.dueDate,
+            assignees: updated.assignees,
+            labels: updated.labels,
+            project: updated.project,
+          } : t)
+        );
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
-    if (prevActiveRef.current && !activeTaskId) {
-      router.refresh();
-    }
-    prevActiveRef.current = activeTaskId;
-  }, [activeTaskId, router]);
+    const unsub = eventBus.on(EVENTS.TASK_UPDATED, refreshTask);
+    return unsub;
+  }, [refreshTask]);
 
   const handleToggle = async (taskId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'DONE' ? 'TODO' : 'DONE';
