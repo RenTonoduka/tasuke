@@ -109,8 +109,27 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const statusValue = data.status as string | undefined;
     if (statusValue === 'DONE') {
       updateData.completedAt = new Date();
+      // 「完了」セクションがあれば自動移動
+      if (!data.projectId) {
+        const doneSection = await prisma.section.findFirst({
+          where: { projectId: existing.projectId, name: '完了' },
+        });
+        if (doneSection && existing.sectionId !== doneSection.id) {
+          updateData.sectionId = doneSection.id;
+        }
+      }
     } else if (statusValue) {
       updateData.completedAt = null;
+      // DONEから戻す場合、ステータスに対応するセクションへ移動
+      if (!data.projectId && existing.status === 'DONE') {
+        const sectionName = statusValue === 'IN_PROGRESS' ? '進行中' : 'Todo';
+        const targetSection = await prisma.section.findFirst({
+          where: { projectId: existing.projectId, name: sectionName },
+        });
+        if (targetSection) {
+          updateData.sectionId = targetSection.id;
+        }
+      }
     }
 
     const task = await prisma.task.update({
