@@ -204,7 +204,7 @@ export async function handleTaskDelete(
 }
 
 export async function handleTaskMove(
-  params: { taskId: string; sectionId: string | null; position?: number },
+  params: { taskId: string; sectionId: string | null; projectId?: string; position?: number },
   ctx: ToolContext,
 ): Promise<ToolResult> {
   try {
@@ -219,18 +219,42 @@ export async function handleTaskMove(
       return err('プロジェクトへのアクセス権がありません');
     }
 
+    const updateData: Record<string, unknown> = {};
+
+    // プロジェクト間移動
+    if (params.projectId && params.projectId !== task.projectId) {
+      if (!accessibleIds.includes(params.projectId)) {
+        return err('移動先プロジェクトへのアクセス権がありません');
+      }
+      updateData.projectId = params.projectId;
+      // sectionIdが指定されていなければ移動先の最初のセクションに割り当て
+      if (params.sectionId === undefined || params.sectionId === null) {
+        const firstSection = await prisma.section.findFirst({
+          where: { projectId: params.projectId },
+          orderBy: { position: 'asc' },
+        });
+        updateData.sectionId = firstSection?.id ?? null;
+      } else {
+        updateData.sectionId = params.sectionId;
+      }
+    } else {
+      updateData.sectionId = params.sectionId;
+    }
+
     let position = params.position;
     if (position === undefined) {
+      const targetSectionId = (updateData.sectionId as string | null) ?? params.sectionId;
       const maxPos = await prisma.task.aggregate({
-        where: { sectionId: params.sectionId },
+        where: { sectionId: targetSectionId },
         _max: { position: true },
       });
       position = (maxPos._max.position ?? 0) + 1;
     }
+    updateData.position = position;
 
     const updated = await prisma.task.update({
       where: { id: params.taskId },
-      data: { sectionId: params.sectionId, position },
+      data: updateData,
       include: {
         section: { select: { id: true, name: true } },
         project: { select: { id: true, name: true } },

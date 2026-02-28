@@ -76,10 +76,11 @@ export function registerTaskTools(server: McpServer) {
 
   server.tool(
     'task_move',
-    'タスクを別のセクションに移動します',
+    'タスクを別のセクションまたはプロジェクトに移動します',
     {
       taskId: z.string().describe('タスクID'),
       sectionId: z.string().nullable().describe('移動先セクションID（nullでセクション未所属）'),
+      projectId: z.string().optional().describe('移動先プロジェクトID（省略時は現在のプロジェクト内で移動）'),
       position: z.number().optional().describe('表示位置（省略時は末尾）'),
     },
     async (params) => handleTaskMove(params, await getCtx()),
