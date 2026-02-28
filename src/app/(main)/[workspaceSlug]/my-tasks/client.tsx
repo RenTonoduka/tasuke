@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Calendar, Flag, FolderKanban, List, CalendarClock } from 'lucide-react';
+import { Calendar, Flag, FolderKanban, List, CalendarClock, ArrowUpDown } from 'lucide-react';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { useSubtaskExpand } from '@/hooks/use-subtask-expand';
 import { SubtaskToggle, SubtaskList } from '@/components/task/subtask-inline';
@@ -38,11 +38,43 @@ interface MyTasksClientProps {
 }
 
 type ViewType = 'list' | 'schedule';
+type SortKey = 'priority' | 'dueDate' | 'project' | 'title';
+
+const priorityOrder: Record<string, number> = { P0: 0, P1: 1, P2: 2, P3: 3 };
+
+function sortTasks(tasks: MyTask[], key: SortKey): MyTask[] {
+  return [...tasks].sort((a, b) => {
+    switch (key) {
+      case 'priority':
+        return (priorityOrder[a.priority] ?? 9) - (priorityOrder[b.priority] ?? 9);
+      case 'dueDate': {
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      }
+      case 'project':
+        return a.project.name.localeCompare(b.project.name, 'ja');
+      case 'title':
+        return a.title.localeCompare(b.title, 'ja');
+      default:
+        return 0;
+    }
+  });
+}
+
+const sortLabels: Record<SortKey, string> = {
+  priority: '優先度',
+  dueDate: '期限',
+  project: 'プロジェクト',
+  title: 'タイトル',
+};
 
 export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksClientProps) {
   const [tasks, setTasks] = useState(initialTasks);
   useEffect(() => { setTasks(initialTasks); }, [initialTasks]);
   const [view, setView] = useState<ViewType>('list');
+  const [sortKey, setSortKey] = useState<SortKey>('priority');
   const openPanel = useTaskPanelStore((s) => s.open);
   const activeTaskId = useTaskPanelStore((s) => s.activeTaskId);
   const { expanded, subtasks, loading, toggle: toggleSubtask, toggleStatus, deleteSubtask } = useSubtaskExpand();
@@ -91,12 +123,13 @@ export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksCli
     }
   };
 
-  const pending = tasks.filter((t) => t.status !== 'DONE');
-  const done = tasks.filter((t) => t.status === 'DONE');
+  const sorted = sortTasks(tasks, sortKey);
+  const pending = sorted.filter((t) => t.status !== 'DONE');
+  const done = sorted.filter((t) => t.status === 'DONE');
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      {/* ビュー切替タブ */}
+      {/* ビュー切替タブ + ソート */}
       <div className="flex items-center gap-1 border-b border-g-border bg-g-bg px-4 py-1.5">
         <button
           onClick={() => setView('list')}
@@ -122,6 +155,26 @@ export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksCli
           <CalendarClock className="h-3.5 w-3.5" />
           スケジュール
         </button>
+
+        {view === 'list' && (
+          <div className="ml-auto flex items-center gap-1">
+            <ArrowUpDown className="h-3 w-3 text-g-text-muted" />
+            {(Object.keys(sortLabels) as SortKey[]).map((key) => (
+              <button
+                key={key}
+                onClick={() => setSortKey(key)}
+                className={cn(
+                  'rounded-md px-2 py-1 text-[11px] transition-colors',
+                  sortKey === key
+                    ? 'bg-[#4285F4]/10 font-medium text-[#4285F4]'
+                    : 'text-g-text-muted hover:bg-g-surface-hover hover:text-g-text-secondary'
+                )}
+              >
+                {sortLabels[key]}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* リストビュー */}
