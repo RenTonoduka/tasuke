@@ -258,6 +258,49 @@ const TOOLS: ToolDef[] = [
     },
     readOnly: false,
   },
+  // Task Bulk
+  {
+    name: 'task_bulk_update',
+    description: 'タスクを一括操作します（ステータス変更/優先度変更/一括削除）',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        taskIds: { type: 'array', items: { type: 'string' }, description: '対象タスクIDの配列' },
+        action: { type: 'string', enum: ['status', 'priority', 'delete'], description: '操作種別' },
+        value: { type: 'string', description: '設定値' },
+      },
+      required: ['taskIds', 'action'],
+    },
+    readOnly: false,
+  },
+  // Assignee
+  {
+    name: 'task_assignee_set',
+    description: 'タスクの担当者を設定します（既存の担当者は置換）',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        taskId: { type: 'string' },
+        userIds: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['taskId', 'userIds'],
+    },
+    readOnly: false,
+  },
+  // Activity
+  {
+    name: 'activity_list',
+    description: 'タスクのアクティビティ履歴を取得します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        taskId: { type: 'string' },
+        limit: { type: 'number' },
+      },
+      required: ['taskId'],
+    },
+    readOnly: true,
+  },
   // Comment
   {
     name: 'comment_list',
@@ -283,6 +326,69 @@ const TOOLS: ToolDef[] = [
       },
       required: ['taskId', 'content'],
     },
+    readOnly: false,
+  },
+  {
+    name: 'comment_update',
+    description: 'コメントを編集します（自分のコメントのみ）',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        commentId: { type: 'string' },
+        content: { type: 'string' },
+      },
+      required: ['commentId', 'content'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'comment_delete',
+    description: 'コメントを削除します（自分のコメントのみ）',
+    inputSchema: {
+      type: 'object',
+      properties: { commentId: { type: 'string' } },
+      required: ['commentId'],
+    },
+    readOnly: false,
+  },
+  // Section Delete
+  {
+    name: 'section_delete',
+    description: 'セクションを削除します',
+    inputSchema: {
+      type: 'object',
+      properties: { sectionId: { type: 'string' } },
+      required: ['sectionId'],
+    },
+    readOnly: false,
+  },
+  // Notification
+  {
+    name: 'notification_list',
+    description: '通知一覧を取得します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        unreadOnly: { type: 'boolean' },
+        limit: { type: 'number' },
+      },
+    },
+    readOnly: true,
+  },
+  {
+    name: 'notification_read',
+    description: '通知を既読にします',
+    inputSchema: {
+      type: 'object',
+      properties: { notificationId: { type: 'string' } },
+      required: ['notificationId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'notification_read_all',
+    description: '全ての未読通知を既読にします',
+    inputSchema: { type: 'object', properties: {} },
     readOnly: false,
   },
   // Dashboard
@@ -330,6 +436,15 @@ const TOOL_HANDLERS: Record<string, (params: any, ctx: ToolContext) => Promise<h
   task_label_set: handlers.handleTaskLabelSet,
   comment_list: handlers.handleCommentList,
   comment_add: handlers.handleCommentAdd,
+  comment_update: handlers.handleCommentUpdate,
+  comment_delete: handlers.handleCommentDelete,
+  section_delete: handlers.handleSectionDelete,
+  task_bulk_update: handlers.handleTaskBulkUpdate,
+  task_assignee_set: handlers.handleTaskAssigneeSet,
+  activity_list: handlers.handleActivityList,
+  notification_list: handlers.handleNotificationList,
+  notification_read: handlers.handleNotificationRead,
+  notification_read_all: handlers.handleNotificationReadAll,
   dashboard: handlers.handleDashboard,
   my_tasks: handlers.handleMyTasks,
 };

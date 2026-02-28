@@ -671,6 +671,272 @@ export async function handleCommentAdd(
   }
 }
 
+// ==================== Task Bulk Tools ====================
+
+export async function handleTaskBulkUpdate(
+  params: {
+    taskIds: string[];
+    action: 'status' | 'priority' | 'delete';
+    value?: string;
+  },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const accessibleIds = await getAccessibleProjectIds(ctx.userId, ctx.workspaceId);
+
+    const tasks = await prisma.task.findMany({
+      where: { id: { in: params.taskIds }, projectId: { in: accessibleIds } },
+      select: { id: true },
+    });
+    if (tasks.length === 0) return err('対象タスクが見つかりません');
+    const validIds = tasks.map((t) => t.id);
+
+    switch (params.action) {
+      case 'status': {
+        if (!params.value) return err('ステータスを指定してください');
+        const updateData: Record<string, unknown> = { status: params.value };
+        if (params.value === 'DONE') updateData.completedAt = new Date();
+        else updateData.completedAt = null;
+        await prisma.task.updateMany({ where: { id: { in: validIds } }, data: updateData });
+        return ok({ updated: validIds.length, action: 'status', value: params.value });
+      }
+      case 'priority': {
+        if (!params.value) return err('優先度を指定してください');
+        await prisma.task.updateMany({ where: { id: { in: validIds } }, data: { priority: params.value as 'P0' | 'P1' | 'P2' | 'P3' } });
+        return ok({ updated: validIds.length, action: 'priority', value: params.value });
+      }
+      case 'delete': {
+        await prisma.task.deleteMany({ where: { id: { in: validIds } } });
+        return ok({ deleted: validIds.length });
+      }
+      default:
+        return err('不明なアクションです');
+    }
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+// ==================== Assignee Tools ====================
+
+export async function handleTaskAssigneeSet(
+  params: { taskId: string; userIds: string[] },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const task = await prisma.task.findUnique({
+      where: { id: params.taskId },
+      include: { assignees: true },
+    });
+    if (!task) return err('タスクが見つかりません');
+
+    const accessibleIds = await getAccessibleProjectIds(ctx.userId, ctx.workspaceId);
+    if (!accessibleIds.includes(task.projectId)) {
+      return err('プロジェクトへのアクセス権がありません');
+    }
+
+    if (params.userIds.length > 0) {
+      const validMembers = await prisma.workspaceMember.findMany({
+        where: { workspaceId: ctx.workspaceId, userId: { in: params.userIds } },
+        select: { userId: true },
+      });
+      const validSet = new Set(validMembers.map((m) => m.userId));
+      const invalid = params.userIds.filter((id) => !validSet.has(id));
+      if (invalid.length > 0) return err('ワークスペースに所属していないユーザーが含まれています');
+    }
+
+    const currentIds = task.assignees.map((a) => a.userId);
+    const toAdd = params.userIds.filter((id) => !currentIds.includes(id));
+    const toRemove = currentIds.filter((id) => !params.userIds.includes(id));
+
+    await prisma.$transaction([
+      ...toRemove.map((userId) =>
+        prisma.taskAssignment.deleteMany({ where: { taskId: params.taskId, userId } }),
+      ),
+      ...toAdd.map((userId) =>
+        prisma.taskAssignment.create({ data: { taskId: params.taskId, userId } }),
+      ),
+    ]);
+
+    const updated = await prisma.task.findUnique({
+      where: { id: params.taskId },
+      include: { assignees: { include: { user: { select: { id: true, name: true } } } } },
+    });
+    return ok(updated?.assignees ?? []);
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+// ==================== Activity Tools ====================
+
+export async function handleActivityList(
+  params: { taskId: string; limit?: number },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const task = await prisma.task.findUnique({
+      where: { id: params.taskId },
+      select: { projectId: true },
+    });
+    if (!task) return err('タスクが見つかりません');
+
+    const accessibleIds = await getAccessibleProjectIds(ctx.userId, ctx.workspaceId);
+    if (!accessibleIds.includes(task.projectId)) {
+      return err('プロジェクトへのアクセス権がありません');
+    }
+
+    const activities = await prisma.activity.findMany({
+      where: { taskId: params.taskId },
+      include: { user: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: params.limit ?? 30,
+    });
+    return ok(activities);
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+// ==================== Notification Tools ====================
+
+export async function handleNotificationList(
+  params: { unreadOnly?: boolean; limit?: number },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: {
+        userId: ctx.userId,
+        ...(params.unreadOnly && { read: false }),
+      },
+      orderBy: [{ read: 'asc' }, { createdAt: 'desc' }],
+      take: params.limit ?? 50,
+    });
+    return ok(notifications);
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function handleNotificationRead(
+  params: { notificationId: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const notification = await prisma.notification.findUnique({
+      where: { id: params.notificationId },
+    });
+    if (!notification) return err('通知が見つかりません');
+    if (notification.userId !== ctx.userId) return err('権限がありません');
+
+    const updated = await prisma.notification.update({
+      where: { id: params.notificationId },
+      data: { read: true },
+    });
+    return ok(updated);
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function handleNotificationReadAll(
+  _params: Record<string, never>,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const result = await prisma.notification.updateMany({
+      where: { userId: ctx.userId, read: false },
+      data: { read: true },
+    });
+    return ok({ success: true, updated: result.count });
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+// ==================== Comment Update/Delete ====================
+
+export async function handleCommentUpdate(
+  params: { commentId: string; content: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const comment = await prisma.comment.findUnique({
+      where: { id: params.commentId },
+      include: { task: { select: { projectId: true } } },
+    });
+    if (!comment) return err('コメントが見つかりません');
+    if (comment.userId !== ctx.userId) return err('自分のコメントのみ編集できます');
+
+    const accessibleIds = await getAccessibleProjectIds(ctx.userId, ctx.workspaceId);
+    if (!accessibleIds.includes(comment.task.projectId)) {
+      return err('プロジェクトへのアクセス権がありません');
+    }
+
+    const trimmed = params.content.trim();
+    if (!trimmed) return err('コメント内容が必要です');
+
+    const updated = await prisma.comment.update({
+      where: { id: params.commentId },
+      data: { content: trimmed },
+      include: { user: { select: { id: true, name: true } } },
+    });
+    return ok(updated);
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function handleCommentDelete(
+  params: { commentId: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const comment = await prisma.comment.findUnique({
+      where: { id: params.commentId },
+      include: { task: { select: { projectId: true } } },
+    });
+    if (!comment) return err('コメントが見つかりません');
+    if (comment.userId !== ctx.userId) return err('自分のコメントのみ削除できます');
+
+    const accessibleIds = await getAccessibleProjectIds(ctx.userId, ctx.workspaceId);
+    if (!accessibleIds.includes(comment.task.projectId)) {
+      return err('プロジェクトへのアクセス権がありません');
+    }
+
+    await prisma.comment.delete({ where: { id: params.commentId } });
+    return ok({ success: true, deletedId: params.commentId });
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+// ==================== Section Delete ====================
+
+export async function handleSectionDelete(
+  params: { sectionId: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const section = await prisma.section.findUnique({
+      where: { id: params.sectionId },
+      select: { projectId: true },
+    });
+    if (!section) return err('セクションが見つかりません');
+
+    const accessibleIds = await getAccessibleProjectIds(ctx.userId, ctx.workspaceId);
+    if (!accessibleIds.includes(section.projectId)) {
+      return err('プロジェクトへのアクセス権がありません');
+    }
+
+    await prisma.section.delete({ where: { id: params.sectionId } });
+    return ok({ success: true, deletedId: params.sectionId });
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
 // ==================== Dashboard Tools ====================
 
 export async function handleDashboard(

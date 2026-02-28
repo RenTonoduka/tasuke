@@ -5,6 +5,7 @@ import {
   handleSectionList,
   handleSectionCreate,
   handleSectionUpdate,
+  handleSectionDelete,
 } from '../tool-handlers.js';
 
 async function getCtx() {
@@ -38,5 +39,14 @@ export function registerSectionTools(server: McpServer) {
       name: z.string().describe('新しいセクション名'),
     },
     async (params) => handleSectionUpdate(params, await getCtx()),
+  );
+
+  server.tool(
+    'section_delete',
+    'セクションを削除します（配下のタスクはセクション未所属になります）',
+    {
+      sectionId: z.string().describe('セクションID'),
+    },
+    async (params) => handleSectionDelete(params, await getCtx()),
   );
 }

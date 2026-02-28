@@ -8,6 +8,9 @@ import {
   handleTaskDelete,
   handleTaskMove,
   handleTaskSearch,
+  handleTaskBulkUpdate,
+  handleTaskAssigneeSet,
+  handleActivityList,
 } from '../tool-handlers.js';
 
 async function getCtx() {
@@ -90,5 +93,36 @@ export function registerTaskTools(server: McpServer) {
       limit: z.number().optional().describe('取得件数（デフォルト20）'),
     },
     async (params) => handleTaskSearch(params, await getCtx()),
+  );
+
+  server.tool(
+    'task_bulk_update',
+    'タスクを一括操作します（ステータス変更/優先度変更/一括削除）',
+    {
+      taskIds: z.array(z.string()).min(1).max(100).describe('対象タスクIDの配列'),
+      action: z.enum(['status', 'priority', 'delete']).describe('操作種別'),
+      value: z.string().optional().describe('設定値（status: TODO/IN_PROGRESS/DONE, priority: P0-P3）'),
+    },
+    async (params) => handleTaskBulkUpdate(params, await getCtx()),
+  );
+
+  server.tool(
+    'task_assignee_set',
+    'タスクの担当者を設定します（既存の担当者は置換）',
+    {
+      taskId: z.string().describe('タスクID'),
+      userIds: z.array(z.string()).describe('担当者のユーザーIDの配列（空配列で全解除）'),
+    },
+    async (params) => handleTaskAssigneeSet(params, await getCtx()),
+  );
+
+  server.tool(
+    'activity_list',
+    'タスクのアクティビティ履歴を取得します',
+    {
+      taskId: z.string().describe('タスクID'),
+      limit: z.number().optional().describe('取得件数（デフォルト30）'),
+    },
+    async (params) => handleActivityList(params, await getCtx()),
   );
 }

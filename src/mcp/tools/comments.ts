@@ -4,6 +4,8 @@ import { getDefaultUser, getDefaultWorkspace } from '../context.js';
 import {
   handleCommentList,
   handleCommentAdd,
+  handleCommentUpdate,
+  handleCommentDelete,
 } from '../tool-handlers.js';
 
 async function getCtx() {
@@ -30,5 +32,24 @@ export function registerCommentTools(server: McpServer) {
       content: z.string().describe('コメント内容'),
     },
     async (params) => handleCommentAdd(params, await getCtx()),
+  );
+
+  server.tool(
+    'comment_update',
+    'コメントを編集します（自分のコメントのみ）',
+    {
+      commentId: z.string().describe('コメントID'),
+      content: z.string().describe('新しいコメント内容'),
+    },
+    async (params) => handleCommentUpdate(params, await getCtx()),
+  );
+
+  server.tool(
+    'comment_delete',
+    'コメントを削除します（自分のコメントのみ）',
+    {
+      commentId: z.string().describe('コメントID'),
+    },
+    async (params) => handleCommentDelete(params, await getCtx()),
   );
 }
