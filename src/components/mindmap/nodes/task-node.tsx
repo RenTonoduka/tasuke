@@ -40,6 +40,7 @@ function TaskNodeComponent({ data }: NodeProps<TaskNodeType>) {
   const editRef = useRef<HTMLInputElement>(null);
   const addRef = useRef<HTMLInputElement>(null);
   const isSavingRef = useRef(false);
+  const composingRef = useRef(false);
 
   useEffect(() => {
     if (data.isEditing) {
@@ -110,9 +111,11 @@ function TaskNodeComponent({ data }: NodeProps<TaskNodeType>) {
           ref={editRef}
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
+          onCompositionStart={() => { composingRef.current = true; }}
+          onCompositionEnd={() => { composingRef.current = false; }}
           onBlur={saveTitle}
           onKeyDown={(e) => {
-            if (e.nativeEvent.isComposing) return;
+            if (e.nativeEvent.isComposing || composingRef.current) return;
             if (e.key === 'Enter') { e.currentTarget.blur(); }
             if (e.key === 'Escape') { setEditValue(data.label); clearInteraction(); }
             e.stopPropagation();
@@ -140,9 +143,11 @@ function TaskNodeComponent({ data }: NodeProps<TaskNodeType>) {
           ref={addRef}
           value={addValue}
           onChange={(e) => setAddValue(e.target.value)}
+          onCompositionStart={() => { composingRef.current = true; }}
+          onCompositionEnd={() => { composingRef.current = false; }}
           onBlur={addSubtask}
           onKeyDown={(e) => {
-            if (e.nativeEvent.isComposing) return;
+            if (e.nativeEvent.isComposing || composingRef.current) return;
             if (e.key === 'Enter') { e.currentTarget.blur(); }
             if (e.key === 'Escape') { clearInteraction(); }
             e.stopPropagation();

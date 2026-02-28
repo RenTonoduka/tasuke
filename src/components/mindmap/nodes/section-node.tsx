@@ -31,6 +31,7 @@ function SectionNodeComponent({ id, data }: NodeProps<SectionNodeType>) {
   const editRef = useRef<HTMLInputElement>(null);
   const addRef = useRef<HTMLInputElement>(null);
   const isSavingRef = useRef(false);
+  const composingRef = useRef(false);
 
   useEffect(() => {
     if (data.isEditing) {
@@ -100,9 +101,11 @@ function SectionNodeComponent({ id, data }: NodeProps<SectionNodeType>) {
           ref={editRef}
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
+          onCompositionStart={() => { composingRef.current = true; }}
+          onCompositionEnd={() => { composingRef.current = false; }}
           onBlur={saveSectionName}
           onKeyDown={(e) => {
-            if (e.nativeEvent.isComposing) return;
+            if (e.nativeEvent.isComposing || composingRef.current) return;
             if (e.key === 'Enter') { e.currentTarget.blur(); }
             if (e.key === 'Escape') { setEditValue(data.label); clearInteraction(); }
             e.stopPropagation();
@@ -127,9 +130,11 @@ function SectionNodeComponent({ id, data }: NodeProps<SectionNodeType>) {
           ref={addRef}
           value={addValue}
           onChange={(e) => setAddValue(e.target.value)}
+          onCompositionStart={() => { composingRef.current = true; }}
+          onCompositionEnd={() => { composingRef.current = false; }}
           onBlur={addTask}
           onKeyDown={(e) => {
-            if (e.nativeEvent.isComposing) return;
+            if (e.nativeEvent.isComposing || composingRef.current) return;
             if (e.key === 'Enter') { e.currentTarget.blur(); }
             if (e.key === 'Escape') { clearInteraction(); }
             e.stopPropagation();

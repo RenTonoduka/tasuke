@@ -13,6 +13,7 @@ export function AddTaskInline({ onAdd, listenNewTask }: AddTaskInlineProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const composingRef = useRef(false);
 
   useEffect(() => {
     if (!listenNewTask) return;
@@ -58,8 +59,10 @@ export function AddTaskInline({ onAdd, listenNewTask }: AddTaskInlineProps) {
         ref={inputRef}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
+        onCompositionStart={() => { composingRef.current = true; }}
+        onCompositionEnd={() => { composingRef.current = false; }}
         onKeyDown={(e) => {
-          if (e.nativeEvent.isComposing) return;
+          if (e.nativeEvent.isComposing || composingRef.current) return;
           if (e.key === 'Enter') handleSubmit();
           if (e.key === 'Escape') setIsEditing(false);
         }}
