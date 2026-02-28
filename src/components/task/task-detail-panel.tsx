@@ -526,7 +526,10 @@ export function TaskDetailPanel() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 onBlur={handleTitleBlur}
-                onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+                onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing) return;
+                  if (e.key === 'Enter') e.preventDefault();
+                }}
                 className="w-full resize-none bg-transparent text-lg font-semibold text-g-text outline-none"
                 rows={1}
               />
@@ -1064,6 +1067,7 @@ export function TaskDetailPanel() {
                         }
                       }}
                       onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing) return;
                         if (e.key === 'Enter') e.currentTarget.blur();
                         if (e.key === 'Escape') {
                           e.currentTarget.value = sub.title;
@@ -1089,7 +1093,10 @@ export function TaskDetailPanel() {
               <input
                 value={newSubtask}
                 onChange={(e) => setNewSubtask(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addSubtask()}
+                onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing) return;
+                  if (e.key === 'Enter') addSubtask();
+                }}
                 placeholder="サブタスクを追加..."
                 className="mt-2 w-full rounded-md border border-g-border px-3 py-1.5 text-sm outline-none focus:border-[#4285F4]"
               />

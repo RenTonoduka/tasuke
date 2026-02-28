@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Plus } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface AddTaskInlineProps {
   onAdd: (title: string) => void;
@@ -28,6 +29,10 @@ export function AddTaskInline({ onAdd, listenNewTask }: AddTaskInlineProps) {
     if (trimmed) {
       onAdd(trimmed);
       setTitle('');
+      toast({
+        title: '担当者が未設定です',
+        description: 'タスクをクリックして担当者を設定してください',
+      });
     }
     setIsEditing(false);
   };
@@ -54,6 +59,7 @@ export function AddTaskInline({ onAdd, listenNewTask }: AddTaskInlineProps) {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing) return;
           if (e.key === 'Enter') handleSubmit();
           if (e.key === 'Escape') setIsEditing(false);
         }}

@@ -102,6 +102,7 @@ function SectionNodeComponent({ id, data }: NodeProps<SectionNodeType>) {
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={saveSectionName}
           onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
             if (e.key === 'Enter') { e.currentTarget.blur(); }
             if (e.key === 'Escape') { setEditValue(data.label); clearInteraction(); }
             e.stopPropagation();
@@ -128,6 +129,7 @@ function SectionNodeComponent({ id, data }: NodeProps<SectionNodeType>) {
           onChange={(e) => setAddValue(e.target.value)}
           onBlur={addTask}
           onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
             if (e.key === 'Enter') { e.currentTarget.blur(); }
             if (e.key === 'Escape') { clearInteraction(); }
             e.stopPropagation();

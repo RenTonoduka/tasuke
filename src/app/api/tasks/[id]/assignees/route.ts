@@ -3,6 +3,7 @@ import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { syncTaskToGitHub } from '@/lib/github-sync';
+import { createNotification } from '@/lib/notifications';
 import { z } from 'zod';
 
 const assigneesSchema = z.object({
@@ -64,6 +65,18 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         },
       },
     });
+
+    // 新規追加ユーザーに通知（自分自身は除く）
+    for (const userId of toAdd) {
+      if (userId !== user.id) {
+        createNotification({
+          userId,
+          type: 'ASSIGNED',
+          message: `「${task.title}」に割り当てられました`,
+          taskId: params.id,
+        }).catch((e) => console.error('[notification] assignee通知エラー:', e));
+      }
+    }
 
     // GitHub同期（担当者変更）
     if (task.githubIssueId) {

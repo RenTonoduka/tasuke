@@ -112,6 +112,7 @@ function TaskNodeComponent({ data }: NodeProps<TaskNodeType>) {
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={saveTitle}
           onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
             if (e.key === 'Enter') { e.currentTarget.blur(); }
             if (e.key === 'Escape') { setEditValue(data.label); clearInteraction(); }
             e.stopPropagation();
@@ -141,6 +142,7 @@ function TaskNodeComponent({ data }: NodeProps<TaskNodeType>) {
           onChange={(e) => setAddValue(e.target.value)}
           onBlur={addSubtask}
           onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
             if (e.key === 'Enter') { e.currentTarget.blur(); }
             if (e.key === 'Escape') { clearInteraction(); }
             e.stopPropagation();
