@@ -148,7 +148,7 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 text-g-text-secondary lg:hidden"
+        className="h-8 w-8 text-g-text-secondary"
         onClick={toggle}
       >
         <Menu className="h-5 w-5" />
