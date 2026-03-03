@@ -525,7 +525,7 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'ãƒžã‚
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
-        measuring={{ droppable: { strategy: MeasuringStrategy.WhileDragging } }}
+        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
       >
         <ScrollArea className="flex-1 px-2 py-2">
           {/* Navigation */}
@@ -583,10 +583,10 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'ãƒžã‚
         {otherWorkspaces.length > 0 && (
           <div
             className={cn(
-              'border-t border-g-border px-2 transition-all duration-200 overflow-hidden',
+              'border-t border-g-border px-2 py-2 transition-opacity duration-150',
               activeProject
-                ? 'max-h-60 py-2 opacity-100'
-                : 'max-h-0 py-0 opacity-0'
+                ? 'opacity-100'
+                : 'opacity-0 pointer-events-none'
             )}
           >
             <span className="block px-1 pb-1.5 text-[11px] font-semibold text-[#4285F4]">
