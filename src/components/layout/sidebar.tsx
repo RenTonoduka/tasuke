@@ -200,8 +200,8 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
   const [wsCreateOpen, setWsCreateOpen] = useState(false);
   const [wsCreateName, setWsCreateName] = useState('');
 
-  const fetchWorkspaces = useCallback(async () => {
-    if (wsLoaded) return;
+  const fetchWorkspaces = useCallback(async (force = false) => {
+    if (wsLoaded && !force) return;
     try {
       const res = await fetch('/api/workspaces');
       if (res.ok) {
@@ -211,6 +211,9 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
       }
     } catch {}
   }, [wsLoaded]);
+
+  // マウント時にワークスペース一覧をプリロード
+  useEffect(() => { fetchWorkspaces(); }, [fetchWorkspaces]);
 
   const handleWsRename = async () => {
     if (!wsRenameTarget || !wsRenameName.trim()) return;
