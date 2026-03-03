@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { CalendarClock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
@@ -8,7 +8,7 @@ import { useScheduleData } from './use-schedule-data';
 import { ScheduleHeader } from './schedule-header';
 import { ScheduleTimeline } from './schedule-timeline';
 import { ScheduleTaskList, ScheduleUnschedulable } from './schedule-task-list';
-import { minutesToTime } from './schedule-types';
+import { minutesToTime, HOUR_HEIGHT } from './schedule-types';
 import type { ScheduleViewProps, DayEvent } from './schedule-types';
 
 export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
@@ -25,15 +25,132 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     setEditingSettings,
     handleSaveSettings,
     fetchSchedule,
+    weekOffset,
+    goToPrevWeek,
+    goToNextWeek,
+    goToToday,
+    currentWeekLabel,
   } = useScheduleData(projectId, myTasksOnly);
 
   const [showSettings, setShowSettings] = useState(false);
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ date: string; startMin: number } | null>(null);
-  const droppingRef = useRef(false); // D&D連続ドロップ防止
+  const droppingRef = useRef(false);
   const openPanel = useTaskPanelStore((s) => s.open);
 
+  // リサイズ
+  const [resizing, setResizing] = useState<{
+    id: string;
+    type: 'event' | 'task';
+    initialY: number;
+    initialEndMin: number;
+    date: string;
+    startMin: number;
+  } | null>(null);
+  const [resizePreviewEndMin, setResizePreviewEndMin] = useState<number | undefined>();
+
   const workEndMin = savedSettings.workEnd * 60;
+
+  // タイムラインコンテナ（自動スクロール用）
+  const timelineContainerRef = useRef<HTMLDivElement>(null);
+
+  // 自動スクロール: データ取得後に現在時刻位置へ
+  useEffect(() => {
+    if (!data || !timelineContainerRef.current || weekOffset !== 0) return;
+    const now = new Date();
+    const currentMin = now.getHours() * 60 + now.getMinutes();
+    const workStartMin = savedSettings.workStart * 60;
+    if (currentMin < workStartMin) return;
+
+    const offset = ((currentMin - workStartMin) / 60) * HOUR_HEIGHT;
+    const container = timelineContainerRef.current;
+    const scrollTarget = offset - container.clientHeight / 3;
+    requestAnimationFrame(() => {
+      container.scrollTop = Math.max(0, scrollTarget);
+    });
+  }, [data, savedSettings.workStart, weekOffset]);
+
+  // リサイズ: document イベントリスナー
+  useEffect(() => {
+    if (!resizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaY = e.clientY - resizing.initialY;
+      const deltaMin = Math.round((deltaY / HOUR_HEIGHT) * 60 / 15) * 15;
+      const newEndMin = Math.max(
+        resizing.startMin + 15,
+        Math.min(resizing.initialEndMin + deltaMin, workEndMin)
+      );
+      setResizePreviewEndMin(newEndMin);
+    };
+
+    const handleMouseUp = async () => {
+      if (resizePreviewEndMin != null && resizePreviewEndMin !== resizing.initialEndMin) {
+        const { date, startMin } = resizing;
+        const startISO = `${date}T${minutesToTime(startMin)}:00`;
+        const endISO = `${date}T${minutesToTime(resizePreviewEndMin)}:00`;
+
+        if (resizing.type === 'event') {
+          try {
+            await fetch('/api/calendar/events', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ eventId: resizing.id, start: startISO, end: endISO }),
+            });
+          } catch { /* ignore */ }
+        } else {
+          const slotKey = `${resizing.id}|${date}|${minutesToTime(startMin)}`;
+          const blockId = registeredBlocks.get(slotKey);
+          if (blockId) {
+            try {
+              await fetch('/api/calendar/schedule-block', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scheduleBlockId: blockId }),
+              });
+              const res = await fetch('/api/calendar/schedule-block', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  taskId: resizing.id,
+                  date,
+                  start: minutesToTime(startMin),
+                  end: minutesToTime(resizePreviewEndMin),
+                }),
+              });
+              if (res.ok) {
+                const newBlock = await res.json();
+                setRegisteredBlocks((prev) => {
+                  const m = new Map(prev);
+                  m.delete(slotKey);
+                  m.set(slotKey, newBlock.id);
+                  return m;
+                });
+              }
+            } catch { /* ignore */ }
+          }
+        }
+        fetchSchedule();
+      }
+      setResizing(null);
+      setResizePreviewEndMin(undefined);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizing, resizePreviewEndMin, workEndMin, fetchSchedule, registeredBlocks, setRegisteredBlocks]);
+
+  const handleResizeStart = useCallback(
+    (id: string, type: 'event' | 'task', clientY: number, endMin: number, date: string, startMin: number) => {
+      setResizing({ id, type, initialY: clientY, initialEndMin: endMin, date, startMin });
+      setResizePreviewEndMin(endMin);
+    },
+    [],
+  );
 
   // D&D: タスクドラッグ開始
   const handleDragStartTask = useCallback(
@@ -74,14 +191,13 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     setDropTarget(null);
   }, []);
 
-  // D&D: ドロップ処理（startMinはDayColumnのgridRefで正確に計算済み）
+  // D&D: ドロップ処理
   const handleDrop = useCallback(
     async (e: React.DragEvent, date: string, startMin: number) => {
       e.preventDefault();
       setDropTarget(null);
       setDraggingTask(null);
 
-      // 連続ドロップ防止
       if (droppingRef.current) return;
       droppingRef.current = true;
 
@@ -112,21 +228,13 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
           const res = await fetch('/api/calendar/events', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              eventId: payload.calendarEventId,
-              start: startISO,
-              end: endISO,
-            }),
+            body: JSON.stringify({ eventId: payload.calendarEventId, start: startISO, end: endISO }),
           });
           if (res.ok) {
             fetchSchedule();
           } else {
             const err = await res.json().catch(() => ({}));
-            toast({
-              title: 'カレンダーイベントの移動に失敗',
-              description: err.error,
-              variant: 'destructive',
-            });
+            toast({ title: 'カレンダーイベントの移動に失敗', description: err.error, variant: 'destructive' });
           }
         } catch {
           toast({ title: 'カレンダーイベントの移動に失敗', variant: 'destructive' });
@@ -152,7 +260,6 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
       setRegisteringSlot(newSlotKey);
       try {
         if (fromSlotKey && registeredBlocks.has(fromSlotKey)) {
-          // 移動: POST（新作成）→ DELETE（旧削除）の順でロバスト化
           const oldBlockId = registeredBlocks.get(fromSlotKey)!;
 
           const postRes = await fetch('/api/calendar/schedule-block', {
@@ -163,11 +270,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
 
           if (!postRes.ok) {
             const err = await postRes.json().catch(() => ({}));
-            toast({
-              title: 'ブロックの移動に失敗',
-              description: err.error,
-              variant: 'destructive',
-            });
+            toast({ title: 'ブロックの移動に失敗', description: err.error, variant: 'destructive' });
             return;
           }
 
@@ -187,16 +290,11 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
           });
 
           if (!deleteRes.ok) {
-            toast({
-              title: '旧ブロックの削除に失敗',
-              description: 'カレンダーから手動で削除してください',
-              variant: 'destructive',
-            });
+            toast({ title: '旧ブロックの削除に失敗', description: 'カレンダーから手動で削除してください', variant: 'destructive' });
           }
 
           fetchSchedule();
         } else {
-          // 新規配置
           const res = await fetch('/api/calendar/schedule-block', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -208,11 +306,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
             fetchSchedule();
           } else {
             const err = await res.json().catch(() => ({}));
-            toast({
-              title: 'ブロックの登録に失敗',
-              description: err.error,
-              variant: 'destructive',
-            });
+            toast({ title: 'ブロックの登録に失敗', description: err.error, variant: 'destructive' });
           }
         }
       } finally {
@@ -297,36 +391,69 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     [registeredBlocks, setRegisteredBlocks, setRegisteringSlot],
   );
 
+  // クリック作成: 空き時間をクリックでGoogleカレンダーに予定を作成
+  const handleClickCreate = useCallback(
+    async (date: string, startMin: number, endMin: number) => {
+      const startISO = `${date}T${minutesToTime(startMin)}:00`;
+      const endISO = `${date}T${minutesToTime(endMin)}:00`;
+      try {
+        const res = await fetch('/api/calendar/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ summary: '新しい予定', start: startISO, end: endISO }),
+        });
+        if (res.ok) {
+          toast({ title: '予定を作成しました' });
+          fetchSchedule();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          toast({ title: '予定の作成に失敗', description: err.error, variant: 'destructive' });
+        }
+      } catch {
+        toast({ title: '予定の作成に失敗', variant: 'destructive' });
+      }
+    },
+    [fetchSchedule],
+  );
+
   return (
-    <div className="flex-1 overflow-auto p-4">
-      <ScheduleHeader
-        loading={loading}
-        hasData={!!data}
-        showSettings={showSettings}
-        onToggleSettings={() => setShowSettings(!showSettings)}
-        onRefresh={fetchSchedule}
-        totalFreeHours={data?.totalFreeHours}
-        unestimatedCount={data?.unestimatedCount}
-        unestimatedTasks={data?.unestimatedTasks}
-        editingSettings={editingSettings}
-        onSettingsChange={setEditingSettings}
-        onSaveSettings={handleSaveSettings}
-        onUpdateEstimate={async (taskId, hours) => {
-          try {
-            const res = await fetch(`/api/tasks/${taskId}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ estimatedHours: hours }),
-            });
-            if (res.ok) fetchSchedule();
-          } catch { /* ignore */ }
-        }}
-        onOpenTask={openPanel}
-      />
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* 固定ヘッダー */}
+      <div className="shrink-0 px-4 pt-4">
+        <ScheduleHeader
+          loading={loading}
+          hasData={!!data}
+          showSettings={showSettings}
+          onToggleSettings={() => setShowSettings(!showSettings)}
+          onRefresh={fetchSchedule}
+          totalFreeHours={data?.totalFreeHours}
+          unestimatedCount={data?.unestimatedCount}
+          unestimatedTasks={data?.unestimatedTasks}
+          editingSettings={editingSettings}
+          onSettingsChange={setEditingSettings}
+          onSaveSettings={handleSaveSettings}
+          onUpdateEstimate={async (taskId, hours) => {
+            try {
+              const res = await fetch(`/api/tasks/${taskId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ estimatedHours: hours }),
+              });
+              if (res.ok) fetchSchedule();
+            } catch { /* ignore */ }
+          }}
+          onOpenTask={openPanel}
+          weekOffset={weekOffset}
+          onPrevWeek={goToPrevWeek}
+          onNextWeek={goToNextWeek}
+          onToday={goToToday}
+          weekLabel={currentWeekLabel}
+        />
+      </div>
 
       {/* 初期状態 */}
       {!data && !loading && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
           <CalendarClock className="mb-4 h-12 w-12 text-g-border" />
           <p className="text-sm text-g-text-secondary">
             Googleカレンダーの予定を取得し、
@@ -339,42 +466,68 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
         </div>
       )}
 
-      {/* タスク一覧（カレンダーの上に表示） */}
-      {data && data.suggestions.length > 0 && (
-        <ScheduleTaskList
-          suggestions={data.suggestions}
-          draggingTask={draggingTask}
-          onDragStart={handleDragStartTask}
-          onDragEnd={handleDragEnd}
-          onOpenTask={openPanel}
-        />
-      )}
-
-      {/* スケジュール不可タスク */}
-      {data && data.unschedulable.length > 0 && (
-        <ScheduleUnschedulable items={data.unschedulable} onOpenTask={openPanel} />
-      )}
-
-      {/* タイムライン */}
+      {/* メインエリア */}
       {data && (
-        <ScheduleTimeline
-          daysData={daysData}
-          workStart={savedSettings.workStart}
-          workEnd={savedSettings.workEnd}
-          draggingTask={draggingTask}
-          dropTarget={dropTarget}
-          registeredBlocks={registeredBlocks}
-          registeringSlot={registeringSlot}
-          onDragStartTask={handleDragStartTask}
-          onDragStartEvent={handleDragStartEvent}
-          onDragEnd={handleDragEnd}
-          onDropTargetChange={setDropTarget}
-          onDrop={handleDrop}
-          onRegisterBlock={handleRegisterBlock}
-          onOpenTask={openPanel}
-          onDeleteEvent={handleDeleteEvent}
-          suggestions={data.suggestions}
-        />
+        <div className="flex flex-1 overflow-hidden">
+          {/* サイドバー（デスクトップ） */}
+          <div className="hidden w-56 shrink-0 overflow-y-auto border-r border-g-border p-3 md:block">
+            {data.suggestions.length > 0 && (
+              <ScheduleTaskList
+                compact
+                suggestions={data.suggestions}
+                draggingTask={draggingTask}
+                onDragStart={handleDragStartTask}
+                onDragEnd={handleDragEnd}
+                onOpenTask={openPanel}
+              />
+            )}
+            {data.unschedulable.length > 0 && (
+              <ScheduleUnschedulable compact items={data.unschedulable} onOpenTask={openPanel} />
+            )}
+          </div>
+
+          {/* タイムライン */}
+          <div ref={timelineContainerRef} className="flex-1 overflow-auto p-2">
+            {/* モバイル用: タスクリスト（横長） */}
+            <div className="md:hidden">
+              {data.suggestions.length > 0 && (
+                <ScheduleTaskList
+                  suggestions={data.suggestions}
+                  draggingTask={draggingTask}
+                  onDragStart={handleDragStartTask}
+                  onDragEnd={handleDragEnd}
+                  onOpenTask={openPanel}
+                />
+              )}
+              {data.unschedulable.length > 0 && (
+                <ScheduleUnschedulable items={data.unschedulable} onOpenTask={openPanel} />
+              )}
+            </div>
+
+            <ScheduleTimeline
+              daysData={daysData}
+              workStart={savedSettings.workStart}
+              workEnd={savedSettings.workEnd}
+              draggingTask={draggingTask}
+              dropTarget={dropTarget}
+              registeredBlocks={registeredBlocks}
+              registeringSlot={registeringSlot}
+              onDragStartTask={handleDragStartTask}
+              onDragStartEvent={handleDragStartEvent}
+              onDragEnd={handleDragEnd}
+              onDropTargetChange={setDropTarget}
+              onDrop={handleDrop}
+              onRegisterBlock={handleRegisterBlock}
+              onOpenTask={openPanel}
+              onDeleteEvent={handleDeleteEvent}
+              onClickCreate={handleClickCreate}
+              onResizeStart={handleResizeStart}
+              resizingId={resizing?.id}
+              resizePreviewEndMin={resizePreviewEndMin}
+              suggestions={data.suggestions}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

@@ -112,7 +112,8 @@ export const PRIORITY_COLORS: Record<string, string> = {
 };
 
 export const HOUR_HEIGHT = 60;
-export const DAY_COL_WIDTH = 140;
+export const MIN_DAY_COL_WIDTH = 180;
+export const TIME_LABEL_WIDTH = 52;
 
 export function minutesToTime(min: number): string {
   const h = Math.floor(min / 60);
@@ -156,4 +157,60 @@ export function formatDueDate(dateStr: string): string {
 
 export function formatYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// イベント重複レイアウト計算
+export interface OverlapLayoutResult {
+  column: number;
+  totalColumns: number;
+}
+
+export function computeOverlapLayout(items: { startMin: number; endMin: number }[]): OverlapLayoutResult[] {
+  const n = items.length;
+  if (n === 0) return [];
+
+  const indices = items.map((_, i) => i);
+  indices.sort((a, b) => items[a].startMin - items[b].startMin || items[a].endMin - items[b].endMin);
+
+  const columns = new Array<number>(n).fill(0);
+
+  for (let ii = 0; ii < n; ii++) {
+    const i = indices[ii];
+    const used = new Set<number>();
+    for (let jj = 0; jj < ii; jj++) {
+      const j = indices[jj];
+      if (items[j].endMin > items[i].startMin) {
+        used.add(columns[j]);
+      }
+    }
+    let col = 0;
+    while (used.has(col)) col++;
+    columns[i] = col;
+  }
+
+  // Union-Find で重複グループを求める
+  const parent = indices.map((_, i) => i);
+  function find(x: number): number {
+    if (parent[x] !== x) parent[x] = find(parent[x]);
+    return parent[x];
+  }
+  for (let ii = 0; ii < n; ii++) {
+    for (let jj = ii + 1; jj < n; jj++) {
+      const i = indices[ii], j = indices[jj];
+      if (items[j].startMin < items[i].endMin) {
+        parent[find(i)] = find(j);
+      }
+    }
+  }
+
+  const groupMax = new Map<number, number>();
+  for (let i = 0; i < n; i++) {
+    const root = find(i);
+    groupMax.set(root, Math.max(groupMax.get(root) ?? 0, columns[i]));
+  }
+
+  return items.map((_, i) => ({
+    column: columns[i],
+    totalColumns: (groupMax.get(find(i)) ?? 0) + 1,
+  }));
 }

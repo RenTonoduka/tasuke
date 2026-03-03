@@ -1,22 +1,23 @@
 'use client';
 
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import { CalendarPlus, CalendarCheck, RefreshCw, Trash2, Clock, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   HOUR_HEIGHT,
-  DAY_COL_WIDTH,
   GCAL_COLORS,
   GCAL_DEFAULT_COLOR,
   PRIORITY_COLORS,
   minutesToTime,
   formatDateLabel,
   isTodayDate,
+  computeOverlapLayout,
 } from './schedule-types';
 import type { DayData, DayEvent, TaskSuggestion } from './schedule-types';
 
 interface ScheduleDayColumnProps {
   day: DayData;
+  dayColWidth: number;
   workStart: number;
   workEnd: number;
   draggingTask: string | null;
@@ -37,7 +38,10 @@ interface ScheduleDayColumnProps {
   onRegisterBlock: (taskId: string, date: string, startMin: number, endMin: number) => void;
   onOpenTask: (taskId: string) => void;
   onDeleteEvent: (eventId: string) => void;
-  // ドロップインジケーター用
+  onClickCreate?: (date: string, startMin: number, endMin: number) => void;
+  onResizeStart?: (id: string, type: 'event' | 'task', clientY: number, endMin: number, date: string, startMin: number) => void;
+  resizingId?: string | null;
+  resizePreviewEndMin?: number;
   suggestions: TaskSuggestion[] | null;
   allDaysEvents: DayEvent[];
 }
@@ -67,6 +71,7 @@ function CurrentTimeLine({ workStartMin, hourHeight }: { workStartMin: number; h
 
 export function ScheduleDayColumn({
   day,
+  dayColWidth,
   workStart,
   workEnd,
   draggingTask,
@@ -81,10 +86,15 @@ export function ScheduleDayColumn({
   onRegisterBlock,
   onOpenTask,
   onDeleteEvent,
+  onClickCreate,
+  onResizeStart,
+  resizingId,
+  resizePreviewEndMin,
   suggestions,
   allDaysEvents,
 }: ScheduleDayColumnProps) {
   const [selectedEvent, setSelectedEvent] = useState<DayEvent | null>(null);
+  const [popoverDirection, setPopoverDirection] = useState<'below' | 'above'>('below');
   const gridRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -95,7 +105,48 @@ export function ScheduleDayColumn({
   const isToday = isTodayDate(day.date);
   const isDropTarget = draggingTask && dropTarget?.date === day.date;
 
-  // D&D精度修正: useRefで安定した要素参照を使用
+  // 重複レイアウト計算
+  const overlapItems = useMemo(() => {
+    const items = [
+      ...day.events.map((ev, i) => ({
+        startMin: Math.max(ev.startMin, workStartMin),
+        endMin: Math.min(ev.endMin, workEndMin),
+        type: 'event' as const,
+        index: i,
+      })),
+      ...day.tasks.map((task, i) => ({
+        startMin: Math.max(task.startMin, workStartMin),
+        endMin: Math.min(task.endMin, workEndMin),
+        type: 'task' as const,
+        index: i,
+      })),
+    ].filter(item => item.startMin < item.endMin);
+
+    const layoutResults = computeOverlapLayout(items);
+    const layoutMap = new Map<string, { column: number; totalColumns: number }>();
+
+    items.forEach((item, i) => {
+      layoutMap.set(`${item.type}-${item.index}`, layoutResults[i]);
+    });
+
+    return layoutMap;
+  }, [day.events, day.tasks, workStartMin, workEndMin]);
+
+  function getItemStyle(type: 'event' | 'task', index: number, topPx: number, heightPx: number) {
+    const layout = overlapItems.get(`${type}-${index}`);
+    const col = layout?.column ?? 0;
+    const total = layout?.totalColumns ?? 1;
+    const colWidth = 100 / total;
+    const PAD = 2;
+    return {
+      position: 'absolute' as const,
+      top: topPx,
+      height: Math.max(heightPx, 20),
+      left: `calc(${col * colWidth}% + ${PAD}px)`,
+      width: `calc(${colWidth}% - ${PAD * 2}px)`,
+    };
+  }
+
   const calcDropTime = useCallback(
     (clientY: number) => {
       const el = gridRef.current;
@@ -138,14 +189,25 @@ export function ScheduleDayColumn({
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
-      // gridRefで正確な座標計算してから親に渡す
       const startMin = calcDropTime(e.clientY);
       onDrop(e, day.date, startMin);
     },
     [onDrop, day.date, calcDropTime],
   );
 
-  // cleanup
+  // クリックでタスク作成
+  const handleGridClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!onClickCreate) return;
+      // イベント/タスク上のクリックは除外
+      if ((e.target as HTMLElement).closest('[data-schedule-item]')) return;
+      const startMin = calcDropTime(e.clientY);
+      const endMin = Math.min(startMin + 60, workEndMin);
+      onClickCreate(day.date, startMin, endMin);
+    },
+    [onClickCreate, calcDropTime, day.date, workEndMin],
+  );
+
   useEffect(() => {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -153,24 +215,29 @@ export function ScheduleDayColumn({
   }, []);
 
   return (
-    <div className="shrink-0 border-l border-g-border" style={{ width: DAY_COL_WIDTH }}>
+    <div className="shrink-0 border-l border-g-border" style={{ width: dayColWidth }}>
       {/* 日付ヘッダー */}
       <div
         className={cn(
-          'flex flex-col items-center justify-center border-b border-g-border py-1.5',
-          isToday ? 'bg-blue-50' : 'bg-g-surface',
+          'flex flex-col items-center justify-center border-b border-g-border py-1.5 min-h-[40px]',
+          isToday ? 'bg-[#4285F4]/10' : 'bg-g-surface',
         )}
       >
         <span className={cn('text-xs font-medium', isToday ? 'text-[#4285F4]' : 'text-g-text')}>
           {formatDateLabel(day.date)}
         </span>
         {day.allDayEvents.length > 0 && (
-          <div className="mt-0.5">
-            {day.allDayEvents.slice(0, 1).map((name, i) => (
-              <span key={i} className="truncate text-[9px] text-g-text-muted">
+          <div className="mt-0.5 w-full px-1">
+            {day.allDayEvents.slice(0, 2).map((name, i) => (
+              <span key={i} className="block truncate text-[9px] text-g-text-muted">
                 {name}
               </span>
             ))}
+            {day.allDayEvents.length > 2 && (
+              <span className="block text-[9px] font-medium text-[#4285F4]">
+                +{day.allDayEvents.length - 2} 件
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -178,11 +245,12 @@ export function ScheduleDayColumn({
       {/* タイムグリッド */}
       <div
         ref={gridRef}
-        className={cn('relative', isDropTarget ? 'bg-blue-50/30' : 'bg-g-bg')}
+        className={cn('relative', isDropTarget ? 'bg-[#4285F4]/5' : 'bg-g-bg')}
         style={{ height: totalHeight }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onClick={handleGridClick}
       >
         {/* 時刻グリッド線 */}
         {Array.from({ length: workHours }, (_, i) => (
@@ -192,24 +260,14 @@ export function ScheduleDayColumn({
             style={{ top: i * HOUR_HEIGHT }}
           />
         ))}
-        {/* 15分刻み線 */}
-        {Array.from({ length: workHours * 3 }, (_, i) => {
-          const hourIdx = Math.floor(i / 3);
-          const quarter = (i % 3) + 1;
-          const isHalf = quarter === 2;
-          return (
-            <div
-              key={`q-${i}`}
-              className={cn(
-                'absolute left-0 w-full border-t',
-                isHalf
-                  ? 'border-dashed border-g-surface-hover/50'
-                  : 'border-dotted border-g-surface-hover/30',
-              )}
-              style={{ top: hourIdx * HOUR_HEIGHT + (quarter * HOUR_HEIGHT) / 4 }}
-            />
-          );
-        })}
+        {/* 30分線 */}
+        {Array.from({ length: workHours }, (_, i) => (
+          <div
+            key={`h-${i}`}
+            className="absolute left-0 w-full border-t border-dashed border-g-surface-hover/50"
+            style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2 }}
+          />
+        ))}
 
         {/* 現在時刻インジケーター */}
         {isToday && <CurrentTimeLine workStartMin={workStartMin} hourHeight={HOUR_HEIGHT} />}
@@ -219,12 +277,12 @@ export function ScheduleDayColumn({
           const clampedStart = Math.max(ev.startMin, workStartMin);
           const clampedEnd = Math.min(ev.endMin, workEndMin);
           if (clampedStart >= clampedEnd) return null;
-          const top = ((clampedStart - workStartMin) / 60) * HOUR_HEIGHT;
-          const height = ((clampedEnd - clampedStart) / 60) * HOUR_HEIGHT;
+          const topPx = ((clampedStart - workStartMin) / 60) * HOUR_HEIGHT;
+          const heightPx = ((clampedEnd - clampedStart) / 60) * HOUR_HEIGHT;
           const gcalColor = (ev.colorId && GCAL_COLORS[ev.colorId]) || GCAL_DEFAULT_COLOR;
           const isSelected = selectedEvent?.id === ev.id;
           return (
-            <div key={`ev-${i}`} className="absolute left-1 right-1" style={{ top, height: Math.max(height, 20) }}>
+            <div key={`ev-${i}`} data-schedule-item style={getItemStyle('event', i, topPx, heightPx)}>
               <div
                 draggable
                 onDragStart={(e) => {
@@ -234,6 +292,11 @@ export function ScheduleDayColumn({
                 onDragEnd={onDragEnd}
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (!isSelected) {
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    const spaceBelow = window.innerHeight - rect.bottom;
+                    setPopoverDirection(spaceBelow < 200 ? 'above' : 'below');
+                  }
                   setSelectedEvent(isSelected ? null : ev);
                 }}
                 className={cn(
@@ -248,17 +311,32 @@ export function ScheduleDayColumn({
                 title={`${ev.summary} — クリックで詳細 / ドラッグで移動`}
               >
                 <span className="line-clamp-1 leading-tight">{ev.summary}</span>
-                {height >= 32 && (
+                {heightPx >= 32 && (
                   <span className="block text-[9px] opacity-70">
                     {minutesToTime(ev.startMin)}〜{minutesToTime(ev.endMin)}
                   </span>
                 )}
               </div>
 
+              {/* リサイズハンドル */}
+              {onResizeStart && (
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-2 cursor-s-resize hover:bg-black/10 rounded-b-md"
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onResizeStart(ev.id, 'event', e.clientY, ev.endMin, day.date, ev.startMin);
+                  }}
+                />
+              )}
+
               {/* イベント詳細ポップオーバー */}
               {isSelected && (
                 <div
-                  className="absolute left-0 top-full z-30 mt-1 w-48 rounded-lg border border-g-border bg-white p-2 shadow-lg"
+                  className={cn(
+                    'absolute left-0 z-30 w-48 rounded-lg border border-g-border bg-g-bg p-2 shadow-lg',
+                    popoverDirection === 'below' ? 'top-full mt-1' : 'bottom-full mb-1',
+                  )}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-start justify-between">
@@ -280,7 +358,7 @@ export function ScheduleDayColumn({
                         setSelectedEvent(null);
                         onDeleteEvent(ev.id);
                       }}
-                      className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium text-[#EA4335] hover:bg-red-50"
+                      className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium text-[#EA4335] hover:bg-[#EA4335]/10"
                     >
                       <Trash2 className="h-3 w-3" />
                       削除
@@ -304,12 +382,12 @@ export function ScheduleDayColumn({
               (draggedEvent ? (draggedEvent.endMin - draggedEvent.startMin) / 60 : 1);
             const indicatorStartMin = dropTarget!.startMin;
             const indicatorEndMin = Math.min(indicatorStartMin + hours * 60, workEndMin);
-            const top = ((indicatorStartMin - workStartMin) / 60) * HOUR_HEIGHT;
-            const height = ((indicatorEndMin - indicatorStartMin) / 60) * HOUR_HEIGHT;
+            const topPx = ((indicatorStartMin - workStartMin) / 60) * HOUR_HEIGHT;
+            const heightPx = ((indicatorEndMin - indicatorStartMin) / 60) * HOUR_HEIGHT;
             return (
               <div
                 className="absolute left-1 right-1 z-10 flex items-start rounded border-2 border-dashed border-[#4285F4] bg-[#4285F4]/10 px-1.5 py-0.5"
-                style={{ top, height }}
+                style={{ top: topPx, height: heightPx }}
               >
                 <span className="text-[10px] font-medium text-[#4285F4]">
                   {minutesToTime(indicatorStartMin)}〜{minutesToTime(indicatorEndMin)}
@@ -321,10 +399,12 @@ export function ScheduleDayColumn({
         {/* タスクスロット */}
         {day.tasks.map((task, i) => {
           const clampedStart = Math.max(task.startMin, workStartMin);
-          const clampedEnd = Math.min(task.endMin, workEndMin);
+          const isResizingThis = resizingId === task.taskId;
+          const effectiveEnd = isResizingThis && resizePreviewEndMin != null ? resizePreviewEndMin : task.endMin;
+          const clampedEnd = Math.min(effectiveEnd, workEndMin);
           if (clampedStart >= clampedEnd) return null;
-          const top = ((clampedStart - workStartMin) / 60) * HOUR_HEIGHT;
-          const height = ((clampedEnd - clampedStart) / 60) * HOUR_HEIGHT;
+          const topPx = ((clampedStart - workStartMin) / 60) * HOUR_HEIGHT;
+          const heightPx = ((clampedEnd - clampedStart) / 60) * HOUR_HEIGHT;
           const color = PRIORITY_COLORS[task.priority] ?? '#4285F4';
           const slotKey = `${task.taskId}|${day.date}|${minutesToTime(task.startMin)}`;
           const isRegistered = registeredBlocks.has(slotKey);
@@ -333,6 +413,7 @@ export function ScheduleDayColumn({
           return (
             <div
               key={`task-${i}`}
+              data-schedule-item
               draggable
               onDragStart={(e) => {
                 e.stopPropagation();
@@ -346,31 +427,30 @@ export function ScheduleDayColumn({
               }}
               onDragEnd={onDragEnd}
               className={cn(
-                'absolute left-1 right-1 cursor-grab overflow-hidden rounded px-1.5 py-0.5 text-[10px] font-medium text-white active:cursor-grabbing',
+                'cursor-grab overflow-hidden rounded px-1.5 py-0.5 text-[10px] font-medium text-white active:cursor-grabbing',
                 task.status === 'tight' && 'border-2 border-dashed border-white',
                 isRegistered && 'ring-2 ring-white/70',
                 draggingTask === task.taskId && 'opacity-40',
               )}
               style={{
-                top,
-                height: Math.max(height, 20),
+                ...getItemStyle('task', i, topPx, heightPx),
                 backgroundColor: color,
               }}
               title={`${task.title} (${task.priority}) — ドラッグで移動`}
             >
               <button
-                onClick={() => onOpenTask(task.taskId)}
+                onClick={(e) => { e.stopPropagation(); onOpenTask(task.taskId); }}
                 className="block w-full truncate text-left leading-tight hover:opacity-80"
               >
                 {task.title}
               </button>
-              {height >= 36 && (
+              {heightPx >= 36 && (
                 <span className="block text-[9px] opacity-70">
-                  {minutesToTime(task.startMin)}〜{minutesToTime(task.endMin)}
+                  {minutesToTime(task.startMin)}〜{minutesToTime(effectiveEnd)}
                 </span>
               )}
               <button
-                onClick={() => onRegisterBlock(task.taskId, day.date, task.startMin, task.endMin)}
+                onClick={(e) => { e.stopPropagation(); onRegisterBlock(task.taskId, day.date, task.startMin, task.endMin); }}
                 disabled={isRegistering}
                 className="absolute right-1 top-0.5 rounded p-0.5 hover:bg-white/20"
                 title={isRegistered ? 'カレンダー登録解除' : 'Googleカレンダーに登録'}
@@ -383,6 +463,18 @@ export function ScheduleDayColumn({
                   <CalendarPlus className="h-3 w-3 opacity-70" />
                 )}
               </button>
+
+              {/* リサイズハンドル */}
+              {onResizeStart && (
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-2 cursor-s-resize hover:bg-white/20 rounded-b"
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onResizeStart(task.taskId, 'task', e.clientY, task.endMin, day.date, task.startMin);
+                  }}
+                />
+              )}
             </div>
           );
         })}

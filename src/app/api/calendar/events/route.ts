@@ -4,6 +4,42 @@ import { getGoogleClient, getCalendarClient } from '@/lib/google';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { GaxiosError } from 'googleapis-common';
 
+// POST: Googleカレンダーにイベントを作成
+export async function POST(req: NextRequest) {
+  try {
+    const user = await requireAuthUser();
+    const { summary, start, end } = await req.json();
+
+    if (!start || !end) {
+      return errorResponse('start, end は必須です', 400);
+    }
+
+    const auth = await getGoogleClient(user.id);
+    const calendar = getCalendarClient(auth);
+
+    const inserted = await calendar.events.insert({
+      calendarId: 'primary',
+      requestBody: {
+        summary: summary || '新しい予定',
+        start: { dateTime: start, timeZone: 'Asia/Tokyo' },
+        end: { dateTime: end, timeZone: 'Asia/Tokyo' },
+      },
+    });
+
+    return successResponse({
+      id: inserted.data.id,
+      summary: inserted.data.summary ?? '(タイトルなし)',
+      start: inserted.data.start?.dateTime ?? '',
+      end: inserted.data.end?.dateTime ?? '',
+    }, 201);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Google')) {
+      return errorResponse(error.message, 401);
+    }
+    return handleApiError(error);
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const user = await requireAuthUser();

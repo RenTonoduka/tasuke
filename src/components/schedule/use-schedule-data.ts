@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { startOfWeek, addWeeks, addDays, format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import type {
   ScheduleData,
@@ -34,7 +35,28 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
   const [registeredBlocks, setRegisteredBlocks] = useState<Map<string, string>>(new Map());
   const [registeringSlot, setRegisteringSlot] = useState<string | null>(null);
 
+  // 週ナビゲーション
+  const [weekOffset, setWeekOffset] = useState(0);
+
   const abortRef = useRef<AbortController | null>(null);
+
+  // 表示期間の計算
+  const { rangeStart, rangeEnd } = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const base = addWeeks(today, weekOffset);
+    const start = startOfWeek(base, { weekStartsOn: 1 });
+    const end = addDays(start, 14);
+    return { rangeStart: start, rangeEnd: end };
+  }, [weekOffset]);
+
+  const currentWeekLabel = useMemo(() => {
+    return `${format(rangeStart, 'M/d')} ~ ${format(addDays(rangeEnd, -1), 'M/d')}`;
+  }, [rangeStart, rangeEnd]);
+
+  const goToPrevWeek = useCallback(() => setWeekOffset((w) => w - 1), []);
+  const goToNextWeek = useCallback(() => setWeekOffset((w) => w + 1), []);
+  const goToToday = useCallback(() => setWeekOffset(0), []);
 
   const fetchSchedule = useCallback(async () => {
     abortRef.current?.abort();
@@ -43,13 +65,9 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
 
     setLoading(true);
     try {
-      const now = new Date();
-      const twoWeeksLater = new Date(now);
-      twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
-
       const [eventsRes, suggestionRes] = await Promise.all([
         fetch(
-          `/api/calendar/events?timeMin=${now.toISOString()}&timeMax=${twoWeeksLater.toISOString()}`,
+          `/api/calendar/events?timeMin=${rangeStart.toISOString()}&timeMax=${rangeEnd.toISOString()}`,
           { signal: controller.signal },
         ),
         fetch('/api/calendar/schedule-suggestion', {
@@ -100,14 +118,12 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
 
             for (const b of blocks) {
               if (!eventsOk || calEventIds.has(b.googleCalendarEventId)) {
-                // イベント取得失敗時は全ブロックをvalidとして保持（誤削除防止）
                 validBlocks.push(b);
               } else {
                 orphanedBlockIds.push(b.id);
               }
             }
 
-            // 孤立ブロックをバックグラウンドで削除
             if (orphanedBlockIds.length > 0) {
               Promise.allSettled(
                 orphanedBlockIds.map((blockId) =>
@@ -141,7 +157,7 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
-  }, [projectId, myTasksOnly, savedSettings]);
+  }, [projectId, myTasksOnly, savedSettings, rangeStart, rangeEnd]);
 
   // unmount時にabort
   useEffect(() => {
@@ -150,7 +166,7 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
     };
   }, []);
 
-  // 初回 + savedSettings変更時に自動取得
+  // 初回 + savedSettings変更 + 週移動時に自動取得
   useEffect(() => {
     fetchSchedule();
   }, [fetchSchedule]);
@@ -165,17 +181,14 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
     toast({ title: '設定を保存しました' });
   }, [settingsKey, editingSettings]);
 
-  // 今日から14日分の全日付を生成（イベント有無に関係なく）
+  // 表示期間の日付を生成
   const daysData: DayData[] = useMemo(() => {
     const workStartMin = savedSettings.workStart * 60;
     const workEndMin = savedSettings.workEnd * 60;
 
     const allDates: string[] = [];
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
     for (let i = 0; i < 14; i++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() + i);
+      const d = addDays(rangeStart, i);
       const dateStr = formatYMD(d);
       if (savedSettings.skipWeekends && isWeekendDate(dateStr)) continue;
       allDates.push(dateStr);
@@ -186,7 +199,7 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
       daysMap.set(date, { date, allDayEvents: [], events: [], tasks: [] });
     }
 
-    // 登録済みタスクIDのセット（提案から除外するため）
+    // 登録済みタスクIDのセット
     const blockKeys = Array.from(registeredBlocks.keys());
     const registeredTaskIds = new Set<string>();
     for (const key of blockKeys) {
@@ -212,11 +225,10 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
       day.events.push({ id: ev.id, summary: ev.summary, startMin, endMin, colorId: ev.colorId });
     }
 
-    // タスクスロット配置（登録済みタスクは提案スロットではなく登録位置で表示）
+    // タスクスロット配置
     if (data) {
       for (const sug of data.suggestions) {
         if (registeredTaskIds.has(sug.taskId)) {
-          // 登録済み: registeredBlocksのキーから位置を復元して表示
           for (const key of blockKeys) {
             const [taskId, date, startTime] = key.split('|');
             if (taskId !== sug.taskId) continue;
@@ -234,7 +246,6 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
             });
           }
         } else {
-          // 未登録: 提案スロットをそのまま表示
           for (const slot of sug.scheduledSlots) {
             const day = daysMap.get(slot.date);
             if (!day) continue;
@@ -252,7 +263,7 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
     }
 
     return allDates.map((date) => daysMap.get(date)!);
-  }, [data, events, savedSettings, registeredBlocks]);
+  }, [data, events, savedSettings, registeredBlocks, rangeStart]);
 
   return {
     data,
@@ -268,5 +279,10 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
     setEditingSettings,
     handleSaveSettings,
     fetchSchedule,
+    weekOffset,
+    goToPrevWeek,
+    goToNextWeek,
+    goToToday,
+    currentWeekLabel,
   };
 }
