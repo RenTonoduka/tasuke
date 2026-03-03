@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import {
   Check,
@@ -34,10 +34,12 @@ import {
   KeyboardSensor,
   useSensor,
   useSensors,
-  closestCenter,
   useDroppable,
+  rectIntersection,
+  closestCenter,
   type DragStartEvent,
   type DragEndEvent,
+  type CollisionDetection,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -189,6 +191,7 @@ interface SidebarProps {
 
 export function Sidebar({ projects: initialProjects = [], workspaceName = 'マイワークスペース', currentWorkspaceSlug = '', workspaceId = '' }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session } = useSession();
   const user = session?.user;
   const { theme, setTheme } = useTheme();
@@ -291,6 +294,16 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
     useSensor(KeyboardSensor)
   );
 
+  // ワークスペースドロップゾーンを優先するカスタム衝突検出
+  const wsFirstCollision: CollisionDetection = useCallback((args) => {
+    const wsCollisions = rectIntersection({
+      ...args,
+      droppableContainers: args.droppableContainers.filter(c => String(c.id).startsWith('ws-drop-')),
+    });
+    if (wsCollisions.length > 0) return wsCollisions;
+    return closestCenter(args);
+  }, []);
+
   const handleDragStart = (event: DragStartEvent) => {
     const proj = projects.find((p) => p.id === event.active.id);
     if (proj) setActiveProject(proj);
@@ -307,6 +320,7 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
     const overId = String(over.id);
     if (overId.startsWith('ws-drop-') && draggedProject) {
       const targetWsId = overId.replace('ws-drop-', '');
+      const targetWs = workspaces.find(ws => ws.id === targetWsId);
       setProjects(prev => prev.filter(p => p.id !== draggedProject.id));
       try {
         const res = await fetch(`/api/projects/${draggedProject.id}`, {
@@ -315,7 +329,11 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
           body: JSON.stringify({ workspaceId: targetWsId }),
         });
         if (!res.ok) throw new Error();
-        toast({ title: `「${draggedProject.name}」を移動しました` });
+        toast({ title: `「${draggedProject.name}」を${targetWs?.name ?? '別のワークスペース'}に移動しました` });
+        // 現在開いているプロジェクトを移動した場合、移動先WSへ遷移
+        if (pathname?.includes(draggedProject.id) && targetWs) {
+          router.push(`/${targetWs.slug}/projects/${draggedProject.id}`);
+        }
       } catch {
         setProjects(initialProjects);
         toast({ title: '移動に失敗しました', variant: 'destructive' });
@@ -503,7 +521,7 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
 
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={wsFirstCollision}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >

@@ -56,7 +56,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     // ワークスペース間移動
     if (data.workspaceId) {
       const existing = await prisma.project.findUnique({ where: { id: params.id } });
-      if (existing && data.workspaceId !== existing.workspaceId) {
+      if (existing && data.workspaceId === existing.workspaceId) {
+        delete updateData.workspaceId;
+      } else if (existing && data.workspaceId !== existing.workspaceId) {
         const isMember = await prisma.workspaceMember.findFirst({
           where: { workspaceId: data.workspaceId, userId: user.id },
         });
