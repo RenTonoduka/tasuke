@@ -159,7 +159,48 @@ export function formatYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// イベント重複レイアウト計算
+// --- D&D 型定義 ---
+
+export interface SidebarTaskDragData {
+  type: 'sidebar-task';
+  taskId: string;
+  taskTitle: string;
+  estimatedHours: number;
+  priority: string;
+}
+
+export interface TimelineTaskDragData {
+  type: 'timeline-task';
+  taskId: string;
+  taskTitle: string;
+  estimatedHours: number;
+  priority: string;
+  fromSlotKey?: string;
+}
+
+export interface TimelineEventDragData {
+  type: 'timeline-event';
+  calendarEventId: string;
+  summary: string;
+  durationMin: number;
+  colorId: string | null;
+}
+
+export type ScheduleDragData = SidebarTaskDragData | TimelineTaskDragData | TimelineEventDragData;
+
+export interface DropIndicator {
+  date: string;
+  startMin: number;
+  endMin: number;
+}
+
+// 登録済みブロック情報
+export interface RegisteredBlock {
+  id: string;
+  endTime: string;
+}
+
+// --- イベント重複レイアウト計算 ---
 export interface OverlapLayoutResult {
   column: number;
   totalColumns: number;

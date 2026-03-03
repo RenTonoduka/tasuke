@@ -7,6 +7,7 @@ import type {
   TaskSuggestion,
   ScheduleSettings,
   DayData,
+  RegisteredBlock,
 } from './schedule-types';
 import { timeToMinutes, isWeekendDate, formatYMD } from './schedule-types';
 
@@ -32,7 +33,7 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
   const [data, setData] = useState<ScheduleData | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
-  const [registeredBlocks, setRegisteredBlocks] = useState<Map<string, string>>(new Map());
+  const [registeredBlocks, setRegisteredBlocks] = useState<Map<string, RegisteredBlock>>(new Map());
   const [registeringSlot, setRegisteringSlot] = useState<string | null>(null);
 
   // 週ナビゲーション
@@ -108,7 +109,7 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
             signal: controller.signal,
           });
           if (blocksRes.ok) {
-            const blocks: { taskId: string; date: string; startTime: string; id: string; googleCalendarEventId: string }[] =
+            const blocks: { taskId: string; date: string; startTime: string; endTime: string; id: string; googleCalendarEventId: string }[] =
               await blocksRes.json();
 
             // Googleカレンダー側で削除されたブロックを検出・クリーンアップ
@@ -143,9 +144,9 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
               });
             }
 
-            const map = new Map<string, string>();
+            const map = new Map<string, RegisteredBlock>();
             for (const b of validBlocks) {
-              map.set(`${b.taskId}|${b.date}|${b.startTime}`, b.id);
+              map.set(`${b.taskId}|${b.date}|${b.startTime}`, { id: b.id, endTime: b.endTime });
             }
             setRegisteredBlocks(map);
           }
@@ -235,7 +236,8 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
             const day = daysMap.get(date);
             if (!day) continue;
             const startMin = timeToMinutes(startTime);
-            const endMin = startMin + sug.estimatedHours * 60;
+            const block = registeredBlocks.get(key);
+            const endMin = block?.endTime ? timeToMinutes(block.endTime) : startMin + sug.estimatedHours * 60;
             day.tasks.push({
               taskId: sug.taskId,
               title: sug.taskTitle,
