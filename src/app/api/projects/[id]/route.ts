@@ -51,9 +51,27 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
     const body = await req.json();
     const data = updateProjectSchema.parse(body);
+    const updateData: Record<string, unknown> = { ...data };
+
+    // ワークスペース間移動
+    if (data.workspaceId) {
+      const existing = await prisma.project.findUnique({ where: { id: params.id } });
+      if (existing && data.workspaceId !== existing.workspaceId) {
+        const isMember = await prisma.workspaceMember.findFirst({
+          where: { workspaceId: data.workspaceId, userId: user.id },
+        });
+        if (!isMember) return errorResponse('移動先ワークスペースへのアクセス権がありません', 403);
+        const maxPos = await prisma.project.aggregate({
+          where: { workspaceId: data.workspaceId },
+          _max: { position: true },
+        });
+        updateData.position = (maxPos._max.position ?? 0) + 1;
+      }
+    }
+
     const project = await prisma.project.update({
       where: { id: params.id },
-      data,
+      data: updateData,
     });
     return successResponse(project);
   } catch (error) {

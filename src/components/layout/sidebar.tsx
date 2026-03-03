@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
@@ -48,6 +48,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
 import { useDragToProjectStore } from '@/stores/drag-to-project-store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { toast } from '@/hooks/use-toast';
 import { ProjectCreateDialog } from '@/components/project/project-create-dialog';
 import { eventBus, EVENTS } from '@/lib/event-bus';
 import {
@@ -266,14 +267,47 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
     useSensor(KeyboardSensor)
   );
 
+  const pointerRef = useRef<{ x: number; y: number } | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
+
   const handleDragStart = (event: DragStartEvent) => {
     const proj = projects.find((p) => p.id === event.active.id);
     if (proj) setActiveProject(proj);
+    fetchWorkspaces();
+    const handler = (e: PointerEvent) => { pointerRef.current = { x: e.clientX, y: e.clientY }; };
+    window.addEventListener('pointermove', handler);
+    cleanupRef.current = () => window.removeEventListener('pointermove', handler);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
+    cleanupRef.current?.();
+    cleanupRef.current = null;
+    const draggedProject = activeProject;
     setActiveProject(null);
     const { active, over } = event;
+
+    // ワークスペース移動判定（over === null = SortableContext外にドロップ）
+    if (!over && pointerRef.current && draggedProject) {
+      const { x, y } = pointerRef.current;
+      const els = document.elementsFromPoint(x, y);
+      const wsEl = els.find(el => el.getAttribute('data-workspace-drop-id'));
+      const targetWsId = wsEl?.getAttribute('data-workspace-drop-id');
+      if (targetWsId) {
+        setProjects(prev => prev.filter(p => p.id !== draggedProject.id));
+        try {
+          await fetch(`/api/projects/${draggedProject.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ workspaceId: targetWsId }),
+          });
+          toast({ title: `「${draggedProject.name}」を移動しました` });
+        } catch {
+          setProjects(initialProjects);
+        }
+        return;
+      }
+    }
+
     if (!over || active.id === over.id) return;
 
     const oldIndex = projects.findIndex((p) => p.id === active.id);
@@ -486,6 +520,27 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
             <p className="px-3 py-2 text-xs text-g-text-muted">
               プロジェクトがありません
             </p>
+          )}
+
+          {/* ドラッグ中: ワークスペース移動ドロップゾーン */}
+          {activeProject && workspaces.filter(ws => ws.slug !== currentWorkspaceSlug).length > 0 && (
+            <div className="mt-2 space-y-1 border-t border-dashed border-g-border pt-2">
+              <span className="px-3 text-[10px] font-semibold uppercase tracking-wider text-g-text-muted">
+                ワークスペースに移動
+              </span>
+              {workspaces.filter(ws => ws.slug !== currentWorkspaceSlug).map(ws => (
+                <div
+                  key={ws.id}
+                  data-workspace-drop-id={ws.id}
+                  className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm text-g-text-secondary border-2 border-dashed border-[#4285F4]/40 bg-[#4285F4]/5 hover:border-[#4285F4] hover:bg-[#4285F4]/10 transition-colors"
+                >
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[#4285F4] text-[10px] font-bold text-white">
+                    {ws.name.charAt(0)}
+                  </div>
+                  <span className="truncate">{ws.name}</span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </ScrollArea>
