@@ -1,29 +1,116 @@
 'use client';
 
 import { Clock, AlertTriangle, GripVertical } from 'lucide-react';
+import { useDraggable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils';
 import { PRIORITY_COLORS, formatDueDate } from './schedule-types';
 import type { TaskSuggestion, UnschedulableTask } from './schedule-types';
 
 interface ScheduleTaskListProps {
   suggestions: TaskSuggestion[];
-  draggingTask: string | null;
-  onDragStart: (e: React.DragEvent, taskId: string, hours: number, priority: string) => void;
-  onDragEnd: () => void;
   onOpenTask: (taskId: string) => void;
   compact?: boolean;
 }
 
+function DraggableTaskItem({ s, compact, onOpenTask }: { s: TaskSuggestion; compact: boolean; onOpenTask: (id: string) => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `sidebar-${s.taskId}`,
+    data: {
+      type: 'sidebar-task',
+      taskId: s.taskId,
+      taskTitle: s.taskTitle,
+      estimatedHours: s.estimatedHours,
+      priority: s.priority,
+    },
+  });
+
+  if (compact) {
+    return (
+      <div
+        ref={setNodeRef}
+        {...listeners}
+        {...attributes}
+        className={cn(
+          'cursor-grab rounded-md border border-g-border px-2 py-1.5 hover:bg-g-surface active:cursor-grabbing',
+          isDragging && 'opacity-50',
+        )}
+      >
+        <div className="flex items-center gap-1.5">
+          <GripVertical className="h-3 w-3 shrink-0 text-g-text-muted" />
+          <span
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ backgroundColor: PRIORITY_COLORS[s.priority] }}
+          />
+          <button
+            onClick={() => onOpenTask(s.taskId)}
+            className="min-w-0 flex-1 truncate text-left text-[11px] font-medium text-g-text hover:underline"
+          >
+            {s.taskTitle}
+          </button>
+        </div>
+        <div className="mt-1 flex items-center gap-2 pl-[22px] text-[10px] text-g-text-muted">
+          <span>{s.totalScheduledHours}/{s.estimatedHours}h</span>
+          <span>〆{formatDueDate(s.dueDate)}</span>
+          <span
+            className={cn(
+              'rounded-full px-1.5 py-0.5 text-[9px] font-medium',
+              s.status === 'schedulable' && 'bg-g-success-bg text-[#34A853]',
+              s.status === 'tight' && 'bg-g-warning-bg text-[#FBBC04]',
+              s.status === 'overdue' && 'bg-g-error-bg text-[#EA4335]',
+            )}
+          >
+            {s.status === 'schedulable' ? '可' : s.status === 'tight' ? '不足' : '超過'}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={cn(
+        'flex w-full cursor-grab items-center gap-3 rounded-md border border-g-border px-3 py-2 text-left text-xs hover:bg-g-surface active:cursor-grabbing',
+        isDragging && 'opacity-50',
+      )}
+    >
+      <GripVertical className="h-3.5 w-3.5 shrink-0 text-g-text-muted" />
+      <span
+        className="h-2 w-2 shrink-0 rounded-full"
+        style={{ backgroundColor: PRIORITY_COLORS[s.priority] }}
+      />
+      <button
+        onClick={() => onOpenTask(s.taskId)}
+        className="min-w-0 flex-1 truncate font-medium text-g-text text-left hover:underline"
+      >
+        {s.taskTitle}
+      </button>
+      <span className="shrink-0 text-g-text-muted">
+        {s.totalScheduledHours}/{s.estimatedHours}h
+      </span>
+      <span className="shrink-0 text-g-text-muted">期限: {formatDueDate(s.dueDate)}</span>
+      <span
+        className={cn(
+          'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium',
+          s.status === 'schedulable' && 'bg-g-success-bg text-[#34A853]',
+          s.status === 'tight' && 'bg-g-warning-bg text-[#FBBC04]',
+          s.status === 'overdue' && 'bg-g-error-bg text-[#EA4335]',
+        )}
+      >
+        {s.status === 'schedulable' ? '配置可能' : s.status === 'tight' ? '時間不足' : '期限超過'}
+      </span>
+    </div>
+  );
+}
+
 export function ScheduleTaskList({
   suggestions,
-  draggingTask,
-  onDragStart,
-  onDragEnd,
   onOpenTask,
   compact = false,
 }: ScheduleTaskListProps) {
   if (compact) {
-    // サイドバー用コンパクトレイアウト
     return (
       <div>
         <h3 className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-g-text-secondary">
@@ -33,51 +120,13 @@ export function ScheduleTaskList({
         </h3>
         <div className="space-y-1">
           {suggestions.map((s) => (
-            <div
-              key={s.taskId}
-              draggable
-              onDragStart={(e) => onDragStart(e, s.taskId, s.estimatedHours, s.priority)}
-              onDragEnd={onDragEnd}
-              className={cn(
-                'cursor-grab rounded-md border border-g-border px-2 py-1.5 hover:bg-g-surface active:cursor-grabbing',
-                draggingTask === s.taskId && 'opacity-50',
-              )}
-            >
-              <div className="flex items-center gap-1.5">
-                <GripVertical className="h-3 w-3 shrink-0 text-g-text-muted" />
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: PRIORITY_COLORS[s.priority] }}
-                />
-                <button
-                  onClick={() => onOpenTask(s.taskId)}
-                  className="min-w-0 flex-1 truncate text-left text-[11px] font-medium text-g-text hover:underline"
-                >
-                  {s.taskTitle}
-                </button>
-              </div>
-              <div className="mt-1 flex items-center gap-2 pl-[22px] text-[10px] text-g-text-muted">
-                <span>{s.totalScheduledHours}/{s.estimatedHours}h</span>
-                <span>〆{formatDueDate(s.dueDate)}</span>
-                <span
-                  className={cn(
-                    'rounded-full px-1.5 py-0.5 text-[9px] font-medium',
-                    s.status === 'schedulable' && 'bg-g-success-bg text-[#34A853]',
-                    s.status === 'tight' && 'bg-g-warning-bg text-[#FBBC04]',
-                    s.status === 'overdue' && 'bg-g-error-bg text-[#EA4335]',
-                  )}
-                >
-                  {s.status === 'schedulable' ? '可' : s.status === 'tight' ? '不足' : '超過'}
-                </span>
-              </div>
-            </div>
+            <DraggableTaskItem key={s.taskId} s={s} compact onOpenTask={onOpenTask} />
           ))}
         </div>
       </div>
     );
   }
 
-  // 横長レイアウト（モバイル用フォールバック）
   return (
     <div className="mb-4">
       <h3 className="mb-2 flex items-center gap-2 text-xs font-medium text-g-text-secondary">
@@ -87,42 +136,7 @@ export function ScheduleTaskList({
       </h3>
       <div className="space-y-1">
         {suggestions.map((s) => (
-          <div
-            key={s.taskId}
-            draggable
-            onDragStart={(e) => onDragStart(e, s.taskId, s.estimatedHours, s.priority)}
-            onDragEnd={onDragEnd}
-            className={cn(
-              'flex w-full cursor-grab items-center gap-3 rounded-md border border-g-border px-3 py-2 text-left text-xs hover:bg-g-surface active:cursor-grabbing',
-              draggingTask === s.taskId && 'opacity-50',
-            )}
-          >
-            <GripVertical className="h-3.5 w-3.5 shrink-0 text-g-text-muted" />
-            <span
-              className="h-2 w-2 shrink-0 rounded-full"
-              style={{ backgroundColor: PRIORITY_COLORS[s.priority] }}
-            />
-            <button
-              onClick={() => onOpenTask(s.taskId)}
-              className="min-w-0 flex-1 truncate font-medium text-g-text text-left hover:underline"
-            >
-              {s.taskTitle}
-            </button>
-            <span className="shrink-0 text-g-text-muted">
-              {s.totalScheduledHours}/{s.estimatedHours}h
-            </span>
-            <span className="shrink-0 text-g-text-muted">期限: {formatDueDate(s.dueDate)}</span>
-            <span
-              className={cn(
-                'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium',
-                s.status === 'schedulable' && 'bg-g-success-bg text-[#34A853]',
-                s.status === 'tight' && 'bg-g-warning-bg text-[#FBBC04]',
-                s.status === 'overdue' && 'bg-g-error-bg text-[#EA4335]',
-              )}
-            >
-              {s.status === 'schedulable' ? '配置可能' : s.status === 'tight' ? '時間不足' : '期限超過'}
-            </span>
-          </div>
+          <DraggableTaskItem key={s.taskId} s={s} compact={false} onOpenTask={onOpenTask} />
         ))}
       </div>
     </div>

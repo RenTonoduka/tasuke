@@ -15,7 +15,6 @@ interface ScheduleHeaderProps {
   onToggleSettings: () => void;
   onRefresh: () => void;
   totalFreeHours?: number;
-  unestimatedCount?: number;
   unestimatedTasks?: UnestimatedTask[];
   editingSettings: ScheduleSettings;
   onSettingsChange: (settings: ScheduleSettings) => void;

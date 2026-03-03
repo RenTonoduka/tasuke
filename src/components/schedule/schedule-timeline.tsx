@@ -2,28 +2,15 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { HOUR_HEIGHT, MIN_DAY_COL_WIDTH, TIME_LABEL_WIDTH } from './schedule-types';
-import type { DayData, DayEvent, TaskSuggestion } from './schedule-types';
+import type { DayData, DropIndicator, RegisteredBlock } from './schedule-types';
 import { ScheduleDayColumn } from './schedule-day-column';
 
 interface ScheduleTimelineProps {
   daysData: DayData[];
   workStart: number;
   workEnd: number;
-  draggingTask: string | null;
-  dropTarget: { date: string; startMin: number } | null;
-  registeredBlocks: Map<string, string>;
+  registeredBlocks: Map<string, RegisteredBlock>;
   registeringSlot: string | null;
-  onDragStartTask: (
-    e: React.DragEvent,
-    taskId: string,
-    hours: number,
-    priority: string,
-    fromSlotKey?: string,
-  ) => void;
-  onDragStartEvent: (e: React.DragEvent, ev: DayEvent) => void;
-  onDragEnd: () => void;
-  onDropTargetChange: (target: { date: string; startMin: number } | null) => void;
-  onDrop: (e: React.DragEvent, date: string, startMin: number) => void;
   onRegisterBlock: (taskId: string, date: string, startMin: number, endMin: number) => void;
   onOpenTask: (taskId: string) => void;
   onDeleteEvent: (eventId: string) => void;
@@ -31,19 +18,25 @@ interface ScheduleTimelineProps {
   onResizeStart?: (id: string, type: 'event' | 'task', clientY: number, endMin: number, date: string, startMin: number) => void;
   resizingId?: string | null;
   resizePreviewEndMin?: number;
-  suggestions: TaskSuggestion[] | null;
+  dropIndicator: DropIndicator | null;
+  dayGridRefs: React.RefObject<Map<string, HTMLElement>>;
 }
 
 export function ScheduleTimeline({
   daysData,
   workStart,
   workEnd,
-  suggestions,
+  registeredBlocks,
+  registeringSlot,
+  onRegisterBlock,
+  onOpenTask,
+  onDeleteEvent,
   onClickCreate,
   onResizeStart,
   resizingId,
   resizePreviewEndMin,
-  ...dndProps
+  dropIndicator,
+  dayGridRefs,
 }: ScheduleTimelineProps) {
   const workHours = workEnd - workStart;
   const totalHeight = workHours * HOUR_HEIGHT;
@@ -65,9 +58,6 @@ export function ScheduleTimeline({
   const dayColWidth = containerWidth > 0
     ? Math.max(MIN_DAY_COL_WIDTH, Math.floor((containerWidth - TIME_LABEL_WIDTH) / dayCount))
     : MIN_DAY_COL_WIDTH;
-
-  // 全日のイベントをフラット化
-  const allDaysEvents: DayEvent[] = daysData.flatMap((d) => d.events);
 
   return (
     <div ref={containerRef} className="overflow-x-auto">
@@ -96,13 +86,17 @@ export function ScheduleTimeline({
             dayColWidth={dayColWidth}
             workStart={workStart}
             workEnd={workEnd}
-            suggestions={suggestions}
-            allDaysEvents={allDaysEvents}
+            registeredBlocks={registeredBlocks}
+            registeringSlot={registeringSlot}
+            onRegisterBlock={onRegisterBlock}
+            onOpenTask={onOpenTask}
+            onDeleteEvent={onDeleteEvent}
             onClickCreate={onClickCreate}
             onResizeStart={onResizeStart}
             resizingId={resizingId}
             resizePreviewEndMin={resizePreviewEndMin}
-            {...dndProps}
+            dropIndicator={dropIndicator}
+            dayGridRefs={dayGridRefs}
           />
         ))}
       </div>
