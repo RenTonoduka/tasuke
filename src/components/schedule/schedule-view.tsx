@@ -141,10 +141,12 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('week');
 
   // Mobile detection → auto switch to day view
+  const viewModeRef = useRef(viewMode);
+  viewModeRef.current = viewMode;
   useEffect(() => {
     const mql = window.matchMedia('(max-width: 768px)');
     const handler = (e: MediaQueryListEvent | MediaQueryList) => {
-      if (e.matches && viewMode === 'week') setViewMode('day');
+      if (e.matches && viewModeRef.current === 'week') setViewMode('day');
     };
     handler(mql);
     mql.addEventListener('change', handler);
@@ -257,12 +259,15 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
 
         if (resizing.type === 'event') {
           try {
-            await fetch('/api/calendar/events', {
+            const res = await fetch('/api/calendar/events', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ eventId: resizing.id, start: startISO, end: endISO }),
             });
-          } catch { /* ignore */ }
+            if (!res.ok) toast({ title: 'リサイズに失敗', variant: 'destructive' });
+          } catch {
+            toast({ title: 'リサイズに失敗', variant: 'destructive' });
+          }
         } else {
           const slotKey = `${resizing.id}|${date}|${minutesToTime(startMin)}`;
           const block = registeredBlocks.get(slotKey);
@@ -291,8 +296,12 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                   m.set(slotKey, { id: newBlock.id, endTime: minutesToTime(finalEndMin) });
                   return m;
                 });
+              } else {
+                toast({ title: 'タスクブロックのリサイズに失敗', variant: 'destructive' });
               }
-            } catch { /* ignore */ }
+            } catch {
+              toast({ title: 'タスクブロックのリサイズに失敗', variant: 'destructive' });
+            }
           }
         }
         fetchSchedule();
@@ -535,7 +544,9 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                   body: JSON.stringify({ estimatedHours: hours }),
                 });
                 if (res.ok) fetchSchedule();
-              } catch { /* ignore */ }
+              } catch {
+                toast({ title: '見積もりの更新に失敗', variant: 'destructive' });
+              }
             }}
             onOpenTask={openPanel}
             weekOffset={weekOffset}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
@@ -53,7 +53,7 @@ export function BoardColumn({ section, onAddTask, onRenameSection, onDeleteSecti
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(section.name);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const taskIds = section.tasks.map((t) => t.id);
+  const taskIds = useMemo(() => section.tasks.map((t) => t.id), [section.tasks]);
 
   const handleRename = () => {
     const trimmed = editName.trim();

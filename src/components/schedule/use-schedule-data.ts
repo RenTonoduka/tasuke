@@ -19,7 +19,9 @@ function loadSettings(key: string): ScheduleSettings {
   try {
     const raw = localStorage.getItem(`schedule-settings:${key}`);
     if (raw) return JSON.parse(raw);
-  } catch {}
+  } catch (err) {
+    console.warn('schedule settings parse error, using defaults:', err);
+  }
   return DEFAULT_SETTINGS;
 }
 
@@ -139,18 +141,20 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean, viewM
               }
             }
 
-            if (orphanedBlockIds.length > 0) {
-              Promise.allSettled(
+            if (orphanedBlockIds.length > 0 && !controller.signal.aborted) {
+              void Promise.allSettled(
                 orphanedBlockIds.map((blockId) =>
                   fetch('/api/calendar/schedule-block', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ scheduleBlockId: blockId }),
+                    signal: controller.signal,
                   }).then((res) => {
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                   }),
                 ),
               ).then((results) => {
+                if (controller.signal.aborted) return;
                 const failed = results.filter((r) => r.status === 'rejected').length;
                 if (failed > 0) {
                   toast({ title: `${failed}件の孤立ブロック削除に失敗`, variant: 'destructive' });
