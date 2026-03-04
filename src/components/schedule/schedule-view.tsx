@@ -511,7 +511,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
-      autoScroll={{ threshold: { x: 0, y: 0.15 } }}
+      autoScroll={{ threshold: { x: 0.1, y: 0.15 } }}
     >
       <div className="flex h-full flex-col overflow-hidden">
         {/* 固定ヘッダー */}
@@ -629,7 +629,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
         )}
       </div>
 
-      <DragOverlay dropAnimation={null}>
+      <DragOverlay dropAnimation={{ duration: 150, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' }}>
         {renderDragOverlay()}
       </DragOverlay>
 

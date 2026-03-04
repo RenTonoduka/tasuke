@@ -8,10 +8,11 @@ import {
   KeyboardSensor,
   useSensor,
   useSensors,
-  closestCorners,
+  closestCenter,
   type DragStartEvent,
   type DragEndEvent,
   type DragOverEvent,
+  type DropAnimation,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { BoardColumn } from './board-column';
@@ -23,12 +24,19 @@ import type { FilterState } from '@/stores/filter-store';
 import { useRouter } from 'next/navigation';
 import { SearchX } from 'lucide-react';
 import { useDragToProjectStore } from '@/stores/drag-to-project-store';
+import { toast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import type { Section, Task } from '@/types';
 
 const SECTION_STATUS_MAP: Record<string, 'TODO' | 'IN_PROGRESS' | 'DONE'> = {
   'todo': 'TODO', 'Todo': 'TODO', 'TODO': 'TODO', 'やること': 'TODO', '未着手': 'TODO',
   '進行中': 'IN_PROGRESS', 'In Progress': 'IN_PROGRESS', '対応中': 'IN_PROGRESS',
   '完了': 'DONE', 'Done': 'DONE', 'done': 'DONE',
+};
+
+const DROP_ANIMATION: DropAnimation = {
+  duration: 200,
+  easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
 };
 
 interface BoardViewProps {
@@ -48,6 +56,9 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
   const cleanupRef = useRef<(() => void) | null>(null);
   const { expanded: stExpanded, subtasks: stSubtasks, loading: stLoading, toggle: stToggle, toggleStatus: stToggleStatus, deleteSubtask: stDelete } = useSubtaskExpand();
 
+  // Track source section for undo
+  const dragSourceRef = useRef<{ sectionId: string; taskIndex: number } | null>(null);
+
   const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder, hasActiveFilters } = useFilterStore();
   const isFiltered = hasActiveFilters();
   const filteredSections = useMemo(() => {
@@ -55,12 +66,10 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
     return sections.map((s) => ({ ...s, tasks: filterTasks(s.tasks, f) }));
   }, [sections, priority, status, assignee, label, dueDateFilter, sortBy, sortOrder]);
 
-  const activeSensors = useSensors(
+  const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
-  const emptySensors = useSensors();
-  const sensors = isFiltered ? emptySensors : activeSensors;
   const totalFilteredTasks = filteredSections.reduce((sum, s) => sum + s.tasks.length, 0);
 
   const findSectionByTaskId = useCallback(
@@ -73,8 +82,15 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const task = active.data.current?.task as Task | undefined;
-    if (task) setActiveTask(task);
-    // プロジェクト移動D&D: ストア通知 + ポインター追跡（capture phaseで確実に取得）
+    if (task) {
+      setActiveTask(task);
+      // Capture source position for undo
+      const sourceSection = findSectionByTaskId(task.id);
+      if (sourceSection) {
+        const taskIndex = sourceSection.tasks.findIndex((t) => t.id === task.id);
+        dragSourceRef.current = { sectionId: sourceSection.id, taskIndex };
+      }
+    }
     useDragToProjectStore.getState().startDrag(projectId);
     pointerRef.current = null;
     const handler = (e: PointerEvent) => { pointerRef.current = { x: e.clientX, y: e.clientY }; };
@@ -136,14 +152,16 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    const draggedTask = activeTask;
+    const dragSource = dragSourceRef.current;
     setActiveTask(null);
+    dragSourceRef.current = null;
     cleanupRef.current?.();
     cleanupRef.current = null;
     useDragToProjectStore.getState().reset();
 
-    // ★ プロジェクト移動判定（ポインター位置にサイドバーのプロジェクト要素があるか）
-    // closestCornersはボード外でもoverを返すため、over===nullではなくelementsFromPointで判定
-    if (pointerRef.current) {
+    // Cross-project move detection
+    if (pointerRef.current && draggedTask) {
       const { x, y } = pointerRef.current;
       const els = document.elementsFromPoint(x, y);
       const projectEl = els.find((el) => el.getAttribute('data-project-drop-id'));
@@ -159,12 +177,30 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
             body: JSON.stringify({ projectId: targetProjectId }),
           });
           if (res.ok) {
+            toast({
+              title: `「${draggedTask.title}」を別プロジェクトに移動しました`,
+              action: (
+                <ToastAction altText="元に戻す" onClick={async () => {
+                  await fetch(`/api/tasks/${taskId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ projectId }),
+                  });
+                  setSections(snapshot);
+                  router.refresh();
+                }}>
+                  元に戻す
+                </ToastAction>
+              ),
+            });
             router.refresh();
           } else {
             setSections(snapshot);
+            toast({ title: 'タスクの移動に失敗', variant: 'destructive' });
           }
         } catch {
           setSections(snapshot);
+          toast({ title: 'タスクの移動に失敗', variant: 'destructive' });
         }
         pointerRef.current = null;
         return;
@@ -177,7 +213,6 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    // 同一セクション内の並べ替え
     const section = findSectionByTaskId(activeId);
     if (!section) return;
 
@@ -195,17 +230,21 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
       }
     }
 
-    // API更新（最新のstateを参照）
+    // API更新
     const updatedSection = sectionsRef.current.find((s) => s.tasks.some((t) => t.id === activeId));
     if (!updatedSection) return;
 
     const taskIndex = updatedSection.tasks.findIndex((t) => t.id === activeId);
-    const prevPos = updatedSection.tasks[taskIndex - 1]?.position ?? 0;
-    const nextPos = updatedSection.tasks[taskIndex + 1]?.position ?? prevPos + 2;
-    const newPosition = (prevPos + nextPos) / 2;
+    const taskCount = updatedSection.tasks.length;
+    // Use integer positions to avoid float convergence
+    const newPosition = taskCount <= 1 ? 1000 : Math.round((taskIndex / (taskCount - 1)) * taskCount * 1000);
+
+    // Capture for undo
+    const snapshot = sectionsRef.current.map((s) => ({ ...s, tasks: [...s.tasks] }));
+    const movedAcrossSections = dragSource && dragSource.sectionId !== updatedSection.id;
 
     try {
-      await fetch(`/api/tasks/${activeId}/move`, {
+      const res = await fetch(`/api/tasks/${activeId}/move`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -213,8 +252,32 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
           position: newPosition,
         }),
       });
+
+      if (res.ok && movedAcrossSections && draggedTask) {
+        const sourceSectionName = sections.find((s) => s.id === dragSource.sectionId)?.name ?? '';
+        const destSectionName = updatedSection.name;
+        toast({
+          title: `「${draggedTask.title}」を「${destSectionName}」に移動`,
+          action: (
+            <ToastAction altText="元に戻す" onClick={async () => {
+              await fetch(`/api/tasks/${activeId}/move`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  sectionId: dragSource.sectionId,
+                  position: dragSource.taskIndex * 1000,
+                }),
+              });
+              setSections(snapshot);
+            }}>
+              元に戻す
+            </ToastAction>
+          ),
+        });
+      }
     } catch {
       setSections(initialSections);
+      toast({ title: 'タスクの移動に失敗', variant: 'destructive' });
     }
   };
 
@@ -271,13 +334,14 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
 
   return (
     <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
+      sensors={isFiltered ? useSensors() : sensors}
+      collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       onDragCancel={() => {
         setActiveTask(null);
+        dragSourceRef.current = null;
         cleanupRef.current?.();
         cleanupRef.current = null;
         pointerRef.current = null;
@@ -307,7 +371,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
         </div>
       )}
 
-      <DragOverlay>
+      <DragOverlay dropAnimation={DROP_ANIMATION}>
         {activeTask ? <TaskCard task={activeTask} overlay /> : null}
       </DragOverlay>
     </DndContext>
