@@ -111,9 +111,13 @@ export const PRIORITY_COLORS: Record<string, string> = {
   P3: '#80868B',
 };
 
-export const HOUR_HEIGHT = 60;
-export const MIN_DAY_COL_WIDTH = 180;
-export const TIME_LABEL_WIDTH = 52;
+export const HOUR_HEIGHT = 72;
+export const MIN_DAY_COL_WIDTH = 200;
+export const TIME_LABEL_WIDTH = 56;
+
+// ビューモード
+export type ViewMode = 'day' | '3day' | 'week';
+export const VIEW_MODE_DAYS: Record<ViewMode, number> = { day: 1, '3day': 3, week: 7 };
 
 export function minutesToTime(min: number): string {
   const h = Math.floor(min / 60);
@@ -200,10 +204,12 @@ export interface RegisteredBlock {
   endTime: string;
 }
 
-// --- イベント重複レイアウト計算 ---
+// --- イベント重複レイアウト計算 (Google Calendar風) ---
 export interface OverlapLayoutResult {
   column: number;
   totalColumns: number;
+  /** 右方向に広がれるカラム数 (最後のカラムの要素は右側の空きスペースを使える) */
+  span: number;
 }
 
 export function computeOverlapLayout(items: { startMin: number; endMin: number }[]): OverlapLayoutResult[] {
@@ -211,7 +217,7 @@ export function computeOverlapLayout(items: { startMin: number; endMin: number }
   if (n === 0) return [];
 
   const indices = items.map((_, i) => i);
-  indices.sort((a, b) => items[a].startMin - items[b].startMin || items[a].endMin - items[b].endMin);
+  indices.sort((a, b) => items[a].startMin - items[b].startMin || items[b].endMin - items[a].endMin);
 
   const columns = new Array<number>(n).fill(0);
 
@@ -250,8 +256,20 @@ export function computeOverlapLayout(items: { startMin: number; endMin: number }
     groupMax.set(root, Math.max(groupMax.get(root) ?? 0, columns[i]));
   }
 
-  return items.map((_, i) => ({
-    column: columns[i],
-    totalColumns: (groupMax.get(find(i)) ?? 0) + 1,
-  }));
+  // Google Calendar風: 右側に重なりがなければspanを拡大
+  return items.map((_, i) => {
+    const totalColumns = (groupMax.get(find(i)) ?? 0) + 1;
+    const col = columns[i];
+    // 右隣のカラムに同時刻帯の要素があるかチェック
+    let span = 1;
+    for (let c = col + 1; c < totalColumns; c++) {
+      const hasNeighbor = items.some((_, j) =>
+        j !== i && columns[j] === c && find(j) === find(i) &&
+        items[j].startMin < items[i].endMin && items[j].endMin > items[i].startMin,
+      );
+      if (hasNeighbor) break;
+      span++;
+    }
+    return { column: col, totalColumns, span };
+  });
 }

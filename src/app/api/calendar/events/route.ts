@@ -125,7 +125,7 @@ export async function DELETE(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const user = await requireAuthUser();
-    const { eventId, start, end } = await req.json();
+    const { eventId, start, end, summary } = await req.json();
 
     if (!eventId || !start || !end) {
       return errorResponse('eventId, start, end は必須です', 400);
@@ -134,13 +134,18 @@ export async function PATCH(req: NextRequest) {
     const auth = await getGoogleClient(user.id);
     const calendar = getCalendarClient(auth);
 
+    const requestBody: Record<string, unknown> = {
+      start: { dateTime: start, timeZone: 'Asia/Tokyo' },
+      end: { dateTime: end, timeZone: 'Asia/Tokyo' },
+    };
+    if (summary !== undefined) {
+      requestBody.summary = summary;
+    }
+
     const updated = await calendar.events.patch({
       calendarId: 'primary',
       eventId,
-      requestBody: {
-        start: { dateTime: start, timeZone: 'Asia/Tokyo' },
-        end: { dateTime: end, timeZone: 'Asia/Tokyo' },
-      },
+      requestBody,
     });
 
     return successResponse({

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
-import { CalendarClock } from 'lucide-react';
+import { CalendarClock, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { useScheduleData } from './use-schedule-data';
@@ -11,9 +11,146 @@ import { ScheduleHeader } from './schedule-header';
 import { ScheduleTimeline } from './schedule-timeline';
 import { ScheduleTaskList, ScheduleUnschedulable } from './schedule-task-list';
 import { minutesToTime, HOUR_HEIGHT, GCAL_COLORS, GCAL_DEFAULT_COLOR, PRIORITY_COLORS } from './schedule-types';
+import type { ViewMode } from './schedule-types';
 import type { ScheduleViewProps } from './schedule-types';
 
+// --- Event creation dialog ---
+function EventCreateDialog({
+  date,
+  startMin,
+  endMin,
+  onClose,
+  onSubmit,
+}: {
+  date: string;
+  startMin: number;
+  endMin: number;
+  onClose: () => void;
+  onSubmit: (summary: string, date: string, startMin: number, endMin: number) => void;
+}) {
+  const [title, setTitle] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const handleSubmit = () => {
+    const summary = title.trim() || '新しい予定';
+    onSubmit(summary, date, startMin, endMin);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div
+        className="w-80 rounded-xl border border-g-border bg-g-bg p-4 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-g-text">予定を作成</h3>
+          <button onClick={onClose} className="rounded-md p-1 hover:bg-g-surface-hover">
+            <X className="h-4 w-4 text-g-text-muted" />
+          </button>
+        </div>
+        <input
+          ref={inputRef}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSubmit();
+            if (e.key === 'Escape') onClose();
+          }}
+          placeholder="タイトルを入力"
+          className="w-full rounded-lg border border-g-border bg-g-surface px-3 py-2 text-sm text-g-text placeholder:text-g-text-muted focus:outline-none focus:ring-2 focus:ring-[#4285F4]"
+        />
+        <div className="mt-2 flex items-center gap-2 text-xs text-g-text-secondary">
+          <span>{date.replace(/-/g, '/')}</span>
+          <span>{minutesToTime(startMin)}〜{minutesToTime(endMin)}</span>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="rounded-lg px-3 py-1.5 text-xs font-medium text-g-text-muted hover:bg-g-surface-hover"
+          >
+            キャンセル
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="rounded-lg bg-[#4285F4] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#3367D6]"
+          >
+            作成
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Loading skeleton ---
+function TimelineSkeleton({ workStart, workEnd }: { workStart: number; workEnd: number }) {
+  const hours = workEnd - workStart;
+  return (
+    <div className="flex-1 overflow-auto p-2">
+      <div className="flex">
+        <div className="shrink-0 w-14">
+          <div className="h-12" />
+          <div className="relative" style={{ height: hours * HOUR_HEIGHT }}>
+            {Array.from({ length: hours + 1 }, (_, i) => (
+              <div key={i} className="absolute right-2 -translate-y-1/2" style={{ top: i * HOUR_HEIGHT }}>
+                <div className="h-3 w-8 rounded bg-g-surface-hover animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
+        {Array.from({ length: 5 }, (_, d) => (
+          <div key={d} className="flex-1 border-l border-g-border">
+            <div className="h-12 flex items-center justify-center">
+              <div className="h-4 w-12 rounded bg-g-surface-hover animate-pulse" />
+            </div>
+            <div className="relative" style={{ height: hours * HOUR_HEIGHT }}>
+              {Array.from({ length: hours }, (_, i) => (
+                <div
+                  key={i}
+                  className="absolute left-0 w-full border-t border-g-border/40"
+                  style={{ top: i * HOUR_HEIGHT }}
+                />
+              ))}
+              {/* Skeleton events */}
+              {d < 4 && (
+                <>
+                  <div
+                    className="absolute left-2 right-2 rounded-md bg-g-surface-hover animate-pulse"
+                    style={{ top: (1 + d) * HOUR_HEIGHT, height: HOUR_HEIGHT * 1.5 }}
+                  />
+                  <div
+                    className="absolute left-2 right-2 rounded-md bg-g-surface-hover/60 animate-pulse"
+                    style={{ top: (4 + d * 0.5) * HOUR_HEIGHT, height: HOUR_HEIGHT }}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
+  const [viewMode, setViewMode] = useState<ViewMode>('week');
+
+  // Mobile detection → auto switch to day view
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 768px)');
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
+      if (e.matches && viewMode === 'week') setViewMode('day');
+    };
+    handler(mql);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
   const {
     data,
     loading,
@@ -32,12 +169,19 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     goToNextWeek,
     goToToday,
     currentWeekLabel,
-  } = useScheduleData(projectId, myTasksOnly);
+  } = useScheduleData(projectId, myTasksOnly, viewMode);
 
   const [showSettings, setShowSettings] = useState(false);
   const openPanel = useTaskPanelStore((s) => s.open);
 
-  // D&D (dnd-kit)
+  // Event creation dialog state
+  const [createDialog, setCreateDialog] = useState<{
+    date: string;
+    startMin: number;
+    endMin: number;
+  } | null>(null);
+
+  // D&D
   const dayGridRefs = useRef<Map<string, HTMLElement>>(new Map());
   const {
     activeDragData,
@@ -89,7 +233,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     });
   }, [data, savedSettings.workStart, weekOffset]);
 
-  // リサイズ: document イベントリスナー（ref使用で依存配列からresizePreviewEndMinを除外）
+  // リサイズ: document イベントリスナー
   useEffect(() => {
     if (!resizing) return;
 
@@ -259,16 +403,59 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     [fetchSchedule],
   );
 
-  // ダブルクリック → イベント作成
+  // イベント編集
+  const handleEditEvent = useCallback(
+    async (eventId: string, summary: string, startMin: number, endMin: number) => {
+      try {
+        // Find the event date from daysData
+        let eventDate = '';
+        for (const day of daysData) {
+          if (day.events.some((ev) => ev.id === eventId)) {
+            eventDate = day.date;
+            break;
+          }
+        }
+        if (!eventDate) return;
+
+        const startISO = `${eventDate}T${minutesToTime(startMin)}:00`;
+        const endISO = `${eventDate}T${minutesToTime(endMin)}:00`;
+        const res = await fetch('/api/calendar/events', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId, summary, start: startISO, end: endISO }),
+        });
+        if (res.ok) {
+          toast({ title: '予定を更新しました' });
+          fetchSchedule();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          toast({ title: '予定の更新に失敗', description: err.error, variant: 'destructive' });
+        }
+      } catch {
+        toast({ title: '予定の更新に失敗', variant: 'destructive' });
+      }
+    },
+    [fetchSchedule, daysData],
+  );
+
+  // ダブルクリック → イベント作成ダイアログ
   const handleClickCreate = useCallback(
-    async (date: string, startMin: number, endMin: number) => {
+    (date: string, startMin: number, endMin: number) => {
+      setCreateDialog({ date, startMin, endMin });
+    },
+    [],
+  );
+
+  // イベント作成実行
+  const handleCreateEvent = useCallback(
+    async (summary: string, date: string, startMin: number, endMin: number) => {
       const startISO = `${date}T${minutesToTime(startMin)}:00`;
       const endISO = `${date}T${minutesToTime(endMin)}:00`;
       try {
         const res = await fetch('/api/calendar/events', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ summary: '新しい予定', start: startISO, end: endISO }),
+          body: JSON.stringify({ summary, start: startISO, end: endISO }),
         });
         if (res.ok) {
           toast({ title: '予定を作成しました' });
@@ -284,29 +471,34 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     [fetchSchedule],
   );
 
-  // DragOverlay content
+  // DragOverlay content — improved
   const renderDragOverlay = () => {
     if (!activeDragData) return null;
     if (activeDragData.type === 'sidebar-task' || activeDragData.type === 'timeline-task') {
       const color = PRIORITY_COLORS[activeDragData.priority] ?? '#4285F4';
       return (
         <div
-          className="rounded-md px-2 py-1.5 text-xs font-medium text-white shadow-lg"
-          style={{ backgroundColor: color, width: 160 }}
+          className="rounded-lg px-3 py-2 text-sm font-medium text-white shadow-xl border border-white/20"
+          style={{ backgroundColor: color, width: 200, opacity: 0.9 }}
         >
-          <span className="line-clamp-1">{activeDragData.taskTitle}</span>
-          <span className="block text-[10px] opacity-70">{activeDragData.estimatedHours}h</span>
+          <span className="line-clamp-1 font-semibold">{activeDragData.taskTitle}</span>
+          <span className="block text-xs opacity-70 mt-0.5">{activeDragData.estimatedHours}h · {activeDragData.priority}</span>
         </div>
       );
     }
     const gcalColor = (activeDragData.colorId && GCAL_COLORS[activeDragData.colorId]) || GCAL_DEFAULT_COLOR;
     return (
       <div
-        className="rounded-md px-2 py-1.5 text-xs font-medium shadow-lg"
-        style={{ backgroundColor: gcalColor.bg, color: gcalColor.text, width: 160 }}
+        className="rounded-lg border-l-[3px] px-3 py-2 text-sm font-medium shadow-xl"
+        style={{
+          backgroundColor: `${gcalColor.bg}ee`,
+          borderLeftColor: gcalColor.bg,
+          color: gcalColor.text,
+          width: 200,
+        }}
       >
-        <span className="line-clamp-1">{activeDragData.summary}</span>
-        <span className="block text-[10px] opacity-70">{Math.round(activeDragData.durationMin)}分</span>
+        <span className="line-clamp-1 font-semibold">{activeDragData.summary}</span>
+        <span className="block text-xs opacity-70 mt-0.5">{Math.round(activeDragData.durationMin)}分</span>
       </div>
     );
   };
@@ -323,7 +515,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     >
       <div className="flex h-full flex-col overflow-hidden">
         {/* 固定ヘッダー */}
-        <div className="shrink-0 px-4 pt-4">
+        <div className="shrink-0 px-4 pt-3 pb-1">
           <ScheduleHeader
             loading={loading}
             hasData={!!data}
@@ -351,6 +543,8 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
             onNextWeek={goToNextWeek}
             onToday={goToToday}
             weekLabel={currentWeekLabel}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
           />
         </div>
 
@@ -369,30 +563,49 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
           </div>
         )}
 
+        {/* ローディングスケルトン */}
+        {loading && !data && (
+          <TimelineSkeleton workStart={savedSettings.workStart} workEnd={savedSettings.workEnd} />
+        )}
+
         {/* メインエリア */}
         {data && (
           <div className="flex flex-1 overflow-hidden">
-            {/* サイドバー（デスクトップ） */}
-            <div className="hidden w-56 shrink-0 overflow-y-auto border-r border-g-border p-3 md:block">
-              {data.suggestions.length > 0 && (
-                <ScheduleTaskList compact suggestions={data.suggestions} onOpenTask={openPanel} />
-              )}
-              {data.unschedulable.length > 0 && (
-                <ScheduleUnschedulable compact items={data.unschedulable} onOpenTask={openPanel} />
-              )}
-            </div>
+            {/* サイドバー（デスクトップ & 週ビュー） */}
+            {viewMode === 'week' && (
+              <div className="hidden w-56 shrink-0 overflow-y-auto border-r border-g-border p-3 md:block">
+                {data.suggestions.length > 0 && (
+                  <ScheduleTaskList compact suggestions={data.suggestions} onOpenTask={openPanel} />
+                )}
+                {data.unschedulable.length > 0 && (
+                  <ScheduleUnschedulable compact items={data.unschedulable} onOpenTask={openPanel} />
+                )}
+              </div>
+            )}
 
             {/* タイムライン */}
             <div ref={timelineContainerRef} className="flex-1 overflow-auto p-2">
-              {/* モバイル用: タスクリスト */}
-              <div className="md:hidden">
-                {data.suggestions.length > 0 && (
-                  <ScheduleTaskList suggestions={data.suggestions} onOpenTask={openPanel} />
-                )}
-                {data.unschedulable.length > 0 && (
-                  <ScheduleUnschedulable items={data.unschedulable} onOpenTask={openPanel} />
-                )}
-              </div>
+              {/* モバイル / 日ビュー時: タスクリスト */}
+              {(viewMode !== 'week') && (
+                <div className="mb-2">
+                  {data.suggestions.length > 0 && (
+                    <ScheduleTaskList suggestions={data.suggestions} onOpenTask={openPanel} />
+                  )}
+                  {data.unschedulable.length > 0 && (
+                    <ScheduleUnschedulable items={data.unschedulable} onOpenTask={openPanel} />
+                  )}
+                </div>
+              )}
+              {viewMode === 'week' && (
+                <div className="md:hidden mb-2">
+                  {data.suggestions.length > 0 && (
+                    <ScheduleTaskList suggestions={data.suggestions} onOpenTask={openPanel} />
+                  )}
+                  {data.unschedulable.length > 0 && (
+                    <ScheduleUnschedulable items={data.unschedulable} onOpenTask={openPanel} />
+                  )}
+                </div>
+              )}
 
               <ScheduleTimeline
                 daysData={daysData}
@@ -403,6 +616,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                 onRegisterBlock={handleRegisterBlock}
                 onOpenTask={openPanel}
                 onDeleteEvent={handleDeleteEvent}
+                onEditEvent={handleEditEvent}
                 onClickCreate={handleClickCreate}
                 onResizeStart={handleResizeStart}
                 resizingId={resizing?.id}
@@ -418,6 +632,17 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
       <DragOverlay dropAnimation={null}>
         {renderDragOverlay()}
       </DragOverlay>
+
+      {/* イベント作成ダイアログ */}
+      {createDialog && (
+        <EventCreateDialog
+          date={createDialog.date}
+          startMin={createDialog.startMin}
+          endMin={createDialog.endMin}
+          onClose={() => setCreateDialog(null)}
+          onSubmit={handleCreateEvent}
+        />
+      )}
     </DndContext>
   );
 }
