@@ -25,6 +25,7 @@ import {
   Plus,
   Pencil,
   UserPlus,
+  PanelLeftClose,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
@@ -52,6 +53,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
+import { useSidebarStore } from '@/stores/sidebar-store';
 import { useDragToProjectStore } from '@/stores/drag-to-project-store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from '@/hooks/use-toast';
@@ -198,6 +200,7 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
   const { data: session } = useSession();
   const user = session?.user;
   const { theme, setTheme } = useTheme();
+  const closeSidebar = useSidebarStore((s) => s.close);
 
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   useEffect(() => { setProjects(initialProjects); }, [initialProjects]);
@@ -434,10 +437,10 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
   return (
     <div className="flex h-full w-[240px] flex-col border-r border-g-border bg-g-surface">
       {/* Workspace header */}
-      <div className="flex h-12 items-center gap-2 border-b border-g-border px-4">
+      <div className="flex h-12 items-center gap-2 border-b border-g-border px-2">
         <DropdownMenu onOpenChange={(open) => { if (open) fetchWorkspaces(); }}>
           <DropdownMenuTrigger asChild>
-            <button className="flex flex-1 items-center gap-2 rounded-md px-1 py-1 text-sm font-semibold text-g-text hover:bg-g-border">
+            <button className="flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-sm font-semibold text-g-text hover:bg-g-border">
               <div className="flex h-6 w-6 items-center justify-center rounded bg-[#4285F4] text-xs font-bold text-white">
                 {workspaceName.charAt(0)}
               </div>
@@ -516,6 +519,13 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <button
+          onClick={closeSidebar}
+          className="shrink-0 rounded-md p-1.5 text-g-text-muted hover:bg-g-border hover:text-g-text"
+          title="サイドバーを閉じる"
+        >
+          <PanelLeftClose className="h-4 w-4" />
+        </button>
       </div>
 
       <DndContext
