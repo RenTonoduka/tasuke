@@ -1,6 +1,7 @@
 import { NextAuthOptions, getServerSession } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import GitHubProvider from 'next-auth/providers/github';
+import LineProvider from 'next-auth/providers/line';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import prisma from './prisma';
 
@@ -51,6 +52,11 @@ export const authOptions: NextAuthOptions = {
       allowDangerousEmailAccountLinking: true,
       authorization: { params: { scope: 'repo user:email' } },
     }),
+    LineProvider({
+      clientId: process.env.LINE_CLIENT_ID!,
+      clientSecret: process.env.LINE_CLIENT_SECRET!,
+      allowDangerousEmailAccountLinking: true,
+    }),
   ],
   session: {
     strategy: 'jwt',
@@ -82,7 +88,7 @@ export const authOptions: NextAuthOptions = {
       if (!user.email) return false;
       // 再ログイン時にOAuthトークンを更新（スコープ変更対応）
       // 再ログイン/再連携時にOAuthトークンを更新
-      if (account && user.id && (account.provider === 'google' || account.provider === 'github')) {
+      if (account && user.id && (account.provider === 'google' || account.provider === 'github' || account.provider === 'line')) {
         const existing = await prisma.account.findFirst({
           where: { userId: user.id, provider: account.provider },
         });
@@ -95,6 +101,31 @@ export const authOptions: NextAuthOptions = {
               expires_at: account.expires_at ?? existing.expires_at,
               scope: account.scope ?? existing.scope,
               id_token: account.id_token ?? existing.id_token,
+            },
+          });
+        }
+      }
+      // LINE Login 時に LineUserMapping を自動作成
+      if (account?.provider === 'line' && account.providerAccountId && user.id) {
+        const firstMember = await prisma.workspaceMember.findFirst({
+          where: { userId: user.id },
+          orderBy: { joinedAt: 'asc' },
+          select: { workspaceId: true },
+        });
+        if (firstMember) {
+          await prisma.lineUserMapping.upsert({
+            where: { lineUserId: account.providerAccountId },
+            update: {
+              displayName: user.name ?? undefined,
+              pictureUrl: user.image ?? undefined,
+              isFollowing: true,
+            },
+            create: {
+              lineUserId: account.providerAccountId,
+              userId: user.id,
+              workspaceId: firstMember.workspaceId,
+              displayName: user.name ?? null,
+              pictureUrl: user.image ?? null,
             },
           });
         }

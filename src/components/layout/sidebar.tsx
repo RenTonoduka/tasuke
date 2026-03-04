@@ -26,6 +26,7 @@ import {
   Pencil,
   UserPlus,
   PanelLeftClose,
+  MessageCircle,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
@@ -515,6 +516,12 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
               <Link href={`/${currentWorkspaceSlug}/settings/github`}>
                 <Github className="mr-2 h-4 w-4" />
                 GitHub連携
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/${currentWorkspaceSlug}/settings/line`}>
+                <MessageCircle className="mr-2 h-4 w-4" />
+                LINE連携
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
