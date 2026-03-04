@@ -410,6 +410,548 @@ const TOOLS: ToolDef[] = [
     },
     readOnly: true,
   },
+  // Workspace
+  {
+    name: 'workspace_list',
+    description: 'ワークスペース一覧を取得します',
+    inputSchema: { type: 'object', properties: {} },
+    readOnly: true,
+  },
+  {
+    name: 'workspace_create',
+    description: 'ワークスペースを作成します',
+    inputSchema: {
+      type: 'object',
+      properties: { name: { type: 'string', description: 'ワークスペース名' } },
+      required: ['name'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'workspace_update',
+    description: 'ワークスペース名を更新します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string' },
+        name: { type: 'string' },
+      },
+      required: ['workspaceId', 'name'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'workspace_delete',
+    description: 'ワークスペースを削除します（オーナーのみ）',
+    inputSchema: {
+      type: 'object',
+      properties: { workspaceId: { type: 'string' } },
+      required: ['workspaceId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'workspace_stats',
+    description: 'ワークスペースのタスク統計を取得します',
+    inputSchema: {
+      type: 'object',
+      properties: { workspaceId: { type: 'string', description: 'ワークスペースID（省略時はデフォルト）' } },
+    },
+    readOnly: true,
+  },
+  // Member
+  {
+    name: 'member_list',
+    description: 'ワークスペースのメンバー一覧を取得します',
+    inputSchema: {
+      type: 'object',
+      properties: { workspaceId: { type: 'string', description: 'ワークスペースID（省略時はデフォルト）' } },
+    },
+    readOnly: true,
+  },
+  {
+    name: 'member_invite',
+    description: 'メールアドレスでメンバーを招待します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        email: { type: 'string', description: '招待するメールアドレス' },
+        role: { type: 'string', enum: ['ADMIN', 'MEMBER', 'VIEWER'], description: 'ロール（デフォルトMEMBER）' },
+      },
+      required: ['email'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'member_remove',
+    description: 'メンバーを削除します',
+    inputSchema: {
+      type: 'object',
+      properties: { memberId: { type: 'string' } },
+      required: ['memberId'],
+    },
+    readOnly: false,
+  },
+  // Calendar
+  {
+    name: 'calendar_event_list',
+    description: 'Googleカレンダーのイベント一覧を取得します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        timeMin: { type: 'string', description: '取得開始日時（ISO8601）' },
+        timeMax: { type: 'string', description: '取得終了日時（ISO8601）' },
+      },
+      required: ['timeMin', 'timeMax'],
+    },
+    readOnly: true,
+  },
+  {
+    name: 'calendar_event_create',
+    description: 'Googleカレンダーにイベントを作成します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        summary: { type: 'string', description: 'イベントタイトル' },
+        start: { type: 'string', description: '開始日時（ISO8601）' },
+        end: { type: 'string', description: '終了日時（ISO8601）' },
+      },
+      required: ['start', 'end'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'calendar_event_update',
+    description: 'Googleカレンダーイベントの時間を更新します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        eventId: { type: 'string' },
+        start: { type: 'string', description: '新しい開始日時（ISO8601）' },
+        end: { type: 'string', description: '新しい終了日時（ISO8601）' },
+      },
+      required: ['eventId', 'start', 'end'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'calendar_event_delete',
+    description: 'Googleカレンダーのイベントを削除します',
+    inputSchema: {
+      type: 'object',
+      properties: { eventId: { type: 'string' } },
+      required: ['eventId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'schedule_block_list',
+    description: '登録済みスケジュールブロックを取得します',
+    inputSchema: {
+      type: 'object',
+      properties: { taskIds: { type: 'string', description: 'タスクIDのカンマ区切り' } },
+      required: ['taskIds'],
+    },
+    readOnly: true,
+  },
+  {
+    name: 'schedule_block_create',
+    description: 'タスクをGoogleカレンダーに作業ブロックとして登録します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        taskId: { type: 'string' },
+        date: { type: 'string', description: '日付（YYYY-MM-DD）' },
+        start: { type: 'string', description: '開始時刻（HH:MM）' },
+        end: { type: 'string', description: '終了時刻（HH:MM）' },
+      },
+      required: ['taskId', 'date', 'start', 'end'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'schedule_block_delete',
+    description: 'スケジュールブロックを削除します',
+    inputSchema: {
+      type: 'object',
+      properties: { scheduleBlockId: { type: 'string' } },
+      required: ['scheduleBlockId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'schedule_suggest',
+    description: 'AIがタスクの最適なスケジュールを提案します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'プロジェクトID（省略時は全プロジェクト）' },
+        myTasksOnly: { type: 'boolean', description: '自分のタスクのみ' },
+        workStart: { type: 'number', description: '勤務開始時間（デフォルト9）' },
+        workEnd: { type: 'number', description: '勤務終了時間（デフォルト18）' },
+        skipWeekends: { type: 'boolean', description: '土日をスキップ（デフォルトtrue）' },
+      },
+    },
+    readOnly: true,
+  },
+  // Attachment
+  {
+    name: 'attachment_list',
+    description: 'タスクの添付ファイル一覧を取得します',
+    inputSchema: {
+      type: 'object',
+      properties: { taskId: { type: 'string' } },
+      required: ['taskId'],
+    },
+    readOnly: true,
+  },
+  {
+    name: 'attachment_add',
+    description: 'タスクにGoogle Driveファイルを添付します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        taskId: { type: 'string' },
+        driveFileId: { type: 'string', description: 'Google DriveファイルID' },
+        fileName: { type: 'string', description: 'ファイル名' },
+        mimeType: { type: 'string', description: 'MIMEタイプ' },
+        url: { type: 'string', description: 'ファイルURL' },
+      },
+      required: ['taskId', 'driveFileId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'attachment_delete',
+    description: '添付ファイルを削除します',
+    inputSchema: {
+      type: 'object',
+      properties: { attachmentId: { type: 'string' } },
+      required: ['attachmentId'],
+    },
+    readOnly: false,
+  },
+  // Automation
+  {
+    name: 'automation_list',
+    description: 'プロジェクトの自動化ルール一覧を取得します',
+    inputSchema: {
+      type: 'object',
+      properties: { projectId: { type: 'string' } },
+      required: ['projectId'],
+    },
+    readOnly: true,
+  },
+  {
+    name: 'automation_create',
+    description: '自動化ルールを作成します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string' },
+        name: { type: 'string', description: 'ルール名' },
+        trigger: { type: 'object', description: 'トリガー条件（JSON）' },
+        action: { type: 'object', description: 'アクション（JSON）' },
+      },
+      required: ['projectId', 'name', 'trigger', 'action'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'automation_update',
+    description: '自動化ルールを更新します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ruleId: { type: 'string' },
+        name: { type: 'string' },
+        enabled: { type: 'boolean' },
+        trigger: { type: 'object', description: 'トリガー条件（JSON）' },
+        action: { type: 'object', description: 'アクション（JSON）' },
+      },
+      required: ['ruleId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'automation_delete',
+    description: '自動化ルールを削除します',
+    inputSchema: {
+      type: 'object',
+      properties: { ruleId: { type: 'string' } },
+      required: ['ruleId'],
+    },
+    readOnly: false,
+  },
+  // Template
+  {
+    name: 'template_list',
+    description: 'プロジェクトテンプレート一覧を取得します',
+    inputSchema: { type: 'object', properties: {} },
+    readOnly: true,
+  },
+  {
+    name: 'template_create',
+    description: 'プロジェクトテンプレートを作成します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'テンプレート名' },
+        description: { type: 'string' },
+        color: { type: 'string', description: '色（#RRGGBB）' },
+        taskTemplates: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              description: { type: 'string' },
+              priority: { type: 'string', enum: ['P0', 'P1', 'P2', 'P3'] },
+              section: { type: 'string' },
+              position: { type: 'number' },
+            },
+            required: ['title'],
+          },
+        },
+      },
+      required: ['name'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'template_delete',
+    description: 'プロジェクトテンプレートを削除します',
+    inputSchema: {
+      type: 'object',
+      properties: { templateId: { type: 'string' } },
+      required: ['templateId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'project_from_template',
+    description: 'テンプレートからプロジェクトを作成します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        templateId: { type: 'string' },
+        name: { type: 'string', description: 'プロジェクト名' },
+      },
+      required: ['templateId', 'name'],
+    },
+    readOnly: false,
+  },
+  // GitHub
+  {
+    name: 'github_status',
+    description: 'GitHub連携の状態を確認します',
+    inputSchema: { type: 'object', properties: {} },
+    readOnly: true,
+  },
+  {
+    name: 'github_repos',
+    description: 'GitHubリポジトリ一覧を取得します',
+    inputSchema: { type: 'object', properties: {} },
+    readOnly: true,
+  },
+  {
+    name: 'github_issues',
+    description: 'GitHubリポジトリのIssue一覧を取得します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        owner: { type: 'string', description: 'リポジトリオーナー' },
+        repo: { type: 'string', description: 'リポジトリ名' },
+      },
+      required: ['owner', 'repo'],
+    },
+    readOnly: true,
+  },
+  {
+    name: 'github_mapping_list',
+    description: 'GitHubリポジトリとプロジェクトのマッピング一覧',
+    inputSchema: { type: 'object', properties: {} },
+    readOnly: true,
+  },
+  {
+    name: 'github_mapping_set',
+    description: 'GitHubリポジトリとプロジェクトのマッピングを設定します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        githubRepoFullName: { type: 'string', description: 'リポジトリのフルネーム（owner/repo）' },
+        projectId: { type: 'string' },
+      },
+      required: ['githubRepoFullName', 'projectId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'github_sync',
+    description: 'GitHubリポジトリの全Issueを一括同期します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        githubRepoFullName: { type: 'string', description: 'リポジトリのフルネーム（owner/repo）' },
+        projectId: { type: 'string', description: '同期先プロジェクトID' },
+      },
+      required: ['githubRepoFullName', 'projectId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'github_import',
+    description: '選択したGitHub Issueをタスクとしてインポートします',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        issues: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              githubIssueId: { type: 'number' },
+              githubIssueNodeId: { type: 'string' },
+              githubRepoFullName: { type: 'string' },
+              title: { type: 'string' },
+              body: { type: 'string' },
+              checklistItems: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, checked: { type: 'boolean' } } } },
+            },
+            required: ['githubIssueId', 'githubIssueNodeId', 'githubRepoFullName', 'title'],
+          },
+        },
+        projectId: { type: 'string' },
+        sectionId: { type: 'string' },
+        importSubtasks: { type: 'boolean', description: 'チェックリストをサブタスクとしてインポート（デフォルトtrue）' },
+      },
+      required: ['issues', 'projectId'],
+    },
+    readOnly: false,
+  },
+  // Google Tasks
+  {
+    name: 'gtasks_lists',
+    description: 'Google Tasksのリスト一覧を取得します',
+    inputSchema: { type: 'object', properties: {} },
+    readOnly: true,
+  },
+  {
+    name: 'gtasks_tasks',
+    description: 'Google Tasksのタスク一覧を取得します',
+    inputSchema: {
+      type: 'object',
+      properties: { listId: { type: 'string', description: 'タスクリストID' } },
+      required: ['listId'],
+    },
+    readOnly: true,
+  },
+  {
+    name: 'gtasks_mapping_set',
+    description: 'Google TasksリストとプロジェクトのマッピングID設定',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        googleTaskListId: { type: 'string', description: 'Google TasksリストID' },
+        googleTaskListName: { type: 'string', description: 'リスト名' },
+        projectId: { type: 'string' },
+      },
+      required: ['googleTaskListId', 'googleTaskListName', 'projectId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'gtasks_import',
+    description: 'Google Tasksのタスクをインポートします',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tasks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              googleTaskId: { type: 'string' },
+              googleTaskListId: { type: 'string' },
+              title: { type: 'string' },
+              description: { type: 'string' },
+              dueDate: { type: 'string' },
+            },
+            required: ['googleTaskId', 'googleTaskListId', 'title'],
+          },
+        },
+        projectId: { type: 'string' },
+        sectionId: { type: 'string' },
+      },
+      required: ['tasks', 'projectId'],
+    },
+    readOnly: false,
+  },
+  // Settings
+  {
+    name: 'api_token_list',
+    description: 'APIトークン一覧を取得します',
+    inputSchema: { type: 'object', properties: {} },
+    readOnly: true,
+  },
+  {
+    name: 'api_token_create',
+    description: 'APIトークンを発行します（トークンは1回のみ表示）',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'トークン名' },
+        scope: { type: 'string', enum: ['read_only', 'read_write'], description: 'スコープ（デフォルトread_write）' },
+        expiresInDays: { type: 'number', description: '有効期限（日数）' },
+      },
+      required: ['name'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'api_token_revoke',
+    description: 'APIトークンを無効化します',
+    inputSchema: {
+      type: 'object',
+      properties: { tokenId: { type: 'string' } },
+      required: ['tokenId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'project_settings_update',
+    description: 'プロジェクトの公開/非公開設定を変更します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string' },
+        isPrivate: { type: 'boolean' },
+      },
+      required: ['projectId', 'isPrivate'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'project_reorder',
+    description: 'プロジェクトの表示順を変更します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectIds: { type: 'array', items: { type: 'string' }, description: 'プロジェクトIDの配列（表示順）' },
+      },
+      required: ['projectIds'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'project_member_list',
+    description: 'プロジェクトのメンバー一覧を取得します',
+    inputSchema: {
+      type: 'object',
+      properties: { projectId: { type: 'string' } },
+      required: ['projectId'],
+    },
+    readOnly: true,
+  },
 ];
 
 // ツール名 → ハンドラーのマッピング
@@ -447,6 +989,50 @@ const TOOL_HANDLERS: Record<string, (params: any, ctx: ToolContext) => Promise<h
   notification_read_all: handlers.handleNotificationReadAll,
   dashboard: handlers.handleDashboard,
   my_tasks: handlers.handleMyTasks,
+  workspace_list: handlers.handleWorkspaceList,
+  workspace_create: handlers.handleWorkspaceCreate,
+  workspace_update: handlers.handleWorkspaceUpdate,
+  workspace_delete: handlers.handleWorkspaceDelete,
+  workspace_stats: handlers.handleWorkspaceStats,
+  member_list: handlers.handleMemberList,
+  member_invite: handlers.handleMemberInvite,
+  member_remove: handlers.handleMemberRemove,
+  calendar_event_list: handlers.handleCalendarEventList,
+  calendar_event_create: handlers.handleCalendarEventCreate,
+  calendar_event_update: handlers.handleCalendarEventUpdate,
+  calendar_event_delete: handlers.handleCalendarEventDelete,
+  schedule_block_list: handlers.handleScheduleBlockList,
+  schedule_block_create: handlers.handleScheduleBlockCreate,
+  schedule_block_delete: handlers.handleScheduleBlockDelete,
+  schedule_suggest: handlers.handleScheduleSuggest,
+  attachment_list: handlers.handleAttachmentList,
+  attachment_add: handlers.handleAttachmentAdd,
+  attachment_delete: handlers.handleAttachmentDelete,
+  automation_list: handlers.handleAutomationList,
+  automation_create: handlers.handleAutomationCreate,
+  automation_update: handlers.handleAutomationUpdate,
+  automation_delete: handlers.handleAutomationDelete,
+  template_list: handlers.handleTemplateList,
+  template_create: handlers.handleTemplateCreate,
+  template_delete: handlers.handleTemplateDelete,
+  project_from_template: handlers.handleProjectFromTemplate,
+  github_status: handlers.handleGitHubStatus,
+  github_repos: handlers.handleGitHubRepos,
+  github_issues: handlers.handleGitHubIssues,
+  github_mapping_list: handlers.handleGitHubMappingList,
+  github_mapping_set: handlers.handleGitHubMappingSet,
+  github_sync: handlers.handleGitHubSync,
+  github_import: handlers.handleGitHubImport,
+  gtasks_lists: handlers.handleGTasksLists,
+  gtasks_tasks: handlers.handleGTasksTasks,
+  gtasks_mapping_set: handlers.handleGTasksMappingSet,
+  gtasks_import: handlers.handleGTasksImport,
+  api_token_list: handlers.handleApiTokenList,
+  api_token_create: handlers.handleApiTokenCreate,
+  api_token_revoke: handlers.handleApiTokenRevoke,
+  project_settings_update: handlers.handleProjectSettingsUpdate,
+  project_reorder: handlers.handleProjectReorder,
+  project_member_list: handlers.handleProjectMemberList,
 };
 
 // JSON-RPC レスポンスヘルパー
