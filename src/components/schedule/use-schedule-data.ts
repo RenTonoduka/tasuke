@@ -8,8 +8,9 @@ import type {
   ScheduleSettings,
   DayData,
   RegisteredBlock,
+  ViewMode,
 } from './schedule-types';
-import { timeToMinutes, isWeekendDate, formatYMD } from './schedule-types';
+import { VIEW_MODE_DAYS, timeToMinutes, isWeekendDate, formatYMD } from './schedule-types';
 
 const DEFAULT_SETTINGS: ScheduleSettings = { workStart: 9, workEnd: 18, skipWeekends: true };
 
@@ -22,11 +23,10 @@ function loadSettings(key: string): ScheduleSettings {
   return DEFAULT_SETTINGS;
 }
 
-export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
+export function useScheduleData(projectId?: string, myTasksOnly?: boolean, viewMode: ViewMode = 'week') {
   const settingsKey = projectId ?? 'my-tasks';
   const initial = loadSettings(settingsKey);
 
-  // saved = APIリクエストに使う確定設定, editing = UI上の編集中設定
   const [savedSettings, setSavedSettings] = useState<ScheduleSettings>(initial);
   const [editingSettings, setEditingSettings] = useState<ScheduleSettings>(initial);
 
@@ -36,24 +36,39 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
   const [registeredBlocks, setRegisteredBlocks] = useState<Map<string, RegisteredBlock>>(new Map());
   const [registeringSlot, setRegisteringSlot] = useState<string | null>(null);
 
-  // 週ナビゲーション
   const [weekOffset, setWeekOffset] = useState(0);
 
   const abortRef = useRef<AbortController | null>(null);
 
-  // 表示期間の計算
+  // 表示期間の計算 — ビューモードに応じて日数を変える
   const { rangeStart, rangeEnd } = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const base = addWeeks(today, weekOffset);
-    const start = startOfWeek(base, { weekStartsOn: 1 });
-    const end = addDays(start, 14);
+
+    if (viewMode === 'week') {
+      const base = addWeeks(today, weekOffset);
+      const start = startOfWeek(base, { weekStartsOn: 1 });
+      const end = addDays(start, 14);
+      return { rangeStart: start, rangeEnd: end };
+    }
+
+    // day / 3day: weekOffsetを日オフセットとして使う
+    const dayCount = VIEW_MODE_DAYS[viewMode];
+    const start = addDays(today, weekOffset * dayCount);
+    const end = addDays(start, dayCount + 7); // suggestion用にバッファ
     return { rangeStart: start, rangeEnd: end };
-  }, [weekOffset]);
+  }, [weekOffset, viewMode]);
 
   const currentWeekLabel = useMemo(() => {
-    return `${format(rangeStart, 'M/d')} ~ ${format(addDays(rangeEnd, -1), 'M/d')}`;
-  }, [rangeStart, rangeEnd]);
+    const dayCount = VIEW_MODE_DAYS[viewMode];
+    if (viewMode === 'week') {
+      return `${format(rangeStart, 'M/d')} ~ ${format(addDays(rangeStart, 13), 'M/d')}`;
+    }
+    if (dayCount === 1) {
+      return format(rangeStart, 'M/d (eee)');
+    }
+    return `${format(rangeStart, 'M/d')} ~ ${format(addDays(rangeStart, dayCount - 1), 'M/d')}`;
+  }, [rangeStart, viewMode]);
 
   const goToPrevWeek = useCallback(() => setWeekOffset((w) => w - 1), []);
   const goToNextWeek = useCallback(() => setWeekOffset((w) => w + 1), []);
@@ -112,7 +127,6 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
             const blocks: { taskId: string; date: string; startTime: string; endTime: string; id: string; googleCalendarEventId: string }[] =
               await blocksRes.json();
 
-            // Googleカレンダー側で削除されたブロックを検出・クリーンアップ
             const calEventIds = new Set(calEvents.map((ev) => ev.id));
             const validBlocks: typeof blocks = [];
             const orphanedBlockIds: string[] = [];
@@ -160,19 +174,16 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
     }
   }, [projectId, myTasksOnly, savedSettings, rangeStart, rangeEnd]);
 
-  // unmount時にabort
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
     };
   }, []);
 
-  // 初回 + savedSettings変更 + 週移動時に自動取得
   useEffect(() => {
     fetchSchedule();
   }, [fetchSchedule]);
 
-  // 設定保存: editing → saved に確定
   const handleSaveSettings = useCallback(() => {
     localStorage.setItem(
       `schedule-settings:${settingsKey}`,
@@ -182,16 +193,19 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
     toast({ title: '設定を保存しました' });
   }, [settingsKey, editingSettings]);
 
-  // 表示期間の日付を生成
+  // 表示期間の日付を生成 — ビューモードに応じた日数
   const daysData: DayData[] = useMemo(() => {
     const workStartMin = savedSettings.workStart * 60;
     const workEndMin = savedSettings.workEnd * 60;
 
+    const dayCount = VIEW_MODE_DAYS[viewMode];
+    const totalDays = viewMode === 'week' ? 14 : dayCount;
+
     const allDates: string[] = [];
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < totalDays; i++) {
       const d = addDays(rangeStart, i);
       const dateStr = formatYMD(d);
-      if (savedSettings.skipWeekends && isWeekendDate(dateStr)) continue;
+      if (viewMode === 'week' && savedSettings.skipWeekends && isWeekendDate(dateStr)) continue;
       allDates.push(dateStr);
     }
 
@@ -200,14 +214,12 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
       daysMap.set(date, { date, allDayEvents: [], events: [], tasks: [] });
     }
 
-    // 登録済みタスクIDのセット
     const blockKeys = Array.from(registeredBlocks.keys());
     const registeredTaskIds = new Set<string>();
     for (const key of blockKeys) {
       registeredTaskIds.add(key.split('|')[0]);
     }
 
-    // イベント配置（[tasuke]プレフィックスは登録済みタスクなので除外）
     for (const ev of events) {
       if (ev.summary.startsWith('[tasuke]')) continue;
 
@@ -226,7 +238,6 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
       day.events.push({ id: ev.id, summary: ev.summary, startMin, endMin, colorId: ev.colorId });
     }
 
-    // タスクスロット配置
     if (data) {
       for (const sug of data.suggestions) {
         if (registeredTaskIds.has(sug.taskId)) {
@@ -265,7 +276,7 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean) {
     }
 
     return allDates.map((date) => daysMap.get(date)!);
-  }, [data, events, savedSettings, registeredBlocks, rangeStart]);
+  }, [data, events, savedSettings, registeredBlocks, rangeStart, viewMode]);
 
   return {
     data,

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
-import { CalendarPlus, CalendarCheck, RefreshCw, Trash2, Clock, X } from 'lucide-react';
+import { CalendarPlus, CalendarCheck, RefreshCw, Trash2, Clock, X, Pencil, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   HOUR_HEIGHT,
@@ -16,7 +16,7 @@ import {
 } from './schedule-types';
 import type { DayData, DayEvent, DayTask, DropIndicator, RegisteredBlock } from './schedule-types';
 
-// --- Sub-components for useDraggable ---
+// --- Event Block (Google Calendar events) ---
 
 function EventBlock({
   ev,
@@ -27,6 +27,7 @@ function EventBlock({
   popoverDirection,
   onSelect,
   onDeleteEvent,
+  onEditEvent,
   onResizeStart,
   date,
 }: {
@@ -38,6 +39,7 @@ function EventBlock({
   popoverDirection: 'above' | 'below';
   onSelect: (ev: DayEvent | null, direction?: 'above' | 'below') => void;
   onDeleteEvent: (id: string) => void;
+  onEditEvent?: (id: string, summary: string, startMin: number, endMin: number) => void;
   onResizeStart?: (id: string, type: 'event' | 'task', clientY: number, endMin: number, date: string, startMin: number) => void;
   date: string;
 }) {
@@ -52,6 +54,8 @@ function EventBlock({
     },
   });
 
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(ev.summary);
   const gcalColor = (ev.colorId && GCAL_COLORS[ev.colorId]) || GCAL_DEFAULT_COLOR;
 
   return (
@@ -70,16 +74,22 @@ function EventBlock({
           }
         }}
         className={cn(
-          'h-full w-full cursor-pointer overflow-hidden rounded-md px-1.5 py-0.5 text-[10px] font-medium shadow-sm',
+          'h-full w-full cursor-pointer overflow-hidden rounded-md border-l-[3px] px-2 py-1 text-xs font-medium shadow-sm transition-shadow hover:shadow-md',
           isDragging && 'opacity-40',
           isSelected && 'ring-2 ring-offset-1 ring-g-text',
         )}
-        style={{ backgroundColor: gcalColor.bg, color: gcalColor.text }}
+        style={{
+          backgroundColor: `${gcalColor.bg}33`,
+          borderLeftColor: gcalColor.bg,
+          color: gcalColor.text === '#fff' ? gcalColor.bg : gcalColor.text,
+        }}
         title={`${ev.summary} — クリックで詳細 / ドラッグで移動`}
       >
-        <span className="line-clamp-1 leading-tight">{ev.summary}</span>
-        {heightPx >= 32 && (
-          <span className="block text-[9px] opacity-70">
+        <span className="line-clamp-2 font-semibold leading-tight text-g-text" style={{ fontSize: '12px' }}>
+          {ev.summary}
+        </span>
+        {heightPx >= 40 && (
+          <span className="block text-[11px] opacity-60 mt-0.5">
             {minutesToTime(ev.startMin)}〜{minutesToTime(effectiveEnd)}
           </span>
         )}
@@ -87,54 +97,107 @@ function EventBlock({
 
       {onResizeStart && (
         <div
-          className="absolute bottom-0 left-0 right-0 h-2 cursor-s-resize hover:bg-black/10 rounded-b-md"
+          className="absolute bottom-0 left-0 right-0 h-3 cursor-s-resize group"
           onMouseDown={(e) => {
             e.stopPropagation();
             e.preventDefault();
             onResizeStart(ev.id, 'event', e.clientY, ev.endMin, date, ev.startMin);
           }}
-        />
+        >
+          <div className="mx-auto mt-1 h-1 w-8 rounded-full bg-current opacity-0 group-hover:opacity-30 transition-opacity" />
+        </div>
       )}
 
       {isSelected && (
         <div
           data-event-popover
           className={cn(
-            'absolute left-0 z-30 w-48 rounded-lg border border-g-border bg-g-bg p-2 shadow-lg',
+            'absolute left-0 z-40 w-64 rounded-xl border border-g-border bg-g-bg p-3 shadow-xl',
             popoverDirection === 'below' ? 'top-full mt-1' : 'bottom-full mb-1',
           )}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-start justify-between">
-            <span className="text-xs font-medium text-g-text line-clamp-2">{ev.summary}</span>
-            <button
-              onClick={() => onSelect(null)}
-              className="ml-1 shrink-0 rounded p-0.5 hover:bg-g-surface-hover"
-            >
-              <X className="h-3 w-3 text-g-text-muted" />
-            </button>
-          </div>
-          <div className="mt-1.5 flex items-center gap-1 text-[10px] text-g-text-secondary">
-            <Clock className="h-3 w-3" />
-            {minutesToTime(ev.startMin)}〜{minutesToTime(ev.endMin)}
-          </div>
-          <div className="mt-2 flex gap-1">
-            <button
-              onClick={() => {
-                onSelect(null);
-                onDeleteEvent(ev.id);
-              }}
-              className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium text-[#EA4335] hover:bg-[#EA4335]/10"
-            >
-              <Trash2 className="h-3 w-3" />
-              削除
-            </button>
-          </div>
+          {editing ? (
+            <div className="space-y-2">
+              <input
+                autoFocus
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    onEditEvent?.(ev.id, editTitle, ev.startMin, ev.endMin);
+                    setEditing(false);
+                    onSelect(null);
+                  }
+                  if (e.key === 'Escape') setEditing(false);
+                }}
+                className="w-full rounded-md border border-g-border bg-g-surface px-2 py-1.5 text-sm text-g-text focus:outline-none focus:ring-2 focus:ring-[#4285F4]"
+              />
+              <div className="flex gap-1">
+                <button
+                  onClick={() => {
+                    onEditEvent?.(ev.id, editTitle, ev.startMin, ev.endMin);
+                    setEditing(false);
+                    onSelect(null);
+                  }}
+                  className="flex items-center gap-1 rounded-md bg-[#4285F4] px-3 py-1 text-xs font-medium text-white hover:bg-[#3367D6]"
+                >
+                  <Check className="h-3 w-3" />
+                  保存
+                </button>
+                <button
+                  onClick={() => { setEditTitle(ev.summary); setEditing(false); }}
+                  className="rounded-md px-3 py-1 text-xs text-g-text-muted hover:bg-g-surface-hover"
+                >
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-semibold text-g-text line-clamp-2">{ev.summary}</span>
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-g-text-secondary">
+                    <Clock className="h-3.5 w-3.5" />
+                    {minutesToTime(ev.startMin)}〜{minutesToTime(ev.endMin)}
+                  </div>
+                </div>
+                <button
+                  onClick={() => onSelect(null)}
+                  className="ml-1 shrink-0 rounded-md p-1 hover:bg-g-surface-hover"
+                >
+                  <X className="h-3.5 w-3.5 text-g-text-muted" />
+                </button>
+              </div>
+              <div className="mt-3 flex gap-1 border-t border-g-border pt-2">
+                <button
+                  onClick={() => { setEditTitle(ev.summary); setEditing(true); }}
+                  className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-g-text-secondary hover:bg-g-surface-hover"
+                >
+                  <Pencil className="h-3 w-3" />
+                  編集
+                </button>
+                <button
+                  onClick={() => {
+                    onSelect(null);
+                    onDeleteEvent(ev.id);
+                  }}
+                  className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-[#EA4335] hover:bg-[#EA4335]/10"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  削除
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
   );
 }
+
+// --- Task Block ---
 
 function TaskBlock({
   task,
@@ -182,9 +245,10 @@ function TaskBlock({
       {...attributes}
       data-schedule-item
       className={cn(
-        'cursor-grab overflow-hidden rounded px-1.5 py-0.5 text-[10px] font-medium text-white active:cursor-grabbing',
-        task.status === 'tight' && 'border-2 border-dashed border-white',
-        isRegistered && 'ring-2 ring-white/70',
+        'cursor-grab overflow-hidden rounded-md px-2 py-1 text-xs font-medium text-white active:cursor-grabbing shadow-sm transition-shadow hover:shadow-md',
+        task.status === 'tight' && 'border-2 border-dashed border-white/50',
+        isRegistered && 'ring-2 ring-white/50 ring-offset-1 ring-offset-transparent',
+        !isRegistered && 'opacity-80 border border-dashed border-white/30',
         isDragging && 'opacity-40',
       )}
       style={{ ...itemStyle, backgroundColor: color }}
@@ -193,44 +257,52 @@ function TaskBlock({
       <button
         onClick={(e) => { e.stopPropagation(); onOpenTask(task.taskId); }}
         className="block w-full truncate text-left leading-tight hover:opacity-80"
+        style={{ fontSize: '12px' }}
       >
         {task.title}
       </button>
-      {heightPx >= 36 && (
-        <span className="block text-[9px] opacity-70">
+      {heightPx >= 42 && (
+        <span className="block text-[11px] opacity-70 mt-0.5">
           {minutesToTime(task.startMin)}〜{minutesToTime(effectiveEnd)}
+        </span>
+      )}
+      {heightPx >= 56 && (
+        <span className="block text-[10px] opacity-50 mt-0.5">
+          {task.priority} · {((task.endMin - task.startMin) / 60).toFixed(1)}h
         </span>
       )}
       <button
         onClick={(e) => { e.stopPropagation(); onRegisterBlock(task.taskId, date, task.startMin, task.endMin); }}
         disabled={isRegistering}
-        className="absolute right-1 top-0.5 rounded p-0.5 hover:bg-white/20"
+        className="absolute right-1 top-1 rounded-md p-1 hover:bg-white/20 transition-colors"
         title={isRegistered ? 'カレンダー登録解除' : 'Googleカレンダーに登録'}
       >
         {isRegistering ? (
-          <RefreshCw className="h-3 w-3 animate-spin" />
+          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
         ) : isRegistered ? (
-          <CalendarCheck className="h-3 w-3" />
+          <CalendarCheck className="h-3.5 w-3.5" />
         ) : (
-          <CalendarPlus className="h-3 w-3 opacity-70" />
+          <CalendarPlus className="h-3.5 w-3.5 opacity-60" />
         )}
       </button>
 
       {onResizeStart && (
         <div
-          className="absolute bottom-0 left-0 right-0 h-2 cursor-s-resize hover:bg-white/20 rounded-b"
+          className="absolute bottom-0 left-0 right-0 h-3 cursor-s-resize group"
           onMouseDown={(e) => {
             e.stopPropagation();
             e.preventDefault();
             onResizeStart(task.taskId, 'task', e.clientY, task.endMin, date, task.startMin);
           }}
-        />
+        >
+          <div className="mx-auto mt-1 h-1 w-8 rounded-full bg-white opacity-0 group-hover:opacity-40 transition-opacity" />
+        </div>
       )}
     </div>
   );
 }
 
-// --- Current time indicator ---
+// --- Current time indicator with label ---
 
 function CurrentTimeLine({ workStartMin, hourHeight }: { workStartMin: number; hourHeight: number }) {
   const [now, setNow] = useState(new Date());
@@ -244,12 +316,41 @@ function CurrentTimeLine({ workStartMin, hourHeight }: { workStartMin: number; h
   const top = ((currentMin - workStartMin) / 60) * hourHeight;
   if (top < 0) return null;
 
+  const timeLabel = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
   return (
     <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top }}>
       <div className="relative">
-        <div className="absolute -left-1 -top-[5px] h-[10px] w-[10px] rounded-full bg-[#EA4335]" />
+        <div className="absolute -left-1.5 -top-[6px] h-3 w-3 rounded-full bg-[#EA4335] shadow-sm" />
         <div className="h-[2px] w-full bg-[#EA4335]" />
+        <span className="absolute -top-[10px] right-1 rounded bg-[#EA4335] px-1 py-0.5 text-[10px] font-medium text-white leading-none">
+          {timeLabel}
+        </span>
       </div>
+    </div>
+  );
+}
+
+// --- All-day events row ---
+
+function AllDayRow({ events }: { events: string[] }) {
+  if (events.length === 0) return null;
+  return (
+    <div className="border-b border-g-border bg-g-surface px-1 py-1 space-y-0.5">
+      {events.slice(0, 3).map((name, i) => (
+        <div
+          key={i}
+          className="truncate rounded bg-[#4285F4]/15 px-1.5 py-0.5 text-[11px] font-medium text-[#4285F4]"
+          title={name}
+        >
+          {name}
+        </div>
+      ))}
+      {events.length > 3 && (
+        <span className="text-[10px] text-g-text-muted px-1">
+          +{events.length - 3}件
+        </span>
+      )}
     </div>
   );
 }
@@ -266,6 +367,7 @@ interface ScheduleDayColumnProps {
   onRegisterBlock: (taskId: string, date: string, startMin: number, endMin: number) => void;
   onOpenTask: (taskId: string) => void;
   onDeleteEvent: (eventId: string) => void;
+  onEditEvent?: (eventId: string, summary: string, startMin: number, endMin: number) => void;
   onClickCreate?: (date: string, startMin: number, endMin: number) => void;
   onResizeStart?: (id: string, type: 'event' | 'task', clientY: number, endMin: number, date: string, startMin: number) => void;
   resizingId?: string | null;
@@ -284,6 +386,7 @@ export function ScheduleDayColumn({
   onRegisterBlock,
   onOpenTask,
   onDeleteEvent,
+  onEditEvent,
   onClickCreate,
   onResizeStart,
   resizingId,
@@ -302,7 +405,6 @@ export function ScheduleDayColumn({
   const workEndMin = workEnd * 60;
   const isToday = isTodayDate(day.date);
 
-  // Combine refs: useDroppable + dayGridRefs
   const gridRefCallback = useCallback(
     (node: HTMLDivElement | null) => {
       setNodeRef(node);
@@ -327,7 +429,7 @@ export function ScheduleDayColumn({
     return () => document.removeEventListener('mousedown', handler);
   }, [selectedEvent]);
 
-  // Overlap layout
+  // Overlap layout with span support
   const overlapItems = useMemo(() => {
     const items = [
       ...day.events.map((ev, i) => ({
@@ -345,7 +447,7 @@ export function ScheduleDayColumn({
     ].filter(item => item.startMin < item.endMin);
 
     const layoutResults = computeOverlapLayout(items);
-    const layoutMap = new Map<string, { column: number; totalColumns: number }>();
+    const layoutMap = new Map<string, { column: number; totalColumns: number; span: number }>();
     items.forEach((item, i) => {
       layoutMap.set(`${item.type}-${item.index}`, layoutResults[i]);
     });
@@ -356,14 +458,15 @@ export function ScheduleDayColumn({
     const layout = overlapItems.get(`${type}-${index}`);
     const col = layout?.column ?? 0;
     const total = layout?.totalColumns ?? 1;
+    const span = layout?.span ?? 1;
     const colWidth = 100 / total;
-    const PAD = 2;
+    const PAD = 3;
     return {
       position: 'absolute' as const,
       top: topPx,
-      height: Math.max(heightPx, 20),
+      height: Math.max(heightPx, 24),
       left: `calc(${col * colWidth}% + ${PAD}px)`,
-      width: `calc(${colWidth}% - ${PAD * 2}px)`,
+      width: `calc(${colWidth * span}% - ${PAD * 2}px)`,
     };
   }
 
@@ -392,25 +495,31 @@ export function ScheduleDayColumn({
 
   return (
     <div className="shrink-0 border-l border-g-border" style={{ width: dayColWidth }}>
-      {/* 日付ヘッダー — fixed h-10 */}
+      {/* 日付ヘッダー */}
       <div
         className={cn(
-          'flex items-center justify-center gap-1.5 border-b border-g-border h-10',
+          'flex flex-col items-center justify-center border-b border-g-border h-12',
           isToday ? 'bg-[#4285F4]/10' : 'bg-g-surface',
         )}
       >
-        <span className={cn('text-xs font-medium', isToday ? 'text-[#4285F4]' : 'text-g-text')}>
-          {formatDateLabel(day.date)}
+        <span className={cn(
+          'text-[11px] font-medium',
+          isToday ? 'text-[#4285F4]' : 'text-g-text-muted',
+        )}>
+          {formatDateLabel(day.date).split('(')[1]?.replace(')', '') || ''}
         </span>
-        {day.allDayEvents.length > 0 && (
-          <span
-            className="rounded-full bg-g-surface-hover px-1.5 text-[9px] text-g-text-muted cursor-default"
-            title={day.allDayEvents.join('\n')}
-          >
-            終日{day.allDayEvents.length}
-          </span>
-        )}
+        <span className={cn(
+          'text-lg font-bold leading-tight',
+          isToday
+            ? 'bg-[#4285F4] text-white rounded-full w-8 h-8 flex items-center justify-center text-sm'
+            : 'text-g-text',
+        )}>
+          {new Date(day.date + 'T00:00:00').getDate()}
+        </span>
       </div>
+
+      {/* 終日イベント */}
+      <AllDayRow events={day.allDayEvents} />
 
       {/* タイムグリッド */}
       <div
@@ -419,19 +528,19 @@ export function ScheduleDayColumn({
         style={{ height: totalHeight }}
         onDoubleClick={handleGridDoubleClick}
       >
-        {/* 時刻グリッド線 */}
+        {/* 1時間グリッド線 */}
         {Array.from({ length: workHours }, (_, i) => (
           <div
             key={i}
-            className="absolute left-0 w-full border-t border-g-surface-hover"
+            className="absolute left-0 w-full border-t border-g-border/60"
             style={{ top: i * HOUR_HEIGHT }}
           />
         ))}
-        {/* 30分線 */}
+        {/* 30分グリッド線 */}
         {Array.from({ length: workHours }, (_, i) => (
           <div
             key={`h-${i}`}
-            className="absolute left-0 w-full border-t border-dashed border-g-surface-hover/50"
+            className="absolute left-0 w-full border-t border-dashed border-g-border/30"
             style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2 }}
           />
         ))}
@@ -458,6 +567,7 @@ export function ScheduleDayColumn({
               popoverDirection={popoverDirection}
               onSelect={handleSelect}
               onDeleteEvent={onDeleteEvent}
+              onEditEvent={onEditEvent}
               onResizeStart={onResizeStart}
               date={day.date}
             />
@@ -470,10 +580,10 @@ export function ScheduleDayColumn({
           const heightPx = ((dropIndicator.endMin - dropIndicator.startMin) / 60) * HOUR_HEIGHT;
           return (
             <div
-              className="absolute left-1 right-1 z-10 flex items-start rounded border-2 border-dashed border-[#4285F4] bg-[#4285F4]/10 px-1.5 py-0.5"
+              className="absolute left-1 right-1 z-10 flex items-start rounded-lg border-2 border-[#4285F4] bg-[#4285F4]/15 px-2 py-1 shadow-sm transition-all duration-100"
               style={{ top: topPx, height: heightPx }}
             >
-              <span className="text-[10px] font-medium text-[#4285F4]">
+              <span className="text-xs font-semibold text-[#4285F4]">
                 {minutesToTime(dropIndicator.startMin)}〜{minutesToTime(dropIndicator.endMin)}
               </span>
             </div>

@@ -40,8 +40,13 @@ export function useScheduleDnd({
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
   const droppingRef = useRef(false);
 
+  // Keep original position for undo
+  const originalPositionRef = useRef<{ date: string; startMin: number; endMin: number } | null>(null);
+
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8, tolerance: 5 },
+    }),
     useSensor(KeyboardSensor),
   );
 
@@ -71,7 +76,23 @@ export function useScheduleDnd({
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const data = event.active.data.current as ScheduleDragData;
     setActiveDragData(data);
-  }, []);
+
+    // Capture original position for undo
+    if (data.type === 'timeline-event') {
+      // Find the event in the DOM to get its current position
+      const activeEl = document.querySelector(`[data-schedule-item]`)?.closest(`[id="event-${data.calendarEventId}"]`);
+      // We'll capture from the indicator on drag end
+      originalPositionRef.current = null;
+    } else if (data.type === 'timeline-task' && data.fromSlotKey) {
+      const [, date, startTime] = data.fromSlotKey.split('|');
+      const block = registeredBlocks.get(data.fromSlotKey);
+      if (block) {
+        const startMin = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1]);
+        const endMin = parseInt(block.endTime.split(':')[0]) * 60 + parseInt(block.endTime.split(':')[1]);
+        originalPositionRef.current = { date, startMin, endMin };
+      }
+    }
+  }, [registeredBlocks]);
 
   const handleDragMove = useCallback(
     (event: DragMoveEvent) => {
@@ -119,8 +140,6 @@ export function useScheduleDnd({
           // Googleカレンダーイベント移動
           const startISO = `${indicator.date}T${minutesToTime(indicator.startMin)}:00`;
           const endISO = `${indicator.date}T${minutesToTime(indicator.endMin)}:00`;
-          const oldStartISO = startISO; // undo用に後で使う
-          const oldEndISO = endISO;
 
           const res = await fetch('/api/calendar/events', {
             method: 'PATCH',
@@ -129,7 +148,7 @@ export function useScheduleDnd({
           });
           if (res.ok) {
             fetchSchedule();
-            // undo情報は元の時間がないため、fetchScheduleで更新
+            toast({ title: `「${data.summary}」を移動しました` });
           } else {
             const err = await res.json().catch(() => ({}));
             toast({ title: 'イベントの移動に失敗', description: err.error, variant: 'destructive' });
@@ -188,32 +207,56 @@ export function useScheduleDnd({
           const newSlotKey = `${data.taskId}|${indicator.date}|${start}`;
 
           if (data.fromSlotKey && data.fromSlotKey === newSlotKey) return;
-          if (!data.fromSlotKey) return; // 未登録は移動不可
+          if (!data.fromSlotKey) return;
 
           const oldBlock = registeredBlocks.get(data.fromSlotKey);
           if (!oldBlock) return;
 
+          // Capture undo info before operations
+          const [, oldDate, oldStart] = data.fromSlotKey.split('|');
+          const oldEndTime = oldBlock.endTime;
+
           setRegisteringSlot(newSlotKey);
           try {
-            // 新しいブロック作成
-            const postRes = await fetch('/api/calendar/schedule-block', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ taskId: data.taskId, date: indicator.date, start, end }),
-            });
-            if (!postRes.ok) {
-              const err = await postRes.json().catch(() => ({}));
-              toast({ title: 'ブロックの移動に失敗', description: err.error, variant: 'destructive' });
-              return;
-            }
-            const newBlock = await postRes.json();
-
-            // 旧ブロック削除
+            // 原子的操作: 旧ブロック削除 → 新規作成 (安全な順序)
             const deleteRes = await fetch('/api/calendar/schedule-block', {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ scheduleBlockId: oldBlock.id }),
             });
+
+            if (!deleteRes.ok) {
+              toast({ title: '旧ブロックの削除に失敗', variant: 'destructive' });
+              return;
+            }
+
+            // 旧ブロック削除成功 → 新規作成
+            const postRes = await fetch('/api/calendar/schedule-block', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ taskId: data.taskId, date: indicator.date, start, end }),
+            });
+
+            if (!postRes.ok) {
+              // 新規作成失敗 → 旧ブロック復元
+              const restoreRes = await fetch('/api/calendar/schedule-block', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ taskId: data.taskId, date: oldDate, start: oldStart, end: oldEndTime }),
+              });
+              if (restoreRes.ok) {
+                const restored = await restoreRes.json();
+                setRegisteredBlocks((prev) => {
+                  const m = new Map(prev);
+                  m.set(data.fromSlotKey!, { id: restored.id, endTime: oldEndTime });
+                  return m;
+                });
+              }
+              toast({ title: 'ブロックの移動に失敗', variant: 'destructive' });
+              return;
+            }
+
+            const newBlock = await postRes.json();
 
             const newBlockInfo: RegisteredBlock = { id: newBlock.id, endTime: end };
             setRegisteredBlocks((prev) => {
@@ -223,33 +266,28 @@ export function useScheduleDnd({
               return m;
             });
 
-            if (!deleteRes.ok) {
-              toast({ title: '旧ブロックの削除に失敗', description: 'カレンダーから手動で削除してください', variant: 'destructive' });
-            }
-
             fetchSchedule();
             toast({
               title: `「${data.taskTitle}」を移動しました`,
               action: (
                 <ToastAction altText="元に戻す" onClick={async () => {
-                  // 新ブロック削除 + 旧位置に再作成
+                  // Undo: 新ブロック削除 → 旧位置に復元
                   await fetch('/api/calendar/schedule-block', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ scheduleBlockId: newBlock.id }),
                   });
-                  const [, oldDate, oldStart] = data.fromSlotKey!.split('|');
                   const restoreRes = await fetch('/api/calendar/schedule-block', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ taskId: data.taskId, date: oldDate, start: oldStart, end: oldBlock.endTime }),
+                    body: JSON.stringify({ taskId: data.taskId, date: oldDate, start: oldStart, end: oldEndTime }),
                   });
                   if (restoreRes.ok) {
                     const restored = await restoreRes.json();
                     setRegisteredBlocks((prev) => {
                       const m = new Map(prev);
                       m.delete(newSlotKey);
-                      m.set(data.fromSlotKey!, { id: restored.id, endTime: oldBlock.endTime });
+                      m.set(data.fromSlotKey!, { id: restored.id, endTime: oldEndTime });
                       return m;
                     });
                   }
@@ -265,6 +303,7 @@ export function useScheduleDnd({
         }
       } finally {
         droppingRef.current = false;
+        originalPositionRef.current = null;
       }
     },
     [activeDragData, dropIndicator, registeredBlocks, setRegisteredBlocks, setRegisteringSlot, fetchSchedule],
@@ -273,6 +312,7 @@ export function useScheduleDnd({
   const handleDragCancel = useCallback(() => {
     setActiveDragData(null);
     setDropIndicator(null);
+    originalPositionRef.current = null;
   }, []);
 
   return {
