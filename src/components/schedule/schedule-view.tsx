@@ -596,16 +596,6 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                   )}
                 </div>
               )}
-              {viewMode === 'week' && (
-                <div className="md:hidden mb-2">
-                  {data.suggestions.length > 0 && (
-                    <ScheduleTaskList suggestions={data.suggestions} onOpenTask={openPanel} />
-                  )}
-                  {data.unschedulable.length > 0 && (
-                    <ScheduleUnschedulable items={data.unschedulable} onOpenTask={openPanel} />
-                  )}
-                </div>
-              )}
 
               <ScheduleTimeline
                 daysData={daysData}
@@ -629,7 +619,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
         )}
       </div>
 
-      <DragOverlay dropAnimation={{ duration: 150, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' }}>
+      <DragOverlay dropAnimation={null}>
         {renderDragOverlay()}
       </DragOverlay>
 

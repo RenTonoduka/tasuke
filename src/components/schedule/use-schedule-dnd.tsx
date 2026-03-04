@@ -45,7 +45,7 @@ export function useScheduleDnd({
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 8, tolerance: 5 },
+      activationConstraint: { distance: 8 },
     }),
     useSensor(KeyboardSensor),
   );
