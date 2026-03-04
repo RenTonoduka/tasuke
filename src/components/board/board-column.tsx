@@ -114,8 +114,8 @@ export function BoardColumn({ section, onAddTask, onRenameSection, onDeleteSecti
         <div
           ref={setNodeRef}
           className={cn(
-            'min-h-[40px] space-y-2 pb-2 transition-colors',
-            isOver && 'rounded-md bg-[#4285F4]/5'
+            'min-h-[120px] space-y-2 pb-2 transition-all duration-150 rounded-lg',
+            isOver && 'bg-[#4285F4]/8 ring-2 ring-inset ring-[#4285F4]/20'
           )}
         >
           <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>

@@ -612,7 +612,7 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'ãƒžã‚
 
         <DragOverlay dropAnimation={isOverDropZone ? null : DROP_ANIMATION}>
           {activeProject ? (
-            <div className="flex items-center gap-2 rounded-md bg-g-bg px-3 py-1.5 text-sm font-medium text-g-text shadow-lg ring-2 ring-[#4285F4]/30 rotate-1">
+            <div className="flex items-center gap-2 rounded-md bg-g-bg px-3 py-1.5 text-sm font-medium text-g-text shadow-xl ring-2 ring-[#4285F4]/30 scale-[1.02]">
               <FolderKanban className="h-4 w-4" style={{ color: activeProject.color }} />
               <span className="truncate">{activeProject.name}</span>
             </div>

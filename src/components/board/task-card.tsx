@@ -68,14 +68,15 @@ export function TaskCard({
       style={overlay ? undefined : style}
       className={cn(
         'group cursor-pointer rounded-lg border border-g-border bg-g-bg p-3 shadow-sm transition-shadow hover:shadow-md',
-        isDragging && 'opacity-50',
-        overlay && 'rotate-2 shadow-lg'
+        isDragging && 'opacity-40 scale-[0.98]',
+        overlay && 'shadow-xl ring-2 ring-[#4285F4]/30 scale-[1.02]'
       )}
       onClick={() => openPanel(task.id)}
     >
       <div className="flex items-start gap-2">
         <button
-          className="mt-0.5 cursor-grab text-[#DADCE0] opacity-0 group-hover:opacity-100"
+          className="mt-0.5 cursor-grab text-[#DADCE0] opacity-0 group-hover:opacity-100 touch:opacity-60"
+          aria-label="ドラッグして移動"
           {...attributes}
           {...listeners}
         >
