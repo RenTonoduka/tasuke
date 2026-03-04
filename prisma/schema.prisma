@@ -30,6 +30,7 @@ model User {
   googleTaskListMappings GoogleTaskListMapping[]
   apiTokens              ApiToken[]
   githubRepoMappings     GitHubRepoMapping[]
+  lineUserMappings       LineUserMapping[]
 }
 
 model Account {
@@ -89,6 +90,7 @@ model Workspace {
   labels            Label[]
   projectTemplates  ProjectTemplate[]
   apiTokens         ApiToken[]
+  lineUserMappings  LineUserMapping[]
 }
 
 model WorkspaceMember {
@@ -453,4 +455,25 @@ model GitHubUserMapping {
 
   @@unique([workspaceId, githubLogin])
   @@unique([workspaceId, userId])
+}
+
+// ========== LINE Integration ==========
+
+model LineUserMapping {
+  id              String   @id @default(cuid())
+  lineUserId      String   @unique
+  userId          String
+  workspaceId     String
+  displayName     String?
+  pictureUrl      String?
+  isFollowing     Boolean  @default(true)
+  reminderEnabled Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([lineUserId])
 }
