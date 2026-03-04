@@ -69,7 +69,7 @@ export async function DELETE() {
     }
 
     await prisma.$transaction([
-      prisma.lineUserMapping.deleteMany({ where: { lineUserId: lineAccount.providerAccountId } }),
+      prisma.lineUserMapping.delete({ where: { lineUserId: lineAccount.providerAccountId } }),
       prisma.account.delete({ where: { id: lineAccount.id } }),
     ]);
 

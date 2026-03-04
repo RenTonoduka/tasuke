@@ -86,10 +86,10 @@ const TOOLS: ToolDef[] = [
       type: 'object',
       properties: {
         taskId: { type: 'string' },
-        sectionId: { type: ['string', 'null'] },
+        sectionId: { type: 'string' },
         position: { type: 'number' },
       },
-      required: ['taskId', 'sectionId'],
+      required: ['taskId'],
     },
     readOnly: false,
   },

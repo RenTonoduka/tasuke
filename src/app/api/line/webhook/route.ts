@@ -26,7 +26,12 @@ export async function POST(req: NextRequest) {
     const body = JSON.parse(rawBody);
     const events = body.events ?? [];
 
-    await Promise.all(events.map(processLineEvent));
+    const results = await Promise.allSettled(events.map(processLineEvent));
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        console.error('[line-webhook] event processing failed:', result.reason);
+      }
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

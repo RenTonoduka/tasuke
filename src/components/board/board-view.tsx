@@ -66,11 +66,19 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
     return sections.map((s) => ({ ...s, tasks: filterTasks(s.tasks, f) }));
   }, [sections, priority, status, assignee, label, dueDateFilter, sortBy, sortOrder]);
 
-  const sensors = useSensors(
+  // [FIX] Hooks must be called unconditionally — never inline useSensors() in JSX
+  const activeSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
+  const emptySensors = useSensors();
+  const sensors = isFiltered ? emptySensors : activeSensors;
   const totalFilteredTasks = filteredSections.reduce((sum, s) => sum + s.tasks.length, 0);
+
+  // [FIX] Clean up pointer listeners on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => { cleanupRef.current?.(); };
+  }, []);
 
   const findSectionByTaskId = useCallback(
     (taskId: string) => {
@@ -84,7 +92,6 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
     const task = active.data.current?.task as Task | undefined;
     if (task) {
       setActiveTask(task);
-      // Capture source position for undo
       const sourceSection = findSectionByTaskId(task.id);
       if (sourceSection) {
         const taskIndex = sourceSection.tasks.findIndex((t) => t.id === task.id);
@@ -92,6 +99,8 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
       }
     }
     useDragToProjectStore.getState().startDrag(projectId);
+    // [FIX] Clean previous listeners before adding new ones
+    cleanupRef.current?.();
     pointerRef.current = null;
     const handler = (e: PointerEvent) => { pointerRef.current = { x: e.clientX, y: e.clientY }; };
     window.addEventListener('pointermove', handler, true);
@@ -102,6 +111,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
     };
   };
 
+  // [FIX] Use prev-based state update to avoid stale closure references
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     if (!over) return;
@@ -109,31 +119,27 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    const activeSection = findSectionByTaskId(activeId);
-    let overSectionId: string | null = null;
-
-    if (overId.startsWith('section-')) {
-      overSectionId = overId.replace('section-', '');
-    } else {
-      const overSection = findSectionByTaskId(overId);
-      overSectionId = overSection?.id ?? null;
-    }
-
-    if (!activeSection || !overSectionId || activeSection.id === overSectionId) return;
-
     setSections((prev) => {
-      const sourceSec = prev.find((s) => s.id === activeSection.id);
-      const destSec = prev.find((s) => s.id === overSectionId);
-      if (!sourceSec || !destSec) return prev;
+      const activeSection = prev.find((s) => s.tasks.some((t) => t.id === activeId));
+      let overSectionId: string | null = null;
 
-      const task = sourceSec.tasks.find((t) => t.id === activeId);
+      if (overId.startsWith('section-')) {
+        overSectionId = overId.replace('section-', '');
+      } else {
+        const overSection = prev.find((s) => s.tasks.some((t) => t.id === overId));
+        overSectionId = overSection?.id ?? null;
+      }
+
+      if (!activeSection || !overSectionId || activeSection.id === overSectionId) return prev;
+
+      const task = activeSection.tasks.find((t) => t.id === activeId);
       if (!task) return prev;
 
       return prev.map((s) => {
-        if (s.id === sourceSec.id) {
+        if (s.id === activeSection.id) {
           return { ...s, tasks: s.tasks.filter((t) => t.id !== activeId) };
         }
-        if (s.id === destSec.id) {
+        if (s.id === overSectionId) {
           const overIndex = s.tasks.findIndex((t) => t.id === overId);
           const insertIndex = overIndex >= 0 ? overIndex : s.tasks.length;
           const newTasks = [...s.tasks];
@@ -294,8 +300,12 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
           onSectionsChange?.(next);
           return next;
         });
+      } else {
+        toast({ title: 'セクション名の変更に失敗', variant: 'destructive' });
       }
-    } catch {}
+    } catch {
+      toast({ title: 'セクション名の変更に失敗', variant: 'destructive' });
+    }
   };
 
   const handleDeleteSection = async (sectionId: string) => {
@@ -307,8 +317,12 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
           onSectionsChange?.(next);
           return next;
         });
+      } else {
+        toast({ title: 'セクションの削除に失敗', variant: 'destructive' });
       }
-    } catch {}
+    } catch {
+      toast({ title: 'セクションの削除に失敗', variant: 'destructive' });
+    }
   };
 
   const handleAddTask = async (sectionId: string, title: string) => {
@@ -318,6 +332,10 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, sectionId }),
       });
+      if (!res.ok) {
+        toast({ title: 'タスクの作成に失敗', variant: 'destructive' });
+        return;
+      }
       const task = await res.json();
 
       setSections((prev) => {
@@ -327,14 +345,14 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
         onSectionsChange?.(next);
         return next;
       });
-    } catch (err) {
-      console.error('タスク作成エラー:', err);
+    } catch {
+      toast({ title: 'タスクの作成に失敗', variant: 'destructive' });
     }
   };
 
   return (
     <DndContext
-      sensors={isFiltered ? useSensors() : sensors}
+      sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}

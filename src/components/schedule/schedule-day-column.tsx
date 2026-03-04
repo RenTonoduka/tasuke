@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo, memo } from 'react';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { CalendarPlus, CalendarCheck, RefreshCw, Trash2, Clock, X, Pencil, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -376,7 +376,7 @@ interface ScheduleDayColumnProps {
   dayGridRefs: React.RefObject<Map<string, HTMLElement>>;
 }
 
-export function ScheduleDayColumn({
+export const ScheduleDayColumn = memo(function ScheduleDayColumn({
   day,
   dayColWidth,
   workStart,
@@ -624,4 +624,4 @@ export function ScheduleDayColumn({
       </div>
     </div>
   );
-}
+});
