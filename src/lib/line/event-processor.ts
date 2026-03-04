@@ -2,6 +2,10 @@ import prisma from '@/lib/prisma';
 import { replyMessage } from './client';
 import { handleLineMessage } from './message-handler';
 
+function getAppUrl(): string {
+  return process.env.NEXTAUTH_URL || 'https://tasuke-nu.vercel.app';
+}
+
 interface LineWebhookEvent {
   type: string;
   replyToken?: string;
@@ -53,7 +57,7 @@ async function handleFollow(event: LineWebhookEvent) {
     if (event.replyToken) {
       await replyMessage(event.replyToken, [{
         type: 'text',
-        text: 'タス助LINEボットへようこそ！\n\nまずWebアプリからLINEログインで連携してください。\nhttps://tasuke-nu.vercel.app/login',
+        text: `タス助LINEボットへようこそ！\n\nまずWebアプリからLINEログインで連携してください。\n${getAppUrl()}/login`,
       }]);
     }
   }

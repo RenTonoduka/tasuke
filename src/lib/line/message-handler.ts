@@ -4,6 +4,8 @@ import { buildDashboardText } from './flex-messages';
 import * as handlers from '@/mcp/tool-handlers';
 import type { ToolContext } from '@/mcp/tool-handlers';
 
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
 interface LineMessageInput {
   replyToken: string;
   lineUserId: string;
@@ -26,6 +28,22 @@ function parseResult(result: handlers.ToolResult): unknown {
   }
 }
 
+function getJSTToday(): { todayStart: Date; todayEnd: Date } {
+  const nowUTC = Date.now();
+  const jstMs = nowUTC + JST_OFFSET_MS;
+  const jstDate = new Date(jstMs);
+  const y = jstDate.getUTCFullYear();
+  const m = jstDate.getUTCMonth();
+  const d = jstDate.getUTCDate();
+  const todayStart = new Date(Date.UTC(y, m, d) - JST_OFFSET_MS);
+  const todayEnd = new Date(Date.UTC(y, m, d + 1) - JST_OFFSET_MS);
+  return { todayStart, todayEnd };
+}
+
+function getAppUrl(): string {
+  return process.env.NEXTAUTH_URL || 'https://tasuke-nu.vercel.app';
+}
+
 export async function handleLineMessage(input: LineMessageInput) {
   const { replyToken, lineUserId, text } = input;
   const trimmed = text.trim();
@@ -34,7 +52,7 @@ export async function handleLineMessage(input: LineMessageInput) {
   if (!ctx) {
     await replyMessage(replyToken, [{
       type: 'text',
-      text: 'アカウントが連携されていません。\nWebアプリからLINEログインしてください。\nhttps://tasuke-nu.vercel.app/login',
+      text: `アカウントが連携されていません。\nWebアプリからLINEログインしてください。\n${getAppUrl()}/login`,
     }]);
     return;
   }
@@ -154,7 +172,11 @@ async function cmdComplete(replyToken: string, text: string, ctx: ToolContext) {
     await replyMessage(replyToken, [{ type: 'text', text: `「${query}」に一致するタスクが見つかりません。` }]);
     return;
   }
-  await handlers.handleTaskUpdate({ taskId: tasks[0].id, status: 'DONE' }, ctx);
+  const updateResult = await handlers.handleTaskUpdate({ taskId: tasks[0].id, status: 'DONE' }, ctx);
+  if (updateResult.isError) {
+    await replyMessage(replyToken, [{ type: 'text', text: 'タスクの完了処理に失敗しました。' }]);
+    return;
+  }
   await replyMessage(replyToken, [{
     type: 'text',
     text: `タスクを完了にしました\n「${tasks[0].title}」`,
@@ -162,8 +184,7 @@ async function cmdComplete(replyToken: string, text: string, ctx: ToolContext) {
 }
 
 async function cmdToday(replyToken: string, ctx: ToolContext) {
-  const now = new Date();
-  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const { todayEnd } = getJSTToday();
   const result = await handlers.handleTaskList({ dueBefore: todayEnd.toISOString(), status: 'TODO', limit: 10 }, ctx);
   if (result.isError) {
     await replyMessage(replyToken, [{ type: 'text', text: '取得に失敗しました。' }]);
@@ -179,8 +200,7 @@ async function cmdToday(replyToken: string, ctx: ToolContext) {
 }
 
 async function cmdOverdue(replyToken: string, ctx: ToolContext) {
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const { todayStart } = getJSTToday();
   const result = await handlers.handleTaskList({ dueBefore: todayStart.toISOString(), status: 'TODO', limit: 10 }, ctx);
   if (result.isError) {
     await replyMessage(replyToken, [{ type: 'text', text: '取得に失敗しました。' }]);

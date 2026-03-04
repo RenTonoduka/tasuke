@@ -29,7 +29,9 @@ export function LineSettingsClient() {
       if (res.ok) {
         setStatus(await res.json());
       }
-    } catch {} finally {
+    } catch (error) {
+      console.error('[line-settings] fetch error:', error);
+    } finally {
       setLoading(false);
     }
   }, []);

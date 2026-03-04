@@ -1,28 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import prisma from '@/lib/prisma';
 import { pushMessage } from '@/lib/line/client';
 import { getAccessibleProjectIds } from '@/lib/project-access';
 import { createNotification } from '@/lib/notifications';
 
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+function verifyToken(authHeader: string | null): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!authHeader || !secret) return false;
+  const token = authHeader.replace('Bearer ', '');
+  try {
+    return timingSafeEqual(Buffer.from(token), Buffer.from(secret));
+  } catch {
+    return false;
+  }
+}
+
+function getJSTBoundaries() {
+  const nowUTC = Date.now();
+  const jstMs = nowUTC + JST_OFFSET_MS;
+  const jstDate = new Date(jstMs);
+  const y = jstDate.getUTCFullYear();
+  const m = jstDate.getUTCMonth();
+  const d = jstDate.getUTCDate();
+  const todayStart = new Date(Date.UTC(y, m, d) - JST_OFFSET_MS);
+  const todayEnd = new Date(Date.UTC(y, m, d + 1) - JST_OFFSET_MS);
+  const tomorrowEnd = new Date(Date.UTC(y, m, d + 2) - JST_OFFSET_MS);
+  return { todayStart, todayEnd, tomorrowEnd };
+}
+
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyToken(req.headers.get('authorization'))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayEnd = new Date(todayStart);
-    todayEnd.setDate(todayEnd.getDate() + 1);
-    const tomorrowEnd = new Date(todayEnd);
-    tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+    const { todayStart, todayEnd, tomorrowEnd } = getJSTBoundaries();
 
     const lineUsers = await prisma.lineUserMapping.findMany({
       where: { isFollowing: true, reminderEnabled: true },
     });
 
     let sentCount = 0;
+    let failCount = 0;
 
     for (const lineUser of lineUsers) {
       const projectIds = await getAccessibleProjectIds(lineUser.userId, lineUser.workspaceId);
@@ -77,8 +99,13 @@ export async function GET(req: NextRequest) {
 
       lines.push('', '「ダッシュボード」で詳細を確認できます。');
 
-      await pushMessage(lineUser.lineUserId, [{ type: 'text', text: lines.join('\n') }]);
-      sentCount++;
+      const success = await pushMessage(lineUser.lineUserId, [{ type: 'text', text: lines.join('\n') }]);
+      if (success) {
+        sentCount++;
+      } else {
+        failCount++;
+        console.error(`[cron/line-reminders] push failed for user: ${lineUser.lineUserId}`);
+      }
 
       await createNotification({
         userId: lineUser.userId,
@@ -87,7 +114,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ sentCount, totalUsers: lineUsers.length });
+    return NextResponse.json({ sentCount, failCount, totalUsers: lineUsers.length });
   } catch (error) {
     console.error('[cron/line-reminders] error:', error);
     return NextResponse.json({ error: 'Cron job failed' }, { status: 500 });
