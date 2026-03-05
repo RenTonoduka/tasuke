@@ -28,6 +28,7 @@ import {
   UserPlus,
   PanelLeftClose,
   MessageCircle,
+  Bot,
   ShieldCheck,
   Layers,
   FolderOpen,
@@ -576,6 +577,11 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
       icon: Inbox,
     },
     {
+      label: 'AI秘書 (LINE)',
+      href: `/${currentWorkspaceSlug}/settings/line`,
+      icon: Bot,
+    },
+    {
       label: 'タスク取り込み',
       href: `/${currentWorkspaceSlug}/import-tasks`,
       icon: Download,
@@ -679,12 +685,6 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
               <Link href={`/${currentWorkspaceSlug}/settings/github`}>
                 <Github className="mr-2 h-4 w-4" />
                 GitHub連携
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`/${currentWorkspaceSlug}/settings/line`}>
-                <MessageCircle className="mr-2 h-4 w-4" />
-                AI秘書 (LINE)
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
