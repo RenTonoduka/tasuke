@@ -13,4 +13,5 @@ export const updateProjectSchema = z.object({
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   position: z.number().int().optional(),
   workspaceId: z.string().optional(),
+  groupId: z.string().nullable().optional(),
 });
