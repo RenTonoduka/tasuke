@@ -486,6 +486,7 @@ model LineUserMapping {
   pictureUrl      String?
   isFollowing     Boolean  @default(true)
   reminderEnabled Boolean  @default(true)
+  linkingCode     String?  @unique
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

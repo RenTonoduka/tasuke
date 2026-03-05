@@ -122,8 +122,8 @@ function WorkspaceDropZone({ ws, disabled = false }: { ws: { id: string; name: s
   );
 }
 
-function GroupDropZone({ groupId, children, disabled = false }: { groupId: string; children: React.ReactNode; disabled?: boolean }) {
-  const { isOver, setNodeRef } = useDroppable({ id: `group-drop-${groupId}`, disabled });
+function GroupDropZone({ groupId, children }: { groupId: string; children: React.ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({ id: `group-drop-${groupId}` });
   return (
     <div
       ref={setNodeRef}
@@ -137,8 +137,8 @@ function GroupDropZone({ groupId, children, disabled = false }: { groupId: strin
   );
 }
 
-function UngroupedDropZone({ children, disabled = false }: { children: React.ReactNode; disabled?: boolean }) {
-  const { isOver, setNodeRef } = useDroppable({ id: 'group-drop-ungrouped', disabled });
+function UngroupedDropZone({ children }: { children: React.ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({ id: 'group-drop-ungrouped' });
   return (
     <div
       ref={setNodeRef}
@@ -480,7 +480,9 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
     useSensor(KeyboardSensor)
   );
 
-  // カスタム衝突検出: WSドロップ > グループドロップ > sortable
+  // カスタム衝突検出: WSドロップ > sortable > グループドロップ
+  // sortableを先にチェックし、プロジェクト上なら sortable を返す
+  // グループヘッダー（プロジェクトがない空白部分）なら group-drop を返す
   const collisionDetection: CollisionDetection = useMemo(() => (args) => {
     const wsDropZones = args.droppableContainers.filter(c => String(c.id).startsWith('ws-drop-'));
     const groupDropZones = args.droppableContainers.filter(c => String(c.id).startsWith('group-drop-'));
@@ -496,15 +498,19 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
       if (hits.length > 0) return hits;
     }
 
-    // 2. グループドロップゾーン
+    // 2. sortable（プロジェクトアイテム）を先にチェック
+    if (sortables.length > 0) {
+      const sortableHits = pointerWithin({ ...args, droppableContainers: sortables });
+      if (sortableHits.length > 0) return sortableHits;
+    }
+
+    // 3. グループドロップゾーン（ヘッダー部分や空グループ）
     if (groupDropZones.length > 0) {
-      const hits = args.pointerCoordinates
-        ? pointerWithin({ ...args, droppableContainers: groupDropZones })
-        : rectIntersection({ ...args, droppableContainers: groupDropZones });
+      const hits = pointerWithin({ ...args, droppableContainers: groupDropZones });
       if (hits.length > 0) return hits;
     }
 
-    // 3. Sortable並べ替え
+    // 4. フォールバック: closestCenter で最も近い sortable
     return closestCenter({ ...args, droppableContainers: sortables });
   }, []);
 
@@ -526,6 +532,29 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
     setIsOverDropZone(overId.startsWith('ws-drop-') || overId.startsWith('group-drop-'));
   }, []);
 
+  // グループ移動の共通ロジック
+  const moveProjectToGroup = useCallback((project: Project, newGroupId: string | null) => {
+    if ((project.groupId ?? null) === newGroupId) return;
+    const prevProjects = [...projects];
+    setProjects(prev => prev.map(p =>
+      p.id === project.id ? { ...p, groupId: newGroupId } : p
+    ));
+    const targetGroup = newGroupId ? groups.find(g => g.id === newGroupId) : null;
+    fetch(`/api/projects/${project.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ groupId: newGroupId }),
+    })
+      .then(res => {
+        if (!res.ok) throw new Error();
+        toast({ title: `「${project.name}」を${targetGroup?.name ?? '未分類'}に移動しました` });
+      })
+      .catch(() => {
+        setProjects(prevProjects);
+        toast({ title: 'グループ移動に失敗しました', variant: 'destructive' });
+      });
+  }, [projects, groups]);
+
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const draggedProject = activeProject;
     const currentPath = pathname;
@@ -537,37 +566,15 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
 
     const overId = String(over.id);
 
-    // ★ グループドロップゾーンへのドロップ
+    // ★ グループドロップゾーンへのドロップ（ヘッダーや空グループ）
     if (overId.startsWith('group-drop-') && draggedProject) {
       const targetGroupId = overId.replace('group-drop-', '');
       const newGroupId = targetGroupId === 'ungrouped' ? null : targetGroupId;
-
-      // 同じグループなら何もしない
-      if ((draggedProject.groupId ?? null) === newGroupId) return;
-
-      const prevProjects = [...projects];
-      setProjects(prev => prev.map(p =>
-        p.id === draggedProject.id ? { ...p, groupId: newGroupId } : p
-      ));
-
-      const targetGroup = newGroupId ? groups.find(g => g.id === newGroupId) : null;
-      fetch(`/api/projects/${draggedProject.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groupId: newGroupId }),
-      })
-        .then(res => {
-          if (!res.ok) throw new Error();
-          toast({ title: `「${draggedProject.name}」を${targetGroup?.name ?? '未分類'}に移動しました` });
-        })
-        .catch(() => {
-          setProjects(prevProjects);
-          toast({ title: 'グループ移動に失敗しました', variant: 'destructive' });
-        });
+      moveProjectToGroup(draggedProject, newGroupId);
       return;
     }
 
-    // ★ ワークスペースドロップゾーンへのドロップ（同期的楽観更新 + バックグラウンドAPI）
+    // ★ ワークスペースドロップゾーンへのドロップ
     if (overId.startsWith('ws-drop-') && draggedProject) {
       const targetWsId = overId.replace('ws-drop-', '');
       const targetWs = workspaces.find(ws => ws.id === targetWsId);
@@ -593,7 +600,22 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
       return;
     }
 
-    // ★ 同一ワークスペース内の並べ替え（同期的楽観更新 + バックグラウンドAPI）
+    // ★ sortable（プロジェクトアイテム）上にドロップ
+    if (draggedProject) {
+      const targetProject = projects.find(p => p.id === overId);
+      if (targetProject) {
+        const dragGroupId = draggedProject.groupId ?? null;
+        const targetGroupId = targetProject.groupId ?? null;
+
+        // 異なるグループ → グループ移動
+        if (dragGroupId !== targetGroupId) {
+          moveProjectToGroup(draggedProject, targetGroupId);
+          return;
+        }
+      }
+    }
+
+    // ★ 同一グループ内の並べ替え
     if (active.id === over.id) return;
     const oldIndex = projects.findIndex((p) => p.id === active.id);
     const newIndex = projects.findIndex((p) => p.id === over.id);
@@ -610,7 +632,7 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
       setProjects(prevProjects);
       toast({ title: '並べ替えに失敗しました', variant: 'destructive' });
     });
-  }, [activeProject, projects, workspaces, workspaceId, pathname, router, initialProjects]);
+  }, [activeProject, projects, workspaces, workspaceId, pathname, router, moveProjectToGroup]);
 
   const handleDragCancel = useCallback(() => {
     setActiveProject(null);
@@ -827,7 +849,7 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
                 const groupProjects = projects.filter(p => p.groupId === group.id);
                 const isCollapsed = collapsedGroups.has(group.id);
                 return (
-                  <GroupDropZone key={group.id} groupId={group.id} disabled={!activeProject}>
+                  <GroupDropZone key={group.id} groupId={group.id}>
                     <div className="space-y-0.5">
                       <div className="group/grp flex items-center rounded-md text-sm hover:bg-g-border">
                         <button
@@ -896,7 +918,7 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
                 if (ungrouped.length === 0 && groups.length > 0) {
                   // グループがあるが未分類が空 → ドロップ先としては残す
                   return (
-                    <UngroupedDropZone disabled={!activeProject}>
+                    <UngroupedDropZone>
                       <div className="px-3 py-1.5">
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-g-text-muted">未分類</span>
                       </div>
@@ -904,7 +926,7 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
                   );
                 }
                 return (
-                  <UngroupedDropZone disabled={!activeProject}>
+                  <UngroupedDropZone>
                     {groups.length > 0 && (
                       <div className="px-3 pt-2 pb-0.5">
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-g-text-muted">未分類</span>
