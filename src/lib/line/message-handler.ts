@@ -49,54 +49,49 @@ export async function handleLineMessage(input: LineMessageInput) {
   const { replyToken, lineUserId, text } = input;
   const trimmed = text.trim();
 
+  try {
+    return await _handleLineMessage(replyToken, lineUserId, trimmed);
+  } catch (error) {
+    console.error('[line-handler] unhandled error:', error);
+    await replyMessage(replyToken, [{
+      type: 'text',
+      text: '一時的なエラーが発生しました。もう一度お試しください。',
+    }]).catch(() => {});
+  }
+}
+
+async function _handleLineMessage(replyToken: string, lineUserId: string, trimmed: string) {
   let ctx = await resolveContext(lineUserId);
   if (!ctx) {
-    // 自動リンク: LINE LoginのユーザーIDとMessaging APIのユーザーIDが異なる場合
+    // 自動リンク: WebでLINE接続済みの場合、Messaging APIのユーザーIDに更新
     const linked = await tryAutoLink(lineUserId);
     if (linked) {
       ctx = await resolveContext(lineUserId);
-      if (ctx) {
-        await replyMessage(replyToken, [{
-          type: 'text',
-          text: [
-            'TASUKE AI秘書へようこそ！',
-            'アカウント連携が完了しました。',
-            '',
-            'LINEからタスク管理ができます:',
-            '・自然言語で話しかけてください',
-            '  例）「明日までに企画書タスク追加して」',
-            '・「ダッシュボード」でタスク概要',
-            '・「マイタスク」で自分のタスク',
-            '・「ヘルプ」でコマンド一覧',
-            '',
-            '何でも気軽にメッセージしてください！',
-          ].join('\n'),
-        }]);
-        return;
-      }
     }
 
-    // リンキングコードでの手動連携
-    if (/^[A-Z0-9]{6}$/i.test(trimmed)) {
-      const mapping = await prisma.lineUserMapping.findUnique({
-        where: { linkingCode: trimmed.toUpperCase() },
-      });
-      if (mapping) {
-        await prisma.lineUserMapping.update({
-          where: { id: mapping.id },
-          data: { lineUserId, linkingCode: null },
-        });
-        await replyMessage(replyToken, [{
-          type: 'text',
-          text: 'アカウント連携が完了しました！\n「ヘルプ」と送信してコマンド一覧を確認できます。',
-        }]);
-        return;
-      }
+    if (ctx) {
+      await replyMessage(replyToken, [{
+        type: 'text',
+        text: [
+          'TASUKE AI秘書へようこそ！',
+          'アカウント連携が完了しました。',
+          '',
+          'LINEからタスク管理ができます:',
+          '・自然言語で話しかけてください',
+          '  例）「明日までに企画書タスク追加して」',
+          '・「ダッシュボード」でタスク概要',
+          '・「マイタスク」で自分のタスク',
+          '・「ヘルプ」でコマンド一覧',
+          '',
+          '何でも気軽にメッセージしてください！',
+        ].join('\n'),
+      }]);
+      return;
     }
 
     await replyMessage(replyToken, [{
       type: 'text',
-      text: `アカウントが連携されていません。\nWebアプリからLINE接続してください。\n${getAppUrl()}`,
+      text: `アカウントが連携されていません。\nWebアプリの「AI秘書(LINE)」からLINE接続してください。\n${getAppUrl()}`,
     }]);
     return;
   }
