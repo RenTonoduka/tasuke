@@ -7,10 +7,10 @@
  *
  * 環境変数:
  *   TASUKE_API_TOKEN  - APIトークン（必須）
- *   TASUKE_URL        - ベースURL（デフォルト: https://tasuke-nu.vercel.app）
+ *   TASUKE_URL        - ベースURL（デフォルト: https://tasuke.app）
  */
 
-const BASE_URL = process.env.TASUKE_URL || 'https://tasuke-nu.vercel.app';
+const BASE_URL = process.env.TASUKE_URL || 'https://tasuke.app';
 const API_TOKEN = process.env.TASUKE_API_TOKEN || '';
 
 // ── コマンド定義（軽量: 名前 + 1行説明のみ） ──

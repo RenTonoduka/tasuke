@@ -21,9 +21,10 @@ import type { Project, Section } from '@/types';
 interface ProjectPageClientProps {
   project: Project;
   workspaceSlug: string;
+  logoUrl?: string;
 }
 
-export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientProps) {
+export function ProjectPageClient({ project, workspaceSlug, logoUrl }: ProjectPageClientProps) {
   const [view, setView] = useState<'board' | 'list' | 'timeline' | 'schedule' | 'dashboard' | 'mindmap'>('board');
   const [sections, setSections] = useState<Section[]>(project.sections);
   useEffect(() => { setSections(project.sections); }, [project.sections]);
@@ -140,7 +141,7 @@ export function ProjectPageClient({ project, workspaceSlug }: ProjectPageClientP
 
       <div className="flex-1 overflow-hidden flex flex-col">
         {view === 'board' && (
-          <BoardView initialSections={sections} projectId={project.id} onSectionsChange={setSections} />
+          <BoardView initialSections={sections} projectId={project.id} onSectionsChange={setSections} logoUrl={logoUrl} />
         )}
         {view === 'list' && (
           <ListView

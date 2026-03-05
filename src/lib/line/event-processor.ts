@@ -3,7 +3,7 @@ import { replyMessage } from './client';
 import { handleLineMessage } from './message-handler';
 
 function getAppUrl(): string {
-  return process.env.NEXTAUTH_URL || 'https://tasuke-nu.vercel.app';
+  return process.env.NEXTAUTH_URL || 'https://tasuke.app';
 }
 
 interface LineWebhookEvent {

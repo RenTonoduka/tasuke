@@ -82,6 +82,7 @@ model Workspace {
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
+  logoUrl   String?  @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -476,4 +477,27 @@ model LineUserMapping {
 
   @@unique([userId, workspaceId])
   @@index([lineUserId])
+}
+
+// ========== LINE AI ==========
+
+model LineConversation {
+  id         String   @id @default(cuid())
+  lineUserId String
+  role       String
+  content    String   @db.Text
+  createdAt  DateTime @default(now())
+
+  @@index([lineUserId, createdAt])
+}
+
+model LineAIUsage {
+  id         String   @id @default(cuid())
+  lineUserId String
+  date       String
+  count      Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([lineUserId, date])
 }

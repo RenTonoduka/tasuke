@@ -1,8 +1,10 @@
 'use client';
 
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, useState } from 'react';
 import { startOfDay, addDays, subDays, format, getDay } from 'date-fns';
+import { Pin, EyeOff, ChevronDown, ChevronRight } from 'lucide-react';
 import { PRIORITY_COLORS } from '@/lib/constants';
+import { useGanttPins } from '@/hooks/use-gantt-pins';
 
 const DAY_WIDTH = 20;
 const ROW_HEIGHT = 24;
@@ -53,16 +55,38 @@ function MiniGantt({ project }: { project: GanttProject }) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const rangeStart = useMemo(() => subDays(today, BEFORE_DAYS), [today]);
   const totalDays = BEFORE_DAYS + AFTER_DAYS + 1;
-
   const todayOffset = useMemo(() => BEFORE_DAYS * DAY_WIDTH, []);
+  const { togglePin, getState, getPinnedIds, getHiddenIds } = useGanttPins(project.id);
+  const [showHidden, setShowHidden] = useState(false);
 
-  // 日付がある（表示可能な）タスクだけフィルタ
   const scheduledTasks = useMemo(
     () => project.tasks.filter((t) => t.startDate || t.dueDate),
     [project.tasks]
   );
 
-  // 初期スクロール: 今日を左寄りに
+  const pinnedIds = getPinnedIds();
+  const hiddenIds = getHiddenIds();
+
+  const { pinnedTasks, normalTasks, hiddenTasks } = useMemo(() => {
+    const pinned: GanttTask[] = [];
+    const normal: GanttTask[] = [];
+    const hidden: GanttTask[] = [];
+    for (const t of scheduledTasks) {
+      if (pinnedIds.has(t.id)) pinned.push(t);
+      else if (hiddenIds.has(t.id)) hidden.push(t);
+      else normal.push(t);
+    }
+    return { pinnedTasks: pinned, normalTasks: normal, hiddenTasks: hidden };
+  }, [scheduledTasks, pinnedIds, hiddenIds]);
+
+  const visibleTasks = useMemo(() => {
+    return [...pinnedTasks, ...normalTasks];
+  }, [pinnedTasks, normalTasks]);
+
+  const allDisplayTasks = useMemo(() => {
+    return showHidden ? [...visibleTasks, ...hiddenTasks] : visibleTasks;
+  }, [visibleTasks, hiddenTasks, showHidden]);
+
   useEffect(() => {
     if (scrollRef.current) {
       const containerWidth = scrollRef.current.clientWidth;
@@ -70,7 +94,6 @@ function MiniGantt({ project }: { project: GanttProject }) {
     }
   }, [todayOffset]);
 
-  // 週の区切り線位置
   const weekLines = useMemo(() => {
     const lines: { offset: number; label: string }[] = [];
     for (let i = 0; i < totalDays; i++) {
@@ -82,9 +105,10 @@ function MiniGantt({ project }: { project: GanttProject }) {
     return lines;
   }, [rangeStart, totalDays]);
 
+  const pinnedCount = pinnedTasks.length;
+
   return (
     <div className="rounded-lg bg-g-bg shadow-sm ring-1 ring-g-border">
-      {/* プロジェクトヘッダー */}
       <div className="flex items-center gap-2 border-b border-g-border px-4 py-2.5">
         <span
           className="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -101,52 +125,77 @@ function MiniGantt({ project }: { project: GanttProject }) {
           スケジュール未設定
         </div>
       ) : (
-        <div ref={scrollRef} className="overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
-          <div
-            className="relative"
-            style={{
-              width: totalDays * DAY_WIDTH,
-              height: scheduledTasks.length * ROW_HEIGHT + 24,
-            }}
-          >
-            {/* 週ラベル行 */}
-            {weekLines.map((wl) => (
-              <span
-                key={wl.offset}
-                className="absolute top-1 text-[10px] text-g-text-muted"
-                style={{ left: wl.offset + 2 }}
-              >
-                {wl.label}
-              </span>
-            ))}
-
-            {/* 週区切り線 */}
-            {weekLines.map((wl) => (
-              <div
-                key={`line-${wl.offset}`}
-                className="absolute top-0 h-full w-px bg-g-border"
-                style={{ left: wl.offset }}
-              />
-            ))}
-
-            {/* 今日の線 */}
+        <>
+          <div ref={scrollRef} className="overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
             <div
-              className="absolute top-0 z-10 h-full w-0.5 bg-[#EA4335]"
-              style={{ left: todayOffset + DAY_WIDTH / 2 }}
-            />
+              className="relative"
+              style={{
+                width: totalDays * DAY_WIDTH,
+                height: allDisplayTasks.length * ROW_HEIGHT + 24,
+              }}
+            >
+              {weekLines.map((wl) => (
+                <span
+                  key={wl.offset}
+                  className="absolute top-1 text-[10px] text-g-text-muted"
+                  style={{ left: wl.offset + 2 }}
+                >
+                  {wl.label}
+                </span>
+              ))}
 
-            {/* タスクバー */}
-            {scheduledTasks.map((task, idx) => (
-              <GanttBar
-                key={task.id}
-                task={task}
-                rowIndex={idx}
-                rangeStart={rangeStart}
-                today={today}
+              {weekLines.map((wl) => (
+                <div
+                  key={`line-${wl.offset}`}
+                  className="absolute top-0 h-full w-px bg-g-border"
+                  style={{ left: wl.offset }}
+                />
+              ))}
+
+              <div
+                className="absolute top-0 z-10 h-full w-0.5 bg-[#EA4335]"
+                style={{ left: todayOffset + DAY_WIDTH / 2 }}
               />
-            ))}
+
+              {/* Pinned separator line */}
+              {pinnedCount > 0 && normalTasks.length > 0 && (
+                <div
+                  className="absolute left-0 w-full border-b border-dashed border-[#4285F4]/30"
+                  style={{ top: 24 + pinnedCount * ROW_HEIGHT }}
+                />
+              )}
+
+              {allDisplayTasks.map((task, idx) => {
+                const state = getState(task.id);
+                const isInHiddenSection = hiddenIds.has(task.id);
+                return (
+                  <GanttBar
+                    key={task.id}
+                    task={task}
+                    rowIndex={idx}
+                    rangeStart={rangeStart}
+                    today={today}
+                    pinState={state}
+                    dimmed={isInHiddenSection}
+                    onTogglePin={() => togglePin(task.id)}
+                  />
+                );
+              })}
+            </div>
           </div>
-        </div>
+
+          {/* Hidden tasks toggle */}
+          {hiddenTasks.length > 0 && (
+            <button
+              onClick={() => setShowHidden(!showHidden)}
+              className="flex w-full items-center gap-1.5 border-t border-g-border px-4 py-1.5 text-xs text-g-text-muted hover:bg-g-surface-hover"
+            >
+              {showHidden ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              <EyeOff className="h-3 w-3" />
+              非表示 ({hiddenTasks.length}件)
+            </button>
+          )}
+        </>
       )}
     </div>
   );
@@ -157,11 +206,17 @@ function GanttBar({
   rowIndex,
   rangeStart,
   today,
+  pinState,
+  dimmed,
+  onTogglePin,
 }: {
   task: GanttTask;
   rowIndex: number;
   rangeStart: Date;
   today: Date;
+  pinState?: 'pinned' | 'hidden';
+  dimmed?: boolean;
+  onTogglePin: () => void;
 }) {
   const { left, width, isOverdue } = useMemo(() => {
     const due = task.dueDate ? new Date(task.dueDate) : null;
@@ -191,25 +246,58 @@ function GanttBar({
 
   return (
     <div
-      className="absolute"
-      style={{ left, width, top, height: ROW_HEIGHT - 6 }}
-      title={task.title}
+      className="group/bar absolute flex items-center"
+      style={{ left: 0, width: '100%', top, height: ROW_HEIGHT - 6 }}
     >
-      <div
-        className="h-full rounded-sm px-1.5 flex items-center"
-        style={{
-          backgroundColor: color,
-          opacity: isDone ? 0.35 : 0.85,
-        }}
+      {/* Pin toggle button */}
+      <button
+        onClick={onTogglePin}
+        className="absolute -left-0 z-20 flex h-4 w-4 items-center justify-center opacity-0 group-hover/bar:opacity-100 transition-opacity"
+        style={{ left: Math.max(0, left - 18) }}
+        title={
+          pinState === 'pinned' ? '非表示にする' :
+          pinState === 'hidden' ? '通常に戻す' :
+          'ピン留めする'
+        }
       >
-        <span
-          className={`truncate text-[10px] text-white leading-none ${isDone ? 'line-through' : ''}`}
+        {pinState === 'hidden' ? (
+          <EyeOff className="h-3 w-3 text-g-text-muted" />
+        ) : (
+          <Pin
+            className={`h-3 w-3 ${pinState === 'pinned' ? 'text-[#4285F4] fill-[#4285F4]' : 'text-g-text-muted'}`}
+          />
+        )}
+      </button>
+
+      {/* Task bar */}
+      <div
+        className="absolute"
+        style={{ left, width, top: 0, height: ROW_HEIGHT - 6 }}
+      >
+        <div
+          className="h-full rounded-sm px-1.5 flex items-center"
+          style={{
+            backgroundColor: color,
+            opacity: dimmed ? 0.2 : isDone ? 0.35 : 0.85,
+          }}
         >
-          {task.title}
-        </span>
+          <span
+            className={`truncate text-[10px] text-white leading-none ${isDone ? 'line-through' : ''}`}
+          >
+            {task.title}
+          </span>
+        </div>
+        {isOverdue && !dimmed && (
+          <div className="absolute -right-0.5 top-0 h-full w-1 rounded-r-sm bg-[#EA4335]" />
+        )}
       </div>
-      {isOverdue && (
-        <div className="absolute -right-0.5 top-0 h-full w-1 rounded-r-sm bg-[#EA4335]" />
+
+      {/* Always-visible pin indicator */}
+      {pinState === 'pinned' && (
+        <Pin
+          className="absolute z-20 h-2.5 w-2.5 text-[#4285F4] fill-[#4285F4] group-hover/bar:hidden"
+          style={{ left: Math.max(0, left - 14) }}
+        />
       )}
     </div>
   );

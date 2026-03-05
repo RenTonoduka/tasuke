@@ -294,7 +294,7 @@ function CodeBlock({ children }: { children: string }) {
 }
 
 function SetupGuide() {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://tasuke-nu.vercel.app';
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://tasuke.app';
 
   return (
     <div className="rounded-lg border border-g-border overflow-hidden">
