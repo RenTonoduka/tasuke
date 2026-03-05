@@ -42,7 +42,7 @@ function getJSTToday(): { todayStart: Date; todayEnd: Date } {
 }
 
 function getAppUrl(): string {
-  return process.env.NEXTAUTH_URL || 'https://tasuke-nu.vercel.app';
+  return process.env.NEXTAUTH_URL || 'https://tasuke.app';
 }
 
 export async function handleLineMessage(input: LineMessageInput) {
