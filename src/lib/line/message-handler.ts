@@ -51,9 +51,26 @@ export async function handleLineMessage(input: LineMessageInput) {
 
   const ctx = await resolveContext(lineUserId);
   if (!ctx) {
+    // リンキングコードで連携を試行
+    if (/^[A-Z0-9]{6}$/.test(trimmed)) {
+      const mapping = await prisma.lineUserMapping.findUnique({
+        where: { linkingCode: trimmed },
+      });
+      if (mapping) {
+        await prisma.lineUserMapping.update({
+          where: { id: mapping.id },
+          data: { lineUserId, linkingCode: null },
+        });
+        await replyMessage(replyToken, [{
+          type: 'text',
+          text: 'アカウント連携が完了しました！\n「ヘルプ」と送信してコマンド一覧を確認できます。',
+        }]);
+        return;
+      }
+    }
     await replyMessage(replyToken, [{
       type: 'text',
-      text: `アカウントが連携されていません。\nWebアプリからLINEログインしてください。\n${getAppUrl()}/login`,
+      text: `アカウントが連携されていません。\nWebアプリでLINE接続後、表示されるリンクコードを送信してください。\n${getAppUrl()}`,
     }]);
     return;
   }

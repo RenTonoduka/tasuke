@@ -122,6 +122,36 @@ function WorkspaceDropZone({ ws, disabled = false }: { ws: { id: string; name: s
   );
 }
 
+function GroupDropZone({ groupId, children }: { groupId: string; children: React.ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({ id: `group-drop-${groupId}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'rounded-md transition-all',
+        isOver && 'ring-2 ring-[#4285F4] bg-[#4285F4]/10',
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+function UngroupedDropZone({ children }: { children: React.ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({ id: 'group-drop-ungrouped' });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'rounded-md transition-all',
+        isOver && 'ring-2 ring-orange-400 bg-orange-400/10',
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 interface SortableProjectItemProps {
   project: Project;
   href: string;
@@ -450,16 +480,37 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
     useSensor(KeyboardSensor)
   );
 
-  // カスタム衝突検出: WSドロップゾーンをpointerWithinで優先 → sortableはclosestCenter
+  // カスタム衝突検出: WSドロップ > sortable > グループドロップ
+  // sortableを先にチェックし、プロジェクト上なら sortable を返す
+  // グループヘッダー（プロジェクトがない空白部分）なら group-drop を返す
   const collisionDetection: CollisionDetection = useMemo(() => (args) => {
-    const dropZones = args.droppableContainers.filter(c => String(c.id).startsWith('ws-drop-'));
-    const sortables = args.droppableContainers.filter(c => !String(c.id).startsWith('ws-drop-'));
-    if (dropZones.length > 0) {
+    const wsDropZones = args.droppableContainers.filter(c => String(c.id).startsWith('ws-drop-'));
+    const groupDropZones = args.droppableContainers.filter(c => String(c.id).startsWith('group-drop-'));
+    const sortables = args.droppableContainers.filter(c =>
+      !String(c.id).startsWith('ws-drop-') && !String(c.id).startsWith('group-drop-')
+    );
+
+    // 1. WSドロップゾーンを最優先
+    if (wsDropZones.length > 0) {
       const hits = args.pointerCoordinates
-        ? pointerWithin({ ...args, droppableContainers: dropZones })
-        : rectIntersection({ ...args, droppableContainers: dropZones });
+        ? pointerWithin({ ...args, droppableContainers: wsDropZones })
+        : rectIntersection({ ...args, droppableContainers: wsDropZones });
       if (hits.length > 0) return hits;
     }
+
+    // 2. sortable（プロジェクトアイテム）を先にチェック
+    if (sortables.length > 0) {
+      const sortableHits = pointerWithin({ ...args, droppableContainers: sortables });
+      if (sortableHits.length > 0) return sortableHits;
+    }
+
+    // 3. グループドロップゾーン（ヘッダー部分や空グループ）
+    if (groupDropZones.length > 0) {
+      const hits = pointerWithin({ ...args, droppableContainers: groupDropZones });
+      if (hits.length > 0) return hits;
+    }
+
+    // 4. フォールバック: closestCenter で最も近い sortable
     return closestCenter({ ...args, droppableContainers: sortables });
   }, []);
 
@@ -477,8 +528,32 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
   }, [projects]);
 
   const handleDragOver = useCallback((event: { over: { id: string | number } | null }) => {
-    setIsOverDropZone(event.over ? String(event.over.id).startsWith('ws-drop-') : false);
+    const overId = event.over ? String(event.over.id) : '';
+    setIsOverDropZone(overId.startsWith('ws-drop-') || overId.startsWith('group-drop-'));
   }, []);
+
+  // グループ移動の共通ロジック
+  const moveProjectToGroup = useCallback((project: Project, newGroupId: string | null) => {
+    if ((project.groupId ?? null) === newGroupId) return;
+    const prevProjects = [...projects];
+    setProjects(prev => prev.map(p =>
+      p.id === project.id ? { ...p, groupId: newGroupId } : p
+    ));
+    const targetGroup = newGroupId ? groups.find(g => g.id === newGroupId) : null;
+    fetch(`/api/projects/${project.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ groupId: newGroupId }),
+    })
+      .then(res => {
+        if (!res.ok) throw new Error();
+        toast({ title: `「${project.name}」を${targetGroup?.name ?? '未分類'}に移動しました` });
+      })
+      .catch(() => {
+        setProjects(prevProjects);
+        toast({ title: 'グループ移動に失敗しました', variant: 'destructive' });
+      });
+  }, [projects, groups]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const draggedProject = activeProject;
@@ -491,7 +566,15 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
 
     const overId = String(over.id);
 
-    // ★ ワークスペースドロップゾーンへのドロップ（同期的楽観更新 + バックグラウンドAPI）
+    // ★ グループドロップゾーンへのドロップ（ヘッダーや空グループ）
+    if (overId.startsWith('group-drop-') && draggedProject) {
+      const targetGroupId = overId.replace('group-drop-', '');
+      const newGroupId = targetGroupId === 'ungrouped' ? null : targetGroupId;
+      moveProjectToGroup(draggedProject, newGroupId);
+      return;
+    }
+
+    // ★ ワークスペースドロップゾーンへのドロップ
     if (overId.startsWith('ws-drop-') && draggedProject) {
       const targetWsId = overId.replace('ws-drop-', '');
       const targetWs = workspaces.find(ws => ws.id === targetWsId);
@@ -517,7 +600,22 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
       return;
     }
 
-    // ★ 同一ワークスペース内の並べ替え（同期的楽観更新 + バックグラウンドAPI）
+    // ★ sortable（プロジェクトアイテム）上にドロップ
+    if (draggedProject) {
+      const targetProject = projects.find(p => p.id === overId);
+      if (targetProject) {
+        const dragGroupId = draggedProject.groupId ?? null;
+        const targetGroupId = targetProject.groupId ?? null;
+
+        // 異なるグループ → グループ移動
+        if (dragGroupId !== targetGroupId) {
+          moveProjectToGroup(draggedProject, targetGroupId);
+          return;
+        }
+      }
+    }
+
+    // ★ 同一グループ内の並べ替え
     if (active.id === over.id) return;
     const oldIndex = projects.findIndex((p) => p.id === active.id);
     const newIndex = projects.findIndex((p) => p.id === over.id);
@@ -534,7 +632,7 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
       setProjects(prevProjects);
       toast({ title: '並べ替えに失敗しました', variant: 'destructive' });
     });
-  }, [activeProject, projects, workspaces, workspaceId, pathname, router, initialProjects]);
+  }, [activeProject, projects, workspaces, workspaceId, pathname, router, moveProjectToGroup]);
 
   const handleDragCancel = useCallback(() => {
     setActiveProject(null);
@@ -751,73 +849,84 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
                 const groupProjects = projects.filter(p => p.groupId === group.id);
                 const isCollapsed = collapsedGroups.has(group.id);
                 return (
-                  <div key={group.id} className="space-y-0.5">
-                    <div className="group/grp flex items-center rounded-md text-sm hover:bg-g-border">
-                      <button
-                        onClick={() => toggleGroupCollapse(group.id)}
-                        className="shrink-0 p-1 text-g-text-muted"
-                      >
-                        {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                      </button>
-                      <Link
-                        href={`/${currentWorkspaceSlug}/groups/${group.id}`}
-                        className={cn(
-                          'flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 text-g-text-secondary hover:text-g-text',
-                          pathname?.includes(`/groups/${group.id}`) && 'font-medium text-g-text',
-                        )}
-                      >
-                        <div className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: group.color }} />
-                        <span className="truncate font-medium">{group.name}</span>
-                        <span className="ml-auto shrink-0 text-[10px] text-g-text-muted">{groupProjects.length}</span>
-                      </Link>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className="mr-1 hidden shrink-0 rounded p-0.5 text-g-text-muted hover:bg-g-bg hover:text-g-text group-hover/grp:block" tabIndex={-1}>
-                            <MoreHorizontal className="h-3.5 w-3.5" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-44">
-                          <DropdownMenuItem onClick={() => { setGroupRenameTarget(group); setGroupRenameName(group.name); }}>
-                            <Pencil className="mr-2 h-3.5 w-3.5" />
-                            名前を変更
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => { setGroupColorTarget(group); setGroupColorValue(group.color); }}>
-                            <Palette className="mr-2 h-3.5 w-3.5" />
-                            色を変更
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-500 focus:text-red-500" onClick={() => setGroupDeleteTarget(group)}>
-                            <Trash2 className="mr-2 h-3.5 w-3.5" />
-                            削除
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    {!isCollapsed && groupProjects.map((project) => (
-                      <div key={project.id} className="pl-4">
-                        <SortableProjectItem
-                          project={project}
-                          href={`/${currentWorkspaceSlug}/projects/${project.id}`}
-                          isActive={!!pathname?.includes(project.id)}
-                          indented
-                          onDelete={(id) => {
-                            const p = projects.find((pr) => pr.id === id);
-                            if (p) setDeleteTarget(p);
-                          }}
-                          onMoveToGroup={setMoveToGroupProject}
-                        />
+                  <GroupDropZone key={group.id} groupId={group.id}>
+                    <div className="space-y-0.5">
+                      <div className="group/grp flex items-center rounded-md text-sm hover:bg-g-border">
+                        <button
+                          onClick={() => toggleGroupCollapse(group.id)}
+                          className="shrink-0 p-1 text-g-text-muted"
+                        >
+                          {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        </button>
+                        <Link
+                          href={`/${currentWorkspaceSlug}/groups/${group.id}`}
+                          className={cn(
+                            'flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 text-g-text-secondary hover:text-g-text',
+                            pathname?.includes(`/groups/${group.id}`) && 'font-medium text-g-text',
+                          )}
+                        >
+                          <div className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: group.color }} />
+                          <span className="truncate font-medium">{group.name}</span>
+                          <span className="ml-auto shrink-0 text-[10px] text-g-text-muted">{groupProjects.length}</span>
+                        </Link>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="mr-1 hidden shrink-0 rounded p-0.5 text-g-text-muted hover:bg-g-bg hover:text-g-text group-hover/grp:block" tabIndex={-1}>
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-44">
+                            <DropdownMenuItem onClick={() => { setGroupRenameTarget(group); setGroupRenameName(group.name); }}>
+                              <Pencil className="mr-2 h-3.5 w-3.5" />
+                              名前を変更
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setGroupColorTarget(group); setGroupColorValue(group.color); }}>
+                              <Palette className="mr-2 h-3.5 w-3.5" />
+                              色を変更
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-red-500 focus:text-red-500" onClick={() => setGroupDeleteTarget(group)}>
+                              <Trash2 className="mr-2 h-3.5 w-3.5" />
+                              削除
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-                    ))}
-                  </div>
+                      {!isCollapsed && groupProjects.map((project) => (
+                        <div key={project.id} className="pl-4">
+                          <SortableProjectItem
+                            project={project}
+                            href={`/${currentWorkspaceSlug}/projects/${project.id}`}
+                            isActive={!!pathname?.includes(project.id)}
+                            indented
+                            onDelete={(id) => {
+                              const p = projects.find((pr) => pr.id === id);
+                              if (p) setDeleteTarget(p);
+                            }}
+                            onMoveToGroup={setMoveToGroupProject}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </GroupDropZone>
                 );
               })}
 
               {/* Ungrouped projects */}
               {(() => {
                 const ungrouped = projects.filter(p => !p.groupId);
-                if (ungrouped.length === 0 && groups.length > 0) return null;
+                if (ungrouped.length === 0 && groups.length > 0) {
+                  // グループがあるが未分類が空 → ドロップ先としては残す
+                  return (
+                    <UngroupedDropZone>
+                      <div className="px-3 py-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-g-text-muted">未分類</span>
+                      </div>
+                    </UngroupedDropZone>
+                  );
+                }
                 return (
-                  <>
+                  <UngroupedDropZone>
                     {groups.length > 0 && (
                       <div className="px-3 pt-2 pb-0.5">
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-g-text-muted">未分類</span>
@@ -836,7 +945,7 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
                         onMoveToGroup={groups.length > 0 ? setMoveToGroupProject : undefined}
                       />
                     ))}
-                  </>
+                  </UngroupedDropZone>
                 );
               })()}
             </SortableContext>

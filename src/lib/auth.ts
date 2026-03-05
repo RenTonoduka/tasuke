@@ -106,7 +106,7 @@ export const authOptions: NextAuthOptions = {
           });
         }
       }
-      // LINE Login 時に LineUserMapping を自動作成
+      // LINE Login 時に LineUserMapping を自動作成 + リンキングコード生成
       if (account?.provider === 'line' && account.providerAccountId && user.id) {
         const firstMember = await prisma.workspaceMember.findFirst({
           where: { userId: user.id },
@@ -114,12 +114,14 @@ export const authOptions: NextAuthOptions = {
           select: { workspaceId: true },
         });
         if (firstMember) {
+          const code = Math.random().toString(36).substring(2, 8).toUpperCase();
           await prisma.lineUserMapping.upsert({
-            where: { lineUserId: account.providerAccountId },
+            where: { userId_workspaceId: { userId: user.id, workspaceId: firstMember.workspaceId } },
             update: {
               displayName: user.name ?? undefined,
               pictureUrl: user.image ?? undefined,
               isFollowing: true,
+              linkingCode: code,
             },
             create: {
               lineUserId: account.providerAccountId,
@@ -127,6 +129,7 @@ export const authOptions: NextAuthOptions = {
               workspaceId: firstMember.workspaceId,
               displayName: user.name ?? null,
               pictureUrl: user.image ?? null,
+              linkingCode: code,
             },
           });
         }

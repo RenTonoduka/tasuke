@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { signIn } from 'next-auth/react';
-import { Loader2, Bot, Bell, BellOff, Unlink, MessageCircle, Sparkles } from 'lucide-react';
+import { Loader2, Bot, Bell, BellOff, Unlink, MessageCircle, Sparkles, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 
@@ -13,6 +13,7 @@ interface LineStatus {
     displayName: string | null;
     isFollowing: boolean;
     reminderEnabled: boolean;
+    linkingCode: string | null;
     createdAt: string;
   } | null;
 }
@@ -22,6 +23,7 @@ export function LineSettingsClient() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -74,6 +76,12 @@ export function LineSettingsClient() {
     }
   };
 
+  const copyCode = async (code: string) => {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -85,7 +93,7 @@ export function LineSettingsClient() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6">
       {/* メインカード */}
-      <div className="rounded-lg border border-g-border bg-white p-6">
+      <div className="rounded-lg border border-g-border bg-g-bg p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#06C755]/10">
             <Bot className="h-5 w-5 text-[#06C755]" />
@@ -100,7 +108,6 @@ export function LineSettingsClient() {
 
         {!status?.connected ? (
           <div className="space-y-5">
-            {/* 機能紹介 */}
             <div className="rounded-md bg-g-surface p-4 space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium text-g-text">
                 <Sparkles className="h-4 w-4 text-[#06C755]" />
@@ -144,8 +151,31 @@ export function LineSettingsClient() {
               )}
             </div>
 
+            {/* リンキングコード */}
+            {status.mapping?.linkingCode && (
+              <div className="rounded-md border border-[#06C755]/30 bg-[#06C755]/5 p-4 space-y-2">
+                <p className="text-sm font-medium text-g-text">LINEボットとの連携</p>
+                <p className="text-xs text-g-text-secondary">
+                  LINE公式アカウントに以下のコードを送信してください
+                </p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 rounded-md bg-g-surface px-4 py-2.5 text-center text-xl font-mono font-bold tracking-[0.3em] text-g-text">
+                    {status.mapping.linkingCode}
+                  </code>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyCode(status.mapping!.linkingCode!)}
+                    className="shrink-0"
+                  >
+                    {copied ? <Check className="h-4 w-4 text-[#06C755]" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {status.mapping && !status.mapping.isFollowing && (
-              <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-800">
+              <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-800 dark:text-amber-200">
                 LINE公式アカウントがブロックされています。LINEアプリからブロック解除してください。
               </div>
             )}
@@ -178,7 +208,7 @@ export function LineSettingsClient() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
                 onClick={disconnect}
                 disabled={deleting}
               >
@@ -191,7 +221,7 @@ export function LineSettingsClient() {
       </div>
 
       {/* AI秘書の使い方 */}
-      <div className="rounded-lg border border-g-border bg-white p-6">
+      <div className="rounded-lg border border-g-border bg-g-bg p-6">
         <h3 className="text-sm font-semibold text-g-text mb-3">AI秘書の使い方</h3>
         <div className="space-y-3 text-sm text-g-text-secondary">
           <p>LINE公式アカウントにメッセージを送るだけでAIが操作します:</p>

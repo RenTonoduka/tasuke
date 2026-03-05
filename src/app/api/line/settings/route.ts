@@ -12,9 +12,9 @@ export async function GET() {
     });
 
     const mapping = lineAccount
-      ? await prisma.lineUserMapping.findUnique({
-          where: { lineUserId: lineAccount.providerAccountId },
-          select: { displayName: true, isFollowing: true, reminderEnabled: true, createdAt: true },
+      ? await prisma.lineUserMapping.findFirst({
+          where: { userId: user.id },
+          select: { displayName: true, isFollowing: true, reminderEnabled: true, linkingCode: true, createdAt: true },
         })
       : null;
 
@@ -33,17 +33,16 @@ export async function PATCH(req: NextRequest) {
     const user = await requireAuthUser();
     const body = await req.json();
 
-    const lineAccount = await prisma.account.findFirst({
-      where: { userId: user.id, provider: 'line' },
-      select: { providerAccountId: true },
+    const mapping = await prisma.lineUserMapping.findFirst({
+      where: { userId: user.id },
     });
 
-    if (!lineAccount) {
+    if (!mapping) {
       return NextResponse.json({ error: 'LINE未連携' }, { status: 400 });
     }
 
     const updated = await prisma.lineUserMapping.update({
-      where: { lineUserId: lineAccount.providerAccountId },
+      where: { id: mapping.id },
       data: {
         reminderEnabled: typeof body.reminderEnabled === 'boolean' ? body.reminderEnabled : undefined,
       },
@@ -61,17 +60,19 @@ export async function DELETE() {
 
     const lineAccount = await prisma.account.findFirst({
       where: { userId: user.id, provider: 'line' },
-      select: { id: true, providerAccountId: true },
+      select: { id: true },
     });
 
-    if (!lineAccount) {
-      return NextResponse.json({ error: 'LINE未連携' }, { status: 400 });
-    }
+    const mapping = await prisma.lineUserMapping.findFirst({
+      where: { userId: user.id },
+      select: { id: true },
+    });
 
-    await prisma.$transaction([
-      prisma.lineUserMapping.delete({ where: { lineUserId: lineAccount.providerAccountId } }),
-      prisma.account.delete({ where: { id: lineAccount.id } }),
-    ]);
+    const ops = [];
+    if (mapping) ops.push(prisma.lineUserMapping.delete({ where: { id: mapping.id } }));
+    if (lineAccount) ops.push(prisma.account.delete({ where: { id: lineAccount.id } }));
+
+    if (ops.length > 0) await prisma.$transaction(ops);
 
     return NextResponse.json({ ok: true });
   } catch {
