@@ -11,12 +11,22 @@ export async function GET() {
       select: { providerAccountId: true },
     });
 
-    const mapping = lineAccount
+    let mapping = lineAccount
       ? await prisma.lineUserMapping.findFirst({
           where: { userId: user.id },
-          select: { displayName: true, isFollowing: true, reminderEnabled: true, linkingCode: true, createdAt: true },
+          select: { id: true, displayName: true, isFollowing: true, reminderEnabled: true, linkingCode: true, createdAt: true },
         })
       : null;
+
+    // linkingCodeが未生成なら自動生成
+    if (mapping && !mapping.linkingCode) {
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      mapping = await prisma.lineUserMapping.update({
+        where: { id: mapping.id },
+        data: { linkingCode: code },
+        select: { id: true, displayName: true, isFollowing: true, reminderEnabled: true, linkingCode: true, createdAt: true },
+      });
+    }
 
     return NextResponse.json({
       connected: !!lineAccount,

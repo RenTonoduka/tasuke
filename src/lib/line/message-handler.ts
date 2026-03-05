@@ -63,7 +63,19 @@ export async function handleLineMessage(input: LineMessageInput) {
         });
         await replyMessage(replyToken, [{
           type: 'text',
-          text: 'アカウント連携が完了しました！\n「ヘルプ」と送信してコマンド一覧を確認できます。',
+          text: [
+            'TASUKE AI秘書へようこそ！',
+            'アカウント連携が完了しました。',
+            '',
+            'LINEからタスク管理ができます:',
+            '・自然言語で話しかけてください',
+            '  例）「明日までに企画書タスク追加して」',
+            '・「ダッシュボード」でタスク概要',
+            '・「マイタスク」で自分のタスク',
+            '・「ヘルプ」でコマンド一覧',
+            '',
+            '何でも気軽にメッセージしてください！',
+          ].join('\n'),
         }]);
         return;
       }
