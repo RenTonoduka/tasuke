@@ -3,6 +3,7 @@ import { replyMessage } from './client';
 import { buildDashboardText } from './flex-messages';
 import * as handlers from '@/mcp/tool-handlers';
 import type { ToolContext } from '@/mcp/tool-handlers';
+import { checkRateLimit } from './rate-limit';
 
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
@@ -74,10 +75,7 @@ export async function handleLineMessage(input: LineMessageInput) {
   } else if (trimmed.startsWith('検索 ') || trimmed.startsWith('search ')) {
     await cmdSearch(replyToken, trimmed, ctx);
   } else {
-    await replyMessage(replyToken, [{
-      type: 'text',
-      text: 'コマンドが認識できませんでした。\n「ヘルプ」で使い方を確認できます。',
-    }]);
+    await handleAIFallback(replyToken, trimmed, lineUserId, ctx);
   }
 }
 
@@ -253,4 +251,42 @@ function formatTask(t: TaskData): string {
     parts.push(`(${d.getMonth() + 1}/${d.getDate()})`);
   }
   return parts.join(' ');
+}
+
+// ── AI フォールバック ──
+
+async function handleAIFallback(
+  replyToken: string,
+  text: string,
+  lineUserId: string,
+  ctx: ToolContext,
+) {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    await replyMessage(replyToken, [{
+      type: 'text',
+      text: 'コマンドが認識できませんでした。\n「ヘルプ」で使い方を確認できます。',
+    }]);
+    return;
+  }
+
+  const allowed = await checkRateLimit(lineUserId);
+  if (!allowed) {
+    await replyMessage(replyToken, [{
+      type: 'text',
+      text: '本日のAIアシスタント利用上限(50回)に達しました。\n固定コマンド(ヘルプ参照)は引き続きご利用いただけます。',
+    }]);
+    return;
+  }
+
+  try {
+    const { handleAIMessage } = await import('./ai-handler');
+    const reply = await handleAIMessage(text, lineUserId, ctx);
+    await replyMessage(replyToken, [{ type: 'text', text: reply }]);
+  } catch (error) {
+    console.error('[line-ai] error:', error);
+    await replyMessage(replyToken, [{
+      type: 'text',
+      text: 'AIアシスタントで一時的なエラーが発生しました。\n固定コマンドをお試しください。「ヘルプ」で一覧を確認できます。',
+    }]);
+  }
 }
