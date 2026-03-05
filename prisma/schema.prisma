@@ -88,6 +88,7 @@ model Workspace {
 
   members           WorkspaceMember[]
   projects          Project[]
+  projectGroups     ProjectGroup[]
   labels            Label[]
   projectTemplates  ProjectTemplate[]
   apiTokens         ApiToken[]
@@ -107,6 +108,20 @@ model WorkspaceMember {
   @@unique([workspaceId, userId])
 }
 
+// ========== ProjectGroup ==========
+
+model ProjectGroup {
+  id          String   @id @default(cuid())
+  name        String
+  color       String   @default("#6B7280")
+  position    Int      @default(0)
+  workspaceId String
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projects  Project[]
+}
+
 // ========== Project ==========
 
 model Project {
@@ -119,8 +134,10 @@ model Project {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   workspaceId String
+  groupId     String?
 
   workspace              Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  group                  ProjectGroup?           @relation(fields: [groupId], references: [id], onDelete: SetNull)
   sections               Section[]
   tasks                  Task[]
   automationRules        AutomationRule[]

@@ -8,15 +8,23 @@ import { cn } from '@/lib/utils';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { ShortcutsHelp } from '@/components/shared/shortcuts-help';
 
+interface ProjectGroupProp {
+  id: string;
+  name: string;
+  color: string;
+  position: number;
+}
+
 interface AppShellProps {
   children: React.ReactNode;
-  projects?: { id: string; name: string; color: string; isPrivate: boolean }[];
+  projects?: { id: string; name: string; color: string; isPrivate: boolean; groupId?: string | null }[];
+  projectGroups?: ProjectGroupProp[];
   workspaceName?: string;
   currentWorkspaceSlug?: string;
   workspaceId?: string;
 }
 
-export function AppShell({ children, projects, workspaceName, currentWorkspaceSlug, workspaceId }: AppShellProps) {
+export function AppShell({ children, projects, projectGroups, workspaceName, currentWorkspaceSlug, workspaceId }: AppShellProps) {
   const isOpen = useSidebarStore((s) => s.isOpen);
   const close = useSidebarStore((s) => s.close);
 
@@ -54,6 +62,7 @@ export function AppShell({ children, projects, workspaceName, currentWorkspaceSl
       >
         <Sidebar
           projects={projects}
+          projectGroups={projectGroups}
           workspaceName={workspaceName}
           currentWorkspaceSlug={currentWorkspaceSlug}
           workspaceId={workspaceId}

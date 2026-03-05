@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   ChevronDown,
+  ChevronRight,
   LayoutDashboard,
   Inbox,
   Trash2,
@@ -28,6 +29,10 @@ import {
   PanelLeftClose,
   MessageCircle,
   ShieldCheck,
+  Layers,
+  FolderOpen,
+  Palette,
+  ArrowRight,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
@@ -86,6 +91,14 @@ interface Project {
   name: string;
   color: string;
   isPrivate: boolean;
+  groupId?: string | null;
+}
+
+interface ProjectGroupType {
+  id: string;
+  name: string;
+  color: string;
+  position: number;
 }
 
 function WorkspaceDropZone({ ws, disabled = false }: { ws: { id: string; name: string; slug: string }; disabled?: boolean }) {
@@ -113,9 +126,11 @@ interface SortableProjectItemProps {
   href: string;
   isActive: boolean;
   onDelete: (projectId: string) => void;
+  onMoveToGroup?: (project: Project) => void;
+  indented?: boolean;
 }
 
-function SortableProjectItem({ project, href, isActive, onDelete }: SortableProjectItemProps) {
+function SortableProjectItem({ project, href, isActive, onDelete, onMoveToGroup, indented }: SortableProjectItemProps) {
   const {
     attributes,
     listeners,
@@ -160,6 +175,7 @@ function SortableProjectItem({ project, href, isActive, onDelete }: SortableProj
         className={cn(
           'flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-1',
           isDropCandidate && 'pl-2',
+          indented && !isDropCandidate && 'pl-1',
         )}
       >
         <FolderKanban className={cn('h-4 w-4 shrink-0', isDropCandidate && 'h-5 w-5')} style={{ color: project.color }} />
@@ -175,7 +191,13 @@ function SortableProjectItem({ project, href, isActive, onDelete }: SortableProj
             <MoreHorizontal className="h-3.5 w-3.5" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-40">
+        <DropdownMenuContent align="start" className="w-44">
+          {onMoveToGroup && (
+            <DropdownMenuItem onClick={() => onMoveToGroup(project)}>
+              <ArrowRight className="mr-2 h-3.5 w-3.5" />
+              グループに移動
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             className="text-red-500 focus:text-red-500"
             onClick={() => onDelete(project.id)}
@@ -191,12 +213,13 @@ function SortableProjectItem({ project, href, isActive, onDelete }: SortableProj
 
 interface SidebarProps {
   projects?: Project[];
+  projectGroups?: ProjectGroupType[];
   workspaceName?: string;
   currentWorkspaceSlug?: string;
   workspaceId?: string;
 }
 
-export function Sidebar({ projects: initialProjects = [], workspaceName = 'マイワークスペース', currentWorkspaceSlug = '', workspaceId = '' }: SidebarProps) {
+export function Sidebar({ projects: initialProjects = [], projectGroups: initialGroups = [], workspaceName = 'マイワークスペース', currentWorkspaceSlug = '', workspaceId = '' }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
@@ -207,23 +230,131 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   useEffect(() => { setProjects(initialProjects); }, [initialProjects]);
 
+  const [groups, setGroups] = useState<ProjectGroupType[]>(initialGroups);
+  useEffect(() => { setGroups(initialGroups); }, [initialGroups]);
+
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const toggleGroupCollapse = useCallback((groupId: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+      return next;
+    });
+  }, []);
+
+  // グループ CRUD
+  const [groupCreateOpen, setGroupCreateOpen] = useState(false);
+  const [groupCreateName, setGroupCreateName] = useState('');
+  const [groupRenameTarget, setGroupRenameTarget] = useState<ProjectGroupType | null>(null);
+  const [groupRenameName, setGroupRenameName] = useState('');
+  const [groupDeleteTarget, setGroupDeleteTarget] = useState<ProjectGroupType | null>(null);
+  const [groupColorTarget, setGroupColorTarget] = useState<ProjectGroupType | null>(null);
+  const [groupColorValue, setGroupColorValue] = useState('#6B7280');
+  const [moveToGroupProject, setMoveToGroupProject] = useState<Project | null>(null);
+
+  const GROUP_COLORS = ['#6B7280', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
+
   const refetchProjects = useCallback(async () => {
     if (!workspaceId) return;
     try {
       const res = await fetch(`/api/workspaces/${workspaceId}/projects`);
       if (res.ok) {
         const data = await res.json();
-        setProjects(data.map((p: Project & { isPrivate?: boolean }) => ({ id: p.id, name: p.name, color: p.color, isPrivate: p.isPrivate ?? false })));
+        setProjects(data.map((p: Project & { isPrivate?: boolean; groupId?: string | null }) => ({
+          id: p.id, name: p.name, color: p.color, isPrivate: p.isPrivate ?? false, groupId: p.groupId ?? null,
+        })));
       }
     } catch {
       console.warn('Failed to fetch projects');
     }
   }, [workspaceId]);
 
+  const refetchGroups = useCallback(async () => {
+    if (!workspaceId) return;
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/project-groups`);
+      if (res.ok) {
+        const data = await res.json();
+        setGroups(data.map((g: ProjectGroupType) => ({ id: g.id, name: g.name, color: g.color, position: g.position })));
+      }
+    } catch {
+      console.warn('Failed to fetch groups');
+    }
+  }, [workspaceId]);
+
   useEffect(() => {
-    const unsub = eventBus.on(EVENTS.PROJECTS_CHANGED, refetchProjects);
+    const unsub = eventBus.on(EVENTS.PROJECTS_CHANGED, () => { refetchProjects(); refetchGroups(); });
     return unsub;
-  }, [refetchProjects]);
+  }, [refetchProjects, refetchGroups]);
+
+  const handleGroupCreate = async () => {
+    if (!groupCreateName.trim() || !workspaceId) return;
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/project-groups`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: groupCreateName.trim() }),
+      });
+      if (res.ok) { await refetchGroups(); }
+      else { toast({ title: 'グループの作成に失敗', variant: 'destructive' }); }
+    } catch { toast({ title: 'グループの作成に失敗', variant: 'destructive' }); }
+    setGroupCreateOpen(false);
+    setGroupCreateName('');
+  };
+
+  const handleGroupRename = async () => {
+    if (!groupRenameTarget || !groupRenameName.trim() || !workspaceId) return;
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/project-groups/${groupRenameTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: groupRenameName.trim() }),
+      });
+      if (res.ok) { await refetchGroups(); }
+      else { toast({ title: 'グループ名の変更に失敗', variant: 'destructive' }); }
+    } catch { toast({ title: 'グループ名の変更に失敗', variant: 'destructive' }); }
+    setGroupRenameTarget(null);
+  };
+
+  const handleGroupDelete = async () => {
+    if (!groupDeleteTarget || !workspaceId) return;
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/project-groups/${groupDeleteTarget.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) { await refetchGroups(); await refetchProjects(); }
+      else { toast({ title: 'グループの削除に失敗', variant: 'destructive' }); }
+    } catch { toast({ title: 'グループの削除に失敗', variant: 'destructive' }); }
+    setGroupDeleteTarget(null);
+  };
+
+  const handleGroupColorChange = async (color: string) => {
+    if (!groupColorTarget || !workspaceId) return;
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/project-groups/${groupColorTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ color }),
+      });
+      if (res.ok) { await refetchGroups(); }
+    } catch { /* ignore */ }
+    setGroupColorTarget(null);
+  };
+
+  const handleMoveToGroup = async (groupId: string | null) => {
+    if (!moveToGroupProject) return;
+    try {
+      const res = await fetch(`/api/projects/${moveToGroupProject.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId }),
+      });
+      if (res.ok) {
+        setProjects(prev => prev.map(p => p.id === moveToGroupProject.id ? { ...p, groupId } : p));
+      } else { toast({ title: 'グループ移動に失敗', variant: 'destructive' }); }
+    } catch { toast({ title: 'グループ移動に失敗', variant: 'destructive' }); }
+    setMoveToGroupProject(null);
+  };
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string; slug: string }[]>([]);
@@ -435,6 +566,11 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
       icon: LayoutDashboard,
     },
     {
+      label: 'All Projects',
+      href: `/${currentWorkspaceSlug}/all-projects`,
+      icon: Layers,
+    },
+    {
       label: 'インボックス',
       href: `/${currentWorkspaceSlug}/inbox`,
       icon: Inbox,
@@ -548,7 +684,7 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
             <DropdownMenuItem asChild>
               <Link href={`/${currentWorkspaceSlug}/settings/line`}>
                 <MessageCircle className="mr-2 h-4 w-4" />
-                LINE連携
+                AI秘書 (LINE)
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -591,28 +727,118 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
 
           <Separator className="my-3 bg-g-border" />
 
-          {/* Projects */}
+          {/* Projects (grouped) */}
           <div className="space-y-1">
             <div className="flex items-center justify-between px-3 py-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-g-text-muted">
                 プロジェクト
               </span>
-              <ProjectCreateDialog workspaceId={workspaceId} workspaceSlug={currentWorkspaceSlug} />
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={() => { setGroupCreateOpen(true); setGroupCreateName(''); }}
+                  className="rounded p-0.5 text-g-text-muted hover:bg-g-border hover:text-g-text"
+                  title="グループ作成"
+                >
+                  <FolderOpen className="h-3.5 w-3.5" />
+                </button>
+                <ProjectCreateDialog workspaceId={workspaceId} workspaceSlug={currentWorkspaceSlug} />
+              </div>
             </div>
 
             <SortableContext items={projects.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-              {projects.map((project) => (
-                <SortableProjectItem
-                  key={project.id}
-                  project={project}
-                  href={`/${currentWorkspaceSlug}/projects/${project.id}`}
-                  isActive={!!pathname?.includes(project.id)}
-                  onDelete={(id) => {
-                    const p = projects.find((pr) => pr.id === id);
-                    if (p) setDeleteTarget(p);
-                  }}
-                />
-              ))}
+              {/* Groups */}
+              {groups.map((group) => {
+                const groupProjects = projects.filter(p => p.groupId === group.id);
+                const isCollapsed = collapsedGroups.has(group.id);
+                return (
+                  <div key={group.id} className="space-y-0.5">
+                    <div className="group/grp flex items-center rounded-md text-sm hover:bg-g-border">
+                      <button
+                        onClick={() => toggleGroupCollapse(group.id)}
+                        className="shrink-0 p-1 text-g-text-muted"
+                      >
+                        {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                      </button>
+                      <Link
+                        href={`/${currentWorkspaceSlug}/groups/${group.id}`}
+                        className={cn(
+                          'flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 text-g-text-secondary hover:text-g-text',
+                          pathname?.includes(`/groups/${group.id}`) && 'font-medium text-g-text',
+                        )}
+                      >
+                        <div className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: group.color }} />
+                        <span className="truncate font-medium">{group.name}</span>
+                        <span className="ml-auto shrink-0 text-[10px] text-g-text-muted">{groupProjects.length}</span>
+                      </Link>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="mr-1 hidden shrink-0 rounded p-0.5 text-g-text-muted hover:bg-g-bg hover:text-g-text group-hover/grp:block" tabIndex={-1}>
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-44">
+                          <DropdownMenuItem onClick={() => { setGroupRenameTarget(group); setGroupRenameName(group.name); }}>
+                            <Pencil className="mr-2 h-3.5 w-3.5" />
+                            名前を変更
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setGroupColorTarget(group); setGroupColorValue(group.color); }}>
+                            <Palette className="mr-2 h-3.5 w-3.5" />
+                            色を変更
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-red-500 focus:text-red-500" onClick={() => setGroupDeleteTarget(group)}>
+                            <Trash2 className="mr-2 h-3.5 w-3.5" />
+                            削除
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    {!isCollapsed && groupProjects.map((project) => (
+                      <div key={project.id} className="pl-4">
+                        <SortableProjectItem
+                          project={project}
+                          href={`/${currentWorkspaceSlug}/projects/${project.id}`}
+                          isActive={!!pathname?.includes(project.id)}
+                          indented
+                          onDelete={(id) => {
+                            const p = projects.find((pr) => pr.id === id);
+                            if (p) setDeleteTarget(p);
+                          }}
+                          onMoveToGroup={setMoveToGroupProject}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+
+              {/* Ungrouped projects */}
+              {(() => {
+                const ungrouped = projects.filter(p => !p.groupId);
+                if (ungrouped.length === 0 && groups.length > 0) return null;
+                return (
+                  <>
+                    {groups.length > 0 && (
+                      <div className="px-3 pt-2 pb-0.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-g-text-muted">未分類</span>
+                      </div>
+                    )}
+                    {ungrouped.map((project) => (
+                      <SortableProjectItem
+                        key={project.id}
+                        project={project}
+                        href={`/${currentWorkspaceSlug}/projects/${project.id}`}
+                        isActive={!!pathname?.includes(project.id)}
+                        onDelete={(id) => {
+                          const p = projects.find((pr) => pr.id === id);
+                          if (p) setDeleteTarget(p);
+                        }}
+                        onMoveToGroup={groups.length > 0 ? setMoveToGroupProject : undefined}
+                      />
+                    ))}
+                  </>
+                );
+              })()}
             </SortableContext>
 
             {projects.length === 0 && (
@@ -770,6 +996,133 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
             <AlertDialogAction onClick={handleWsCreate} disabled={!wsCreateName.trim()}>
               作成
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Group create dialog */}
+      <AlertDialog open={groupCreateOpen} onOpenChange={setGroupCreateOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>新規グループ</AlertDialogTitle>
+          </AlertDialogHeader>
+          <input
+            value={groupCreateName}
+            onChange={(e) => setGroupCreateName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleGroupCreate(); }}
+            placeholder="グループ名"
+            className="w-full rounded border border-g-border px-3 py-2 text-sm"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction onClick={handleGroupCreate} disabled={!groupCreateName.trim()}>
+              作成
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Group rename dialog */}
+      <AlertDialog open={!!groupRenameTarget} onOpenChange={(open) => { if (!open) setGroupRenameTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>グループ名を変更</AlertDialogTitle>
+          </AlertDialogHeader>
+          <input
+            value={groupRenameName}
+            onChange={(e) => setGroupRenameName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleGroupRename(); }}
+            className="w-full rounded border border-g-border px-3 py-2 text-sm"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction onClick={handleGroupRename} disabled={!groupRenameName.trim()}>
+              変更
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Group delete dialog */}
+      <AlertDialog open={!!groupDeleteTarget} onOpenChange={(open) => { if (!open) setGroupDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>グループを削除</AlertDialogTitle>
+            <AlertDialogDescription>
+              「{groupDeleteTarget?.name}」を削除しますか？グループ内のプロジェクトは未分類になります。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-500 hover:bg-red-600" onClick={handleGroupDelete}>
+              削除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Group color dialog */}
+      <AlertDialog open={!!groupColorTarget} onOpenChange={(open) => { if (!open) setGroupColorTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>グループの色を変更</AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="flex flex-wrap gap-2">
+            {GROUP_COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => handleGroupColorChange(c)}
+                className={cn(
+                  'h-8 w-8 rounded-full border-2 transition-transform hover:scale-110',
+                  groupColorValue === c ? 'border-g-text scale-110' : 'border-transparent',
+                )}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>閉じる</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Move to group dialog */}
+      <AlertDialog open={!!moveToGroupProject} onOpenChange={(open) => { if (!open) setMoveToGroupProject(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>「{moveToGroupProject?.name}」をグループに移動</AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="space-y-1">
+            {groups.map((g) => (
+              <button
+                key={g.id}
+                onClick={() => handleMoveToGroup(g.id)}
+                className={cn(
+                  'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-g-border',
+                  moveToGroupProject?.groupId === g.id && 'bg-g-border font-medium',
+                )}
+              >
+                <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: g.color }} />
+                {g.name}
+                {moveToGroupProject?.groupId === g.id && <Check className="ml-auto h-4 w-4 text-green-500" />}
+              </button>
+            ))}
+            <button
+              onClick={() => handleMoveToGroup(null)}
+              className={cn(
+                'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-g-border',
+                !moveToGroupProject?.groupId && 'bg-g-border font-medium',
+              )}
+            >
+              <div className="h-3 w-3 rounded-sm bg-gray-300" />
+              未分類
+              {!moveToGroupProject?.groupId && <Check className="ml-auto h-4 w-4 text-green-500" />}
+            </button>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,8 +19,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { UserPlus, Trash2, Crown, ShieldCheck, User, Eye, Upload, X } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { UserPlus, Trash2, Crown, ShieldCheck, User, Eye, Upload, X, Loader2, ImagePlus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 
@@ -68,6 +79,9 @@ const ROLE_COLORS: Record<Role, string> = {
   VIEWER: 'bg-gray-50 text-gray-400 border border-gray-200',
 };
 
+const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+
 export function MembersClient({ members: initialMembers, workspaceId, myRole, currentUserId, logoUrl: initialLogoUrl }: MembersClientProps) {
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -78,37 +92,103 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
   const [deleting, setDeleting] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl ?? null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [deletingLogo, setDeletingLogo] = useState(false);
+  const [showDeleteLogoDialog, setShowDeleteLogoDialog] = useState(false);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canManage = myRole === 'OWNER' || myRole === 'ADMIN';
 
-  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  function validateFile(file: File): string | null {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return 'PNG, JPG, WebP形式のみ対応しています（SVGは非対応）';
+    }
+    if (file.size > MAX_SIZE) {
+      return `ファイルサイズが大きすぎます（${(file.size / 1024 / 1024).toFixed(1)}MB）。2MB以下にしてください`;
+    }
+    return null;
+  }
+
+  function setPreview(file: File) {
+    // 古いプレビューURLを解放
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  }
+
+  function clearPreview() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  const handleFileSelect = useCallback((file: File) => {
+    const error = validateFile(file);
+    if (error) {
+      toast({ title: error, variant: 'destructive' });
+      return;
+    }
+    setPreview(file);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewUrl]);
+
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (file) handleFileSelect(file);
+  }
+
+  // D&D handlers
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileSelect(file);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handleFileSelect]);
+
+  async function handleLogoUpload() {
+    if (!previewFile) return;
     setUploadingLogo(true);
     try {
       const formData = new FormData();
-      formData.append('logo', file);
+      formData.append('logo', previewFile);
       const res = await fetch(`/api/workspaces/${workspaceId}/logo`, {
         method: 'POST',
         body: formData,
       });
+      let data: Record<string, unknown> = {};
+      try {
+        data = await res.json();
+      } catch {}
       if (!res.ok) {
-        const data = await res.json();
-        toast({ title: data.error ?? 'アップロードに失敗しました', variant: 'destructive' });
+        toast({ title: (data.error as string) ?? 'アップロードに失敗しました', variant: 'destructive' });
         return;
       }
-      const data = await res.json();
-      setLogoUrl(data.logoUrl);
+      setLogoUrl(data.logoUrl as string);
+      clearPreview();
       toast({ title: 'ロゴをアップロードしました' });
     } catch {
       toast({ title: 'アップロードに失敗しました', variant: 'destructive' });
     } finally {
       setUploadingLogo(false);
-      e.target.value = '';
     }
   }
 
   async function handleLogoDelete() {
+    setDeletingLogo(true);
     try {
       const res = await fetch(`/api/workspaces/${workspaceId}/logo`, { method: 'DELETE' });
       if (res.ok) {
@@ -117,6 +197,9 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
       }
     } catch {
       toast({ title: '削除に失敗しました', variant: 'destructive' });
+    } finally {
+      setDeletingLogo(false);
+      setShowDeleteLogoDialog(false);
     }
   }
 
@@ -188,7 +271,7 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
     return false;
   }
 
-  function canDelete(target: Member): boolean {
+  function canDeleteMember(target: Member): boolean {
     if (target.role === 'OWNER') return false;
     if (!canManage) return false;
     if (target.userId === currentUserId) return false;
@@ -211,43 +294,108 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
               <Upload className="h-4 w-4 text-[#4285F4]" />
               ワークスペースロゴ
             </h2>
-            <div className="flex items-center gap-4">
-              {logoUrl ? (
-                <div className="relative">
+
+            <div
+              className={cn(
+                'relative flex items-center gap-4 rounded-lg border-2 border-dashed p-4 transition-colors',
+                dragging ? 'border-blue-400 bg-blue-50/50' : 'border-transparent',
+              )}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              {/* ローディングオーバーレイ */}
+              {(uploadingLogo || deletingLogo) && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/70">
+                  <Loader2 className="h-6 w-6 animate-spin text-[#4285F4]" />
+                </div>
+              )}
+
+              {/* プレビュー表示 */}
+              {previewUrl ? (
+                <>
+                  <img
+                    src={previewUrl}
+                    alt="プレビュー"
+                    className="h-16 w-16 rounded-lg border border-g-border object-contain bg-white p-1"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm text-g-text truncate">{previewFile?.name}</p>
+                    <div className="mt-2 flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={handleLogoUpload}
+                        disabled={uploadingLogo}
+                        className="bg-[#4285F4] hover:bg-[#3367D6]"
+                      >
+                        {uploadingLogo ? <><Loader2 className="mr-1 h-3 w-3 animate-spin" />アップロード中...</> : 'アップロード'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={clearPreview}
+                        disabled={uploadingLogo}
+                      >
+                        キャンセル
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : logoUrl ? (
+                <>
                   <img
                     src={logoUrl}
                     alt="ワークスペースロゴ"
                     className="h-16 w-16 rounded-lg border border-g-border object-contain bg-white p-1"
                   />
-                  <button
-                    onClick={handleLogoDelete}
-                    className="absolute -right-1.5 -top-1.5 rounded-full bg-red-500 p-0.5 text-white hover:bg-red-600"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
+                  <div className="flex-1">
+                    <div className="flex gap-2">
+                      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-g-border bg-g-bg px-3 py-1.5 text-sm text-g-text hover:bg-g-surface-hover">
+                        <Upload className="h-3.5 w-3.5" />
+                        変更
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={handleFileInputChange}
+                          className="hidden"
+                        />
+                      </label>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowDeleteLogoDialog(true)}
+                        className="text-red-500 hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="mr-1 h-3.5 w-3.5" />
+                        削除
+                      </Button>
+                    </div>
+                    <p className="mt-1.5 text-xs text-g-text-muted">ボードビューにウォーターマークとして表示されます</p>
+                  </div>
+                </>
               ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-lg border-2 border-dashed border-g-border text-g-text-muted">
-                  <Upload className="h-6 w-6" />
-                </div>
+                <>
+                  <div className="flex h-16 w-16 items-center justify-center rounded-lg border-2 border-dashed border-g-border text-g-text-muted">
+                    <ImagePlus className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-g-border bg-g-bg px-3 py-1.5 text-sm text-g-text hover:bg-g-surface-hover">
+                      <Upload className="h-3.5 w-3.5" />
+                      アップロード
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={handleFileInputChange}
+                        className="hidden"
+                      />
+                    </label>
+                    <p className="mt-1.5 text-xs text-g-text-muted">PNG, JPG, WebP / 2MB以下</p>
+                    <p className="text-xs text-g-text-muted">ドラッグ&ドロップでもアップロードできます</p>
+                  </div>
+                </>
               )}
-              <div className="flex-1">
-                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-g-border bg-g-bg px-3 py-1.5 text-sm text-g-text hover:bg-g-surface-hover">
-                  <Upload className="h-3.5 w-3.5" />
-                  {uploadingLogo ? 'アップロード中...' : logoUrl ? '変更' : 'アップロード'}
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                    onChange={handleLogoUpload}
-                    disabled={uploadingLogo}
-                    className="hidden"
-                  />
-                </label>
-                <p className="mt-1.5 text-xs text-g-text-muted">PNG, JPG, SVG, WebP / 2MB以下</p>
-                {logoUrl && (
-                  <p className="mt-0.5 text-xs text-g-text-muted">ボードビューにウォーターマークとして表示されます</p>
-                )}
-              </div>
             </div>
           </div>
         )}
@@ -367,7 +515,7 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
                 )}
 
                 {/* 削除ボタン */}
-                {canDelete(member) ? (
+                {canDeleteMember(member) ? (
                   <button
                     onClick={() => setDeleteTarget(member)}
                     className="rounded-md p-1.5 text-g-text-muted transition-colors hover:bg-red-50 hover:text-red-500"
@@ -384,7 +532,7 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
         </div>
       </div>
 
-      {/* 削除確認ダイアログ */}
+      {/* メンバー削除確認ダイアログ */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
@@ -414,6 +562,28 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ロゴ削除確認ダイアログ */}
+      <AlertDialog open={showDeleteLogoDialog} onOpenChange={setShowDeleteLogoDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ロゴを削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              ワークスペースロゴを削除します。ボードビューのウォーターマークも表示されなくなります。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingLogo}>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleLogoDelete}
+              disabled={deletingLogo}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {deletingLogo ? <><Loader2 className="mr-1 h-3 w-3 animate-spin" />削除中...</> : '削除する'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -88,6 +88,6 @@ export async function getAccessibleProjects(userId: string, workspaceId: string)
   return prisma.project.findMany({
     where,
     orderBy: { position: 'asc' },
-    select: { id: true, name: true, color: true, isPrivate: true },
+    select: { id: true, name: true, color: true, isPrivate: true, groupId: true },
   });
 }

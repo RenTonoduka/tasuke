@@ -53,6 +53,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const data = updateProjectSchema.parse(body);
     const updateData: Record<string, unknown> = { ...data };
 
+    // groupId は null も許可（グループから外す）
+    if ('groupId' in data) {
+      updateData.groupId = data.groupId ?? null;
+    }
+
     // ワークスペース間移動
     if (data.workspaceId) {
       const existing = await prisma.project.findUnique({ where: { id: params.id } });

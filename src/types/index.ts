@@ -65,5 +65,14 @@ export interface Project {
   color: string;
   position: number;
   workspaceId: string;
+  groupId?: string | null;
   sections: Section[];
+}
+
+export interface ProjectGroup {
+  id: string;
+  name: string;
+  color: string;
+  position: number;
+  workspaceId: string;
 }

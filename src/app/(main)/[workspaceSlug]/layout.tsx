@@ -24,11 +24,18 @@ export default async function WorkspaceLayout({
   });
   if (!membership) redirect('/');
 
-  const projects = await getAccessibleProjects(session.user.id, workspace.id);
+  const [projects, projectGroups] = await Promise.all([
+    getAccessibleProjects(session.user.id, workspace.id),
+    prisma.projectGroup.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: { position: 'asc' },
+    }),
+  ]);
 
   return (
     <AppShell
       projects={projects}
+      projectGroups={projectGroups}
       workspaceName={workspace.name}
       currentWorkspaceSlug={workspace.slug}
       workspaceId={workspace.id}
