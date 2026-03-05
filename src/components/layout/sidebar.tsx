@@ -27,6 +27,7 @@ import {
   UserPlus,
   PanelLeftClose,
   MessageCircle,
+  ShieldCheck,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
@@ -524,6 +525,12 @@ export function Sidebar({ projects: initialProjects = [], workspaceName = 'マ�
               <Link href={`/${currentWorkspaceSlug}/settings/members`}>
                 <Settings className="mr-2 h-4 w-4" />
                 メンバー管理
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/${currentWorkspaceSlug}/settings/projects`}>
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                プロジェクト権限
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>

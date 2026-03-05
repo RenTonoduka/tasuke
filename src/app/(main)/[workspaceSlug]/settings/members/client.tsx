@@ -19,7 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { UserPlus, Trash2, Crown, ShieldCheck, User, Eye } from 'lucide-react';
+import { UserPlus, Trash2, Crown, ShieldCheck, User, Eye, Upload, X } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 
@@ -43,6 +44,7 @@ interface MembersClientProps {
   workspaceId: string;
   myRole: Role;
   currentUserId: string;
+  logoUrl?: string | null;
 }
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -66,7 +68,7 @@ const ROLE_COLORS: Record<Role, string> = {
   VIEWER: 'bg-gray-50 text-gray-400 border border-gray-200',
 };
 
-export function MembersClient({ members: initialMembers, workspaceId, myRole, currentUserId }: MembersClientProps) {
+export function MembersClient({ members: initialMembers, workspaceId, myRole, currentUserId, logoUrl: initialLogoUrl }: MembersClientProps) {
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'ADMIN' | 'MEMBER' | 'VIEWER'>('MEMBER');
@@ -74,8 +76,49 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
   const [inviteError, setInviteError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl ?? null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const canManage = myRole === 'OWNER' || myRole === 'ADMIN';
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append('logo', file);
+      const res = await fetch(`/api/workspaces/${workspaceId}/logo`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast({ title: data.error ?? 'アップロードに失敗しました', variant: 'destructive' });
+        return;
+      }
+      const data = await res.json();
+      setLogoUrl(data.logoUrl);
+      toast({ title: 'ロゴをアップロードしました' });
+    } catch {
+      toast({ title: 'アップロードに失敗しました', variant: 'destructive' });
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = '';
+    }
+  }
+
+  async function handleLogoDelete() {
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/logo`, { method: 'DELETE' });
+      if (res.ok) {
+        setLogoUrl(null);
+        toast({ title: 'ロゴを削除しました' });
+      }
+    } catch {
+      toast({ title: '削除に失敗しました', variant: 'destructive' });
+    }
+  }
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -160,6 +203,65 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
   return (
     <div className="flex-1 overflow-auto p-6">
       <div className="mx-auto max-w-3xl space-y-6">
+
+        {/* ロゴ設定 */}
+        {canManage && (
+          <div className="rounded-lg border border-g-border bg-g-bg p-5">
+            <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-g-text">
+              <Upload className="h-4 w-4 text-[#4285F4]" />
+              ワークスペースロゴ
+            </h2>
+            <div className="flex items-center gap-4">
+              {logoUrl ? (
+                <div className="relative">
+                  <img
+                    src={logoUrl}
+                    alt="ワークスペースロゴ"
+                    className="h-16 w-16 rounded-lg border border-g-border object-contain bg-white p-1"
+                  />
+                  <button
+                    onClick={handleLogoDelete}
+                    className="absolute -right-1.5 -top-1.5 rounded-full bg-red-500 p-0.5 text-white hover:bg-red-600"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-lg border-2 border-dashed border-g-border text-g-text-muted">
+                  <Upload className="h-6 w-6" />
+                </div>
+              )}
+              <div className="flex-1">
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-g-border bg-g-bg px-3 py-1.5 text-sm text-g-text hover:bg-g-surface-hover">
+                  <Upload className="h-3.5 w-3.5" />
+                  {uploadingLogo ? 'アップロード中...' : logoUrl ? '変更' : 'アップロード'}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                    onChange={handleLogoUpload}
+                    disabled={uploadingLogo}
+                    className="hidden"
+                  />
+                </label>
+                <p className="mt-1.5 text-xs text-g-text-muted">PNG, JPG, SVG, WebP / 2MB以下</p>
+                {logoUrl && (
+                  <p className="mt-0.5 text-xs text-g-text-muted">ボードビューにウォーターマークとして表示されます</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ロール説明 */}
+        <div className="rounded-lg border border-g-border bg-g-bg p-4">
+          <h3 className="mb-2 text-sm font-semibold text-g-text">ロールについて</h3>
+          <ul className="space-y-1 text-xs text-g-text-secondary">
+            <li><strong>オーナー</strong>: ワークスペースの全管理権限。全プロジェクトにアクセス可能</li>
+            <li><strong>管理者</strong>: メンバー管理・プロジェクト設定が可能。全プロジェクトにアクセス可能</li>
+            <li><strong>メンバー</strong>: 公開プロジェクト + 招待された非公開プロジェクトにアクセス可能</li>
+            <li><strong>閲覧者</strong>: 公開プロジェクト + 招待された非公開プロジェクトを閲覧のみ</li>
+          </ul>
+        </div>
 
         {/* 招待フォーム */}
         {canManage && (

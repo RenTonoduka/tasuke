@@ -43,9 +43,10 @@ interface BoardViewProps {
   initialSections: Section[];
   projectId: string;
   onSectionsChange?: (sections: Section[]) => void;
+  logoUrl?: string;
 }
 
-export function BoardView({ initialSections, projectId, onSectionsChange }: BoardViewProps) {
+export function BoardView({ initialSections, projectId, onSectionsChange, logoUrl }: BoardViewProps) {
   const router = useRouter();
   const [sections, setSections] = useState<Section[]>(initialSections);
   useEffect(() => { setSections(initialSections); }, [initialSections]);
@@ -366,7 +367,12 @@ export function BoardView({ initialSections, projectId, onSectionsChange }: Boar
         useDragToProjectStore.getState().reset();
       }}
     >
-      <div className="flex gap-4 overflow-x-auto p-4">
+      <div className="relative flex gap-4 overflow-x-auto p-4">
+        {logoUrl && (
+          <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center opacity-[0.03]">
+            <img src={logoUrl} alt="" className="max-h-[60%] max-w-[60%] object-contain" />
+          </div>
+        )}
         {filteredSections.map((section, index) => (
           <BoardColumn
             key={section.id}

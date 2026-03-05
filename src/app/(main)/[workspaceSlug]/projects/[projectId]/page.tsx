@@ -25,6 +25,7 @@ export default async function ProjectPage({
       },
     },
     include: {
+      workspace: { select: { logoUrl: true } },
       sections: {
         orderBy: { position: 'asc' },
         include: {
@@ -49,5 +50,5 @@ export default async function ProjectPage({
   // Date → string シリアライズ (Server → Client boundary)
   const serialized = JSON.parse(JSON.stringify(project));
 
-  return <ProjectPageClient project={serialized} workspaceSlug={params.workspaceSlug} />;
+  return <ProjectPageClient project={serialized} workspaceSlug={params.workspaceSlug} logoUrl={project.workspace.logoUrl ?? undefined} />;
 }
