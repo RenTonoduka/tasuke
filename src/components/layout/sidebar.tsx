@@ -684,7 +684,7 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
             <DropdownMenuItem asChild>
               <Link href={`/${currentWorkspaceSlug}/settings/line`}>
                 <MessageCircle className="mr-2 h-4 w-4" />
-                LINE連携
+                AI秘書 (LINE)
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>

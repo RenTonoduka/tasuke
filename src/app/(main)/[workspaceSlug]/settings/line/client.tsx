@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { signIn } from 'next-auth/react';
-import { Loader2, MessageCircle, Bell, BellOff, Unlink } from 'lucide-react';
+import { Loader2, Bot, Bell, BellOff, Unlink, MessageCircle, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 
@@ -59,7 +59,7 @@ export function LineSettingsClient() {
   };
 
   const disconnect = async () => {
-    if (!confirm('LINE連携を解除しますか？\nLINEからのタスク操作とリマインダーが無効になります。')) return;
+    if (!confirm('LINE連携を解除しますか？\nAI秘書機能とリマインダーが無効になります。')) return;
     setDeleting(true);
     try {
       const res = await fetch('/api/line/settings', { method: 'DELETE' });
@@ -84,37 +84,61 @@ export function LineSettingsClient() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6">
+      {/* メインカード */}
       <div className="rounded-lg border border-g-border bg-white p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#06C755]/10">
-            <MessageCircle className="h-5 w-5 text-[#06C755]" />
+            <Bot className="h-5 w-5 text-[#06C755]" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-g-text">LINE連携</h2>
+            <h2 className="text-lg font-semibold text-g-text">TASUKE AI秘書</h2>
             <p className="text-sm text-g-text-secondary">
-              LINEからタスク管理やリマインダー通知を受け取れます
+              LINEからAIアシスタントでタスク管理できます
             </p>
           </div>
         </div>
 
         {!status?.connected ? (
-          <div className="space-y-4">
-            <p className="text-sm text-g-text-secondary">
-              LINEアカウントを連携すると、LINE公式アカウントからタスクの追加・完了・検索やリマインダー通知が利用できます。
-            </p>
+          <div className="space-y-5">
+            {/* 機能紹介 */}
+            <div className="rounded-md bg-g-surface p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-g-text">
+                <Sparkles className="h-4 w-4 text-[#06C755]" />
+                AI秘書でできること
+              </div>
+              <ul className="space-y-2 text-sm text-g-text-secondary">
+                <li className="flex items-start gap-2">
+                  <span className="text-[#06C755] mt-0.5">&#x2713;</span>
+                  <span>自然言語でタスク操作<br /><span className="text-xs text-g-text-muted">「明日までに企画書タスク追加して」</span></span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#06C755] mt-0.5">&#x2713;</span>
+                  <span>Googleカレンダー連携<br /><span className="text-xs text-g-text-muted">「来週の予定を見せて」</span></span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#06C755] mt-0.5">&#x2713;</span>
+                  <span>毎朝9時のリマインダー通知</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#06C755] mt-0.5">&#x2713;</span>
+                  <span>固定コマンドも対応<br /><span className="text-xs text-g-text-muted">「ダッシュボード」「マイタスク」等</span></span>
+                </li>
+              </ul>
+            </div>
+
             <Button
               onClick={() => signIn('line', { callbackUrl: window.location.href })}
-              className="gap-2 bg-[#06C755] hover:bg-[#06C755]/90 text-white"
+              className="w-full gap-2 bg-[#06C755] hover:bg-[#06C755]/90 text-white py-6 text-base"
             >
-              <MessageCircle className="h-4 w-4" />
-              LINEで連携する
+              <MessageCircle className="h-5 w-5" />
+              TASUKE AI秘書とLINE接続
             </Button>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm">
               <div className="h-2 w-2 rounded-full bg-[#06C755]" />
-              <span className="text-g-text">連携済み</span>
+              <span className="text-g-text">接続済み</span>
               {status.mapping?.displayName && (
                 <span className="text-g-text-secondary">({status.mapping.displayName})</span>
               )}
@@ -166,18 +190,32 @@ export function LineSettingsClient() {
         )}
       </div>
 
+      {/* AI秘書の使い方 */}
       <div className="rounded-lg border border-g-border bg-white p-6">
-        <h3 className="text-sm font-semibold text-g-text mb-3">LINEボットの使い方</h3>
-        <div className="space-y-2 text-sm text-g-text-secondary">
-          <p>LINE公式アカウントに以下のコマンドを送信してください:</p>
-          <ul className="space-y-1 ml-4 list-disc">
-            <li><code className="text-g-text">ダッシュボード</code> — タスク概要を表示</li>
-            <li><code className="text-g-text">マイタスク</code> — 自分のタスク一覧</li>
-            <li><code className="text-g-text">追加 タスク名</code> — タスクを追加</li>
-            <li><code className="text-g-text">完了 タスク名</code> — タスクを完了に</li>
-            <li><code className="text-g-text">検索 キーワード</code> — タスクを検索</li>
-            <li><code className="text-g-text">ヘルプ</code> — コマンド一覧</li>
-          </ul>
+        <h3 className="text-sm font-semibold text-g-text mb-3">AI秘書の使い方</h3>
+        <div className="space-y-3 text-sm text-g-text-secondary">
+          <p>LINE公式アカウントにメッセージを送るだけでAIが操作します:</p>
+
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-g-text-muted uppercase tracking-wide">自然言語（AI）</p>
+            <ul className="space-y-1 ml-4 list-disc">
+              <li>「明日までにレポート作成タスク追加して」</li>
+              <li>「バグ修正のタスクを完了にして」</li>
+              <li>「来週の予定を見せて」</li>
+              <li>「今日のタスクの進捗は？」</li>
+            </ul>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-g-text-muted uppercase tracking-wide">固定コマンド（高速）</p>
+            <ul className="space-y-1 ml-4 list-disc">
+              <li><code className="text-g-text">ダッシュボード</code> — タスク概要</li>
+              <li><code className="text-g-text">マイタスク</code> — 自分のタスク</li>
+              <li><code className="text-g-text">追加 タスク名</code> — クイック追加</li>
+              <li><code className="text-g-text">完了 タスク名</code> — タスク完了</li>
+              <li><code className="text-g-text">検索 キーワード</code> — タスク検索</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
