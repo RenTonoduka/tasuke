@@ -279,23 +279,34 @@ async function cmdSearch(replyToken: string, text: string, ctx: ToolContext) {
 // ── 自動リンク ──
 
 async function tryAutoLink(messagingLineUserId: string): Promise<boolean> {
-  // LINE Loginで作成されたが、Messaging APIのユーザーIDと紐づいていないマッピングを探す
-  // linkingCodeが存在する = まだボットと未連携
-  const pendingMappings = await prisma.lineUserMapping.findMany({
-    where: { linkingCode: { not: null } },
-    select: { id: true, userId: true },
-  });
-
-  if (pendingMappings.length === 1) {
-    // 1件のみなら自動リンク
-    await prisma.lineUserMapping.update({
-      where: { id: pendingMappings[0].id },
-      data: { lineUserId: messagingLineUserId, linkingCode: null },
+  try {
+    // LINE Loginしたが、Messaging APIのユーザーIDが異なるユーザーを探す
+    // = LINE Account を持つユーザーの LineUserMapping で、lineUserId が一致しないもの
+    const candidates = await prisma.lineUserMapping.findMany({
+      where: {
+        lineUserId: { not: messagingLineUserId },
+        user: {
+          accounts: { some: { provider: 'line' } },
+        },
+      },
+      select: { id: true },
     });
-    return true;
-  }
 
-  return false;
+    if (candidates.length === 1) {
+      await prisma.lineUserMapping.update({
+        where: { id: candidates[0].id },
+        data: { lineUserId: messagingLineUserId, linkingCode: null },
+      });
+      console.log('[line-autolink] success:', messagingLineUserId);
+      return true;
+    }
+
+    console.log('[line-autolink] candidates:', candidates.length);
+    return false;
+  } catch (error) {
+    console.error('[line-autolink] error:', error);
+    return false;
+  }
 }
 
 // ── ヘルパー ──
