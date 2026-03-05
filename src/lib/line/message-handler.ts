@@ -49,18 +49,13 @@ export async function handleLineMessage(input: LineMessageInput) {
   const { replyToken, lineUserId, text } = input;
   const trimmed = text.trim();
 
-  const ctx = await resolveContext(lineUserId);
+  let ctx = await resolveContext(lineUserId);
   if (!ctx) {
-    // リンキングコードで連携を試行
-    if (/^[A-Z0-9]{6}$/.test(trimmed)) {
-      const mapping = await prisma.lineUserMapping.findUnique({
-        where: { linkingCode: trimmed },
-      });
-      if (mapping) {
-        await prisma.lineUserMapping.update({
-          where: { id: mapping.id },
-          data: { lineUserId, linkingCode: null },
-        });
+    // 自動リンク: LINE LoginのユーザーIDとMessaging APIのユーザーIDが異なる場合
+    const linked = await tryAutoLink(lineUserId);
+    if (linked) {
+      ctx = await resolveContext(lineUserId);
+      if (ctx) {
         await replyMessage(replyToken, [{
           type: 'text',
           text: [
@@ -80,9 +75,28 @@ export async function handleLineMessage(input: LineMessageInput) {
         return;
       }
     }
+
+    // リンキングコードでの手動連携
+    if (/^[A-Z0-9]{6}$/i.test(trimmed)) {
+      const mapping = await prisma.lineUserMapping.findUnique({
+        where: { linkingCode: trimmed.toUpperCase() },
+      });
+      if (mapping) {
+        await prisma.lineUserMapping.update({
+          where: { id: mapping.id },
+          data: { lineUserId, linkingCode: null },
+        });
+        await replyMessage(replyToken, [{
+          type: 'text',
+          text: 'アカウント連携が完了しました！\n「ヘルプ」と送信してコマンド一覧を確認できます。',
+        }]);
+        return;
+      }
+    }
+
     await replyMessage(replyToken, [{
       type: 'text',
-      text: `アカウントが連携されていません。\nWebアプリでLINE接続後、表示されるリンクコードを送信してください。\n${getAppUrl()}`,
+      text: `アカウントが連携されていません。\nWebアプリからLINE接続してください。\n${getAppUrl()}`,
     }]);
     return;
   }
@@ -260,6 +274,28 @@ async function cmdSearch(replyToken: string, text: string, ctx: ToolContext) {
   }
   const lines = [`【検索結果: ${query}】`, ...tasks.map(formatTask)];
   await replyMessage(replyToken, [{ type: 'text', text: lines.join('\n') }]);
+}
+
+// ── 自動リンク ──
+
+async function tryAutoLink(messagingLineUserId: string): Promise<boolean> {
+  // LINE Loginで作成されたが、Messaging APIのユーザーIDと紐づいていないマッピングを探す
+  // linkingCodeが存在する = まだボットと未連携
+  const pendingMappings = await prisma.lineUserMapping.findMany({
+    where: { linkingCode: { not: null } },
+    select: { id: true, userId: true },
+  });
+
+  if (pendingMappings.length === 1) {
+    // 1件のみなら自動リンク
+    await prisma.lineUserMapping.update({
+      where: { id: pendingMappings[0].id },
+      data: { lineUserId: messagingLineUserId, linkingCode: null },
+    });
+    return true;
+  }
+
+  return false;
 }
 
 // ── ヘルパー ──
