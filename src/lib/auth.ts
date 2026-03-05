@@ -85,7 +85,8 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async signIn({ user, account }) {
-      if (!user.email) return false;
+      // LINE連携はemail不要（アカウントリンク専用）
+      if (!user.email && account?.provider !== 'line') return false;
       // 再ログイン時にOAuthトークンを更新（スコープ変更対応）
       // 再ログイン/再連携時にOAuthトークンを更新
       if (account && user.id && (account.provider === 'google' || account.provider === 'github' || account.provider === 'line')) {
