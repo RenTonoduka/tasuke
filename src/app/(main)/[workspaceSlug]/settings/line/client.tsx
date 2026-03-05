@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { signIn } from 'next-auth/react';
 import { Loader2, Bot, Bell, BellOff, Unlink, MessageCircle, Sparkles, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
@@ -134,7 +133,7 @@ export function LineSettingsClient() {
             </div>
 
             <Button
-              onClick={() => signIn('line', { callbackUrl: window.location.href })}
+              onClick={() => { window.location.href = '/api/line/connect'; }}
               className="w-full gap-2 bg-[#06C755] hover:bg-[#06C755]/90 text-white py-6 text-base"
             >
               <MessageCircle className="h-5 w-5" />
