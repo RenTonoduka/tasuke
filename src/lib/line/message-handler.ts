@@ -61,34 +61,8 @@ export async function handleLineMessage(input: LineMessageInput) {
 }
 
 async function _handleLineMessage(replyToken: string, lineUserId: string, trimmed: string) {
-  let ctx = await resolveContext(lineUserId);
+  const ctx = await resolveContext(lineUserId);
   if (!ctx) {
-    // 自動リンク: WebでLINE接続済みの場合、Messaging APIのユーザーIDに更新
-    const linked = await tryAutoLink(lineUserId);
-    if (linked) {
-      ctx = await resolveContext(lineUserId);
-    }
-
-    if (ctx) {
-      await replyMessage(replyToken, [{
-        type: 'text',
-        text: [
-          'TASUKE AI秘書へようこそ！',
-          'アカウント連携が完了しました。',
-          '',
-          'LINEからタスク管理ができます:',
-          '・自然言語で話しかけてください',
-          '  例）「明日までに企画書タスク追加して」',
-          '・「ダッシュボード」でタスク概要',
-          '・「マイタスク」で自分のタスク',
-          '・「ヘルプ」でコマンド一覧',
-          '',
-          '何でも気軽にメッセージしてください！',
-        ].join('\n'),
-      }]);
-      return;
-    }
-
     await replyMessage(replyToken, [{
       type: 'text',
       text: `アカウントが連携されていません。\nWebアプリの「AI秘書(LINE)」からLINE接続してください。\n${getAppUrl()}`,
@@ -269,39 +243,6 @@ async function cmdSearch(replyToken: string, text: string, ctx: ToolContext) {
   }
   const lines = [`【検索結果: ${query}】`, ...tasks.map(formatTask)];
   await replyMessage(replyToken, [{ type: 'text', text: lines.join('\n') }]);
-}
-
-// ── 自動リンク ──
-
-async function tryAutoLink(messagingLineUserId: string): Promise<boolean> {
-  try {
-    // LINE Loginしたが、Messaging APIのユーザーIDが異なるユーザーを探す
-    // = LINE Account を持つユーザーの LineUserMapping で、lineUserId が一致しないもの
-    const candidates = await prisma.lineUserMapping.findMany({
-      where: {
-        lineUserId: { not: messagingLineUserId },
-        user: {
-          accounts: { some: { provider: 'line' } },
-        },
-      },
-      select: { id: true },
-    });
-
-    if (candidates.length === 1) {
-      await prisma.lineUserMapping.update({
-        where: { id: candidates[0].id },
-        data: { lineUserId: messagingLineUserId, linkingCode: null },
-      });
-      console.log('[line-autolink] success:', messagingLineUserId);
-      return true;
-    }
-
-    console.log('[line-autolink] candidates:', candidates.length);
-    return false;
-  } catch (error) {
-    console.error('[line-autolink] error:', error);
-    return false;
-  }
 }
 
 // ── ヘルパー ──
