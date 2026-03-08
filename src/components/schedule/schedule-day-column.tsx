@@ -10,12 +10,28 @@ import {
   GCAL_DEFAULT_COLOR,
   PRIORITY_COLORS,
   minutesToTime,
-  formatDateLabel,
   isTodayDate,
   isWeekendDate,
   computeOverlapLayout,
 } from './schedule-types';
 import type { DayData, DayEvent, DayTask, DropIndicator, RegisteredBlock } from './schedule-types';
+
+// --- 過去判定ユーティリティ ---
+
+function isPastDate(dateStr: string): boolean {
+  const today = new Date();
+  const d = new Date(dateStr + 'T00:00:00');
+  return (
+    d.getFullYear() < today.getFullYear() ||
+    (d.getFullYear() === today.getFullYear() && d.getMonth() < today.getMonth()) ||
+    (d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() < today.getDate())
+  );
+}
+
+function getCurrentMinutes(): number {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
+}
 
 // --- Event Block (Google Calendar events) ---
 
@@ -24,6 +40,8 @@ function EventBlock({
   itemStyle,
   heightPx,
   effectiveEnd,
+  isPast,
+  isInOverlapGroup,
   isSelected,
   popoverDirection,
   onSelect,
@@ -36,6 +54,8 @@ function EventBlock({
   itemStyle: React.CSSProperties;
   heightPx: number;
   effectiveEnd: number;
+  isPast: boolean;
+  isInOverlapGroup: boolean;
   isSelected: boolean;
   popoverDirection: 'above' | 'below';
   onSelect: (ev: DayEvent | null, direction?: 'above' | 'below') => void;
@@ -60,6 +80,11 @@ function EventBlock({
   const gcalColor = (ev.colorId && GCAL_COLORS[ev.colorId]) || GCAL_DEFAULT_COLOR;
   const isCompact = heightPx < 36;
 
+  // Google Calendar: 重なり時は左に濃いボーダーを表示
+  const borderLeftStyle = isInOverlapGroup
+    ? { borderLeft: `3px solid ${gcalColor.bg}`, borderRadius: '0 4px 4px 0' }
+    : { borderRadius: '4px' };
+
   return (
     <div ref={setNodeRef} data-schedule-item style={itemStyle}>
       <div
@@ -76,14 +101,15 @@ function EventBlock({
           }
         }}
         className={cn(
-          'h-full w-full cursor-pointer overflow-hidden rounded px-1.5 py-0.5 text-xs transition-shadow hover:shadow-md',
+          'h-full w-full cursor-pointer overflow-hidden px-1.5 py-0.5 text-xs transition-shadow hover:shadow-md',
           isDragging && 'opacity-40',
+          isPast && 'opacity-60',
           isSelected && 'ring-2 ring-offset-1 ring-[#1a73e8]',
         )}
         style={{
-          backgroundColor: gcalColor.bg,
+          backgroundColor: isPast ? `${gcalColor.bg}99` : gcalColor.bg,
           color: gcalColor.text,
-          borderRadius: '4px',
+          ...borderLeftStyle,
         }}
         title={`${ev.summary} — クリックで詳細 / ドラッグで移動`}
       >
@@ -218,6 +244,8 @@ function TaskBlock({
   heightPx,
   effectiveEnd,
   color,
+  isPast,
+  isInOverlapGroup,
   slotKey,
   isRegistered,
   isRegistering,
@@ -231,6 +259,8 @@ function TaskBlock({
   heightPx: number;
   effectiveEnd: number;
   color: string;
+  isPast: boolean;
+  isInOverlapGroup: boolean;
   slotKey: string;
   isRegistered: boolean;
   isRegistering: boolean;
@@ -253,6 +283,10 @@ function TaskBlock({
 
   const isCompact = heightPx < 36;
 
+  const borderLeftStyle = isInOverlapGroup
+    ? { borderLeft: `3px solid ${color}`, borderRadius: '0 4px 4px 0' }
+    : { borderRadius: '4px' };
+
   return (
     <div
       ref={setNodeRef}
@@ -260,13 +294,15 @@ function TaskBlock({
       {...attributes}
       data-schedule-item
       className={cn(
-        'cursor-grab overflow-hidden rounded px-1.5 py-0.5 text-xs text-white active:cursor-grabbing transition-shadow hover:shadow-md',
-        !isRegistered && 'opacity-70 border border-dashed border-white/40',
+        'cursor-grab overflow-hidden px-1.5 py-0.5 text-xs text-white active:cursor-grabbing transition-shadow hover:shadow-md',
+        !isRegistered && 'border border-dashed border-white/40',
         isRegistered && 'shadow-sm',
         task.status === 'tight' && 'border-2 border-dashed border-white/50',
+        isPast && 'opacity-50',
+        !isPast && !isRegistered && 'opacity-70',
         isDragging && 'opacity-40',
       )}
-      style={{ ...itemStyle, backgroundColor: color, borderRadius: '4px' }}
+      style={{ ...itemStyle, backgroundColor: isPast ? `${color}99` : color, ...borderLeftStyle }}
       title={`${task.title} (${task.priority}) — ドラッグで移動`}
     >
       <button
@@ -313,6 +349,28 @@ function TaskBlock({
         </div>
       )}
     </div>
+  );
+}
+
+// --- Past time overlay (Google Calendar style) ---
+
+function PastTimeOverlay({ workStartMin, hourHeight }: { workStartMin: number; hourHeight: number }) {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const currentMin = now.getHours() * 60 + now.getMinutes();
+  const top = ((currentMin - workStartMin) / 60) * hourHeight;
+  if (top <= 0) return null;
+
+  return (
+    <div
+      className="absolute left-0 right-0 top-0 z-[1] pointer-events-none bg-white/40"
+      style={{ height: Math.max(0, top) }}
+    />
   );
 }
 
@@ -415,6 +473,8 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
   const workEndMin = workEnd * 60;
   const isToday = isTodayDate(day.date);
   const isWeekend = isWeekendDate(day.date);
+  const isPast = isPastDate(day.date);
+  const currentMin = isToday ? getCurrentMinutes() : 0;
 
   const gridRefCallback = useCallback(
     (node: HTMLDivElement | null) => {
@@ -440,7 +500,7 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
     return () => document.removeEventListener('mousedown', handler);
   }, [selectedEvent]);
 
-  // Overlap layout with span support
+  // Overlap layout — Google Calendar style
   const overlapItems = useMemo(() => {
     const items = [
       ...day.events.map((ev, i) => ({
@@ -465,19 +525,41 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
     return layoutMap;
   }, [day.events, day.tasks, workStartMin, workEndMin]);
 
+  // Google Calendar style: 重なりアイテムのスタイル計算
+  // - 重なりグループ内の最初のアイテムは幅を広めに（右に少し被る）
+  // - 2番目以降は通常幅
   function getItemStyle(type: 'event' | 'task', index: number, topPx: number, heightPx: number): React.CSSProperties {
     const layout = overlapItems.get(`${type}-${index}`);
     const col = layout?.column ?? 0;
     const total = layout?.totalColumns ?? 1;
     const span = layout?.span ?? 1;
-    const colWidth = 100 / total;
-    const PAD = 2;
+
+    if (total === 1) {
+      // 重なりなし: フル幅（左右に少しパディング）
+      return {
+        position: 'absolute' as const,
+        top: topPx,
+        height: Math.max(heightPx, 20),
+        left: '2px',
+        right: '2px',
+      };
+    }
+
+    // Google Calendar風: 各カラムは均等分割 + 少し重ねる
+    // 最初のカラムのアイテムは少し広めに表示（Google Calendar風の段差表示）
+    const colWidthPercent = 100 / total;
+    const overlapPercent = 5; // 隣接アイテムと少し重ねる
+
+    const leftPercent = col * colWidthPercent;
+    const widthPercent = colWidthPercent * span + (col === 0 && span < total ? overlapPercent : 0);
+
     return {
       position: 'absolute' as const,
       top: topPx,
       height: Math.max(heightPx, 20),
-      left: `calc(${col * colWidth}% + ${PAD}px)`,
-      width: `calc(${colWidth * span}% - ${PAD * 2}px)`,
+      left: `calc(${leftPercent}% + 1px)`,
+      width: `calc(${Math.min(widthPercent, 100 - leftPercent)}% - 2px)`,
+      zIndex: col + 1, // 後のカラムが上に来る
     };
   }
 
@@ -515,7 +597,8 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
       <div
         className={cn(
           'flex flex-col items-center justify-center h-14 border-b border-[#dadce0]',
-          isWeekend && 'bg-[#f8f9fa]',
+          isPast && 'opacity-50',
+          isWeekend && !isPast && 'bg-[#f8f9fa]',
         )}
       >
         <span className={cn(
@@ -542,7 +625,7 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
         ref={gridRefCallback}
         className={cn(
           'relative',
-          isOver ? 'bg-[#1a73e8]/5' : isWeekend ? 'bg-[#f8f9fa]' : 'bg-white',
+          isOver ? 'bg-[#1a73e8]/5' : isPast ? 'bg-[#f8f9fa]' : isWeekend ? 'bg-[#fafafa]' : 'bg-white',
         )}
         style={{ height: totalHeight }}
         onDoubleClick={handleGridDoubleClick}
@@ -564,7 +647,13 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
           />
         ))}
 
-        {isToday && <CurrentTimeLine workStartMin={workStartMin} hourHeight={HOUR_HEIGHT} />}
+        {/* 今日: 過去時間のオーバーレイ + 現在時刻線 */}
+        {isToday && (
+          <>
+            <PastTimeOverlay workStartMin={workStartMin} hourHeight={HOUR_HEIGHT} />
+            <CurrentTimeLine workStartMin={workStartMin} hourHeight={HOUR_HEIGHT} />
+          </>
+        )}
 
         {/* Googleカレンダー予定 */}
         {day.events.map((ev, i) => {
@@ -575,6 +664,9 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
           if (clampedStart >= clampedEnd) return null;
           const topPx = ((clampedStart - workStartMin) / 60) * HOUR_HEIGHT;
           const heightPx = ((clampedEnd - clampedStart) / 60) * HOUR_HEIGHT;
+          const layout = overlapItems.get(`event-${i}`);
+          const isInGroup = (layout?.totalColumns ?? 1) > 1;
+          const isEventPast = isPast || (isToday && ev.endMin <= currentMin);
           return (
             <EventBlock
               key={ev.id}
@@ -582,6 +674,8 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
               itemStyle={getItemStyle('event', i, topPx, heightPx)}
               heightPx={heightPx}
               effectiveEnd={effectiveEnd}
+              isPast={isEventPast}
+              isInOverlapGroup={isInGroup}
               isSelected={selectedEvent?.id === ev.id}
               popoverDirection={popoverDirection}
               onSelect={handleSelect}
@@ -622,6 +716,9 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
           const slotKey = `${task.taskId}|${day.date}|${minutesToTime(task.startMin)}`;
           const isRegistered = registeredBlocks.has(slotKey);
           const isRegistering = registeringSlot === slotKey;
+          const layout = overlapItems.get(`task-${i}`);
+          const isInGroup = (layout?.totalColumns ?? 1) > 1;
+          const isTaskPast = isPast || (isToday && task.endMin <= currentMin);
           return (
             <TaskBlock
               key={`${task.taskId}-${task.startMin}`}
@@ -630,6 +727,8 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
               heightPx={heightPx}
               effectiveEnd={effectiveEnd}
               color={color}
+              isPast={isTaskPast}
+              isInOverlapGroup={isInGroup}
               slotKey={slotKey}
               isRegistered={isRegistered}
               isRegistering={isRegistering}
