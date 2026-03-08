@@ -88,21 +88,21 @@ export interface ScheduleViewProps {
   myTasksOnly?: boolean;
 }
 
-// Google Calendar colorId → 色マッピング
+// Google Calendar colorId → 色マッピング (Modern MD3 palette)
 export const GCAL_COLORS: Record<string, { bg: string; text: string }> = {
-  '1': { bg: '#a4bdfc', text: '#1d1d1d' },
-  '2': { bg: '#7ae7bf', text: '#1d1d1d' },
-  '3': { bg: '#dbadff', text: '#1d1d1d' },
-  '4': { bg: '#ff887c', text: '#fff' },
-  '5': { bg: '#fbd75b', text: '#1d1d1d' },
-  '6': { bg: '#ffb878', text: '#1d1d1d' },
-  '7': { bg: '#46d6db', text: '#1d1d1d' },
-  '8': { bg: '#e1e1e1', text: '#1d1d1d' },
-  '9': { bg: '#5484ed', text: '#fff' },
-  '10': { bg: '#51b749', text: '#fff' },
-  '11': { bg: '#dc2127', text: '#fff' },
+  '1': { bg: '#7986CB', text: '#fff' },   // Lavender
+  '2': { bg: '#33B679', text: '#fff' },   // Sage
+  '3': { bg: '#8E24AA', text: '#fff' },   // Grape
+  '4': { bg: '#E67C73', text: '#fff' },   // Flamingo
+  '5': { bg: '#F6BF26', text: '#1d1d1d' }, // Banana
+  '6': { bg: '#F4511E', text: '#fff' },   // Tangerine
+  '7': { bg: '#039BE5', text: '#fff' },   // Peacock
+  '8': { bg: '#616161', text: '#fff' },   // Graphite
+  '9': { bg: '#3F51B5', text: '#fff' },   // Blueberry
+  '10': { bg: '#0B8043', text: '#fff' },  // Basil
+  '11': { bg: '#D50000', text: '#fff' },  // Tomato
 };
-export const GCAL_DEFAULT_COLOR = { bg: '#4285F4', text: '#fff' };
+export const GCAL_DEFAULT_COLOR = { bg: '#039BE5', text: '#fff' };
 
 export const PRIORITY_COLORS: Record<string, string> = {
   P0: '#EA4335',
@@ -111,8 +111,8 @@ export const PRIORITY_COLORS: Record<string, string> = {
   P3: '#80868B',
 };
 
-export const HOUR_HEIGHT = 72;
-export const MIN_DAY_COL_WIDTH = 200;
+export const HOUR_HEIGHT = 48;
+export const MIN_DAY_COL_WIDTH = 140;
 export const TIME_LABEL_WIDTH = 56;
 
 // ビューモード
