@@ -44,13 +44,13 @@ function EventCreateDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" onClick={onClose}>
       <div
-        className="w-[400px] rounded-lg bg-white p-5 shadow-[0_8px_10px_1px_rgba(60,64,67,0.15),0_3px_14px_2px_rgba(60,64,67,0.12),0_5px_5px_-3px_rgba(60,64,67,0.2)]"
+        className="w-[420px] rounded-xl bg-white p-6 shadow-[0_24px_38px_3px_rgba(0,0,0,0.14),0_9px_46px_8px_rgba(0,0,0,0.12),0_11px_15px_-7px_rgba(0,0,0,0.2)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-normal text-[#202124]">予定を作成</h3>
-          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-[#f0f4f9]">
-            <X className="h-4 w-4 text-[#5f6368]" />
+          <button onClick={onClose} className="rounded-full p-1.5 text-[#5f6368] hover:bg-[#f1f3f4] transition-colors">
+            <X className="h-5 w-5" />
           </button>
         </div>
         <input
@@ -95,7 +95,7 @@ function TimelineSkeleton({ workStart, workEnd }: { workStart: number; workEnd: 
     <div className="flex-1 overflow-auto p-2">
       <div className="flex">
         <div className="shrink-0 w-14">
-          <div className="h-14" />
+          <div className="h-16" />
           <div className="relative" style={{ height: hours * HOUR_HEIGHT }}>
             {Array.from({ length: hours + 1 }, (_, i) => (
               <div key={i} className="absolute right-2 -translate-y-1/2" style={{ top: i * HOUR_HEIGHT }}>
@@ -106,9 +106,9 @@ function TimelineSkeleton({ workStart, workEnd }: { workStart: number; workEnd: 
         </div>
         {Array.from({ length: 5 }, (_, d) => (
           <div key={d} className="flex-1 border-l border-[#dadce0]">
-            <div className="h-14 flex flex-col items-center justify-center gap-0.5">
+            <div className="h-16 flex flex-col items-center justify-center gap-1">
               <div className="h-2.5 w-6 rounded bg-[#e8eaed] animate-pulse" />
-              <div className="h-5 w-5 rounded-full bg-[#e8eaed] animate-pulse" />
+              <div className="h-8 w-8 rounded-full bg-[#e8eaed] animate-pulse" />
             </div>
             <div className="relative" style={{ height: hours * HOUR_HEIGHT }}>
               {Array.from({ length: hours }, (_, i) => (

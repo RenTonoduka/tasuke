@@ -16,16 +16,10 @@ import {
 } from './schedule-types';
 import type { DayData, DayEvent, DayTask, DropIndicator, RegisteredBlock } from './schedule-types';
 
-// --- ユーティリティ ---
+// Google Calendar MD3 hover shadow
+const GCAL_HOVER_SHADOW = '0 6px 10px 0 rgba(0,0,0,0.14), 0 1px 18px 0 rgba(0,0,0,0.12), 0 3px 5px -1px rgba(0,0,0,0.2)';
 
-/** HEXカラーを暗くする */
-function darkenColor(hex: string, amount: number): string {
-  const num = parseInt(hex.replace('#', ''), 16);
-  const r = Math.max(0, Math.round(((num >> 16) & 0xff) * (1 - amount)));
-  const g = Math.max(0, Math.round(((num >> 8) & 0xff) * (1 - amount)));
-  const b = Math.max(0, Math.round((num & 0xff) * (1 - amount)));
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
-}
+// --- ユーティリティ ---
 
 function isPastDate(dateStr: string): boolean {
   const today = new Date();
@@ -42,8 +36,8 @@ function getCurrentMinutes(): number {
   return now.getHours() * 60 + now.getMinutes();
 }
 
-// --- Event Block (Google Calendar style) ---
-// Google Calendar: ソリッド背景 + 左に濃いボーダー4px + rounded 4px
+// --- Event Block (Google Calendar Modern style) ---
+// ソリッド背景 + 角丸4px + hover時のみMD3 shadow
 
 function EventBlock({
   ev,
@@ -85,14 +79,25 @@ function EventBlock({
 
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(ev.summary);
+  const [isHovered, setIsHovered] = useState(false);
   const gcalColor = (ev.colorId && GCAL_COLORS[ev.colorId]) || GCAL_DEFAULT_COLOR;
   const isCompact = heightPx < 36;
 
   return (
-    <div ref={setNodeRef} data-schedule-item style={itemStyle}>
+    <div
+      ref={setNodeRef}
+      data-schedule-item
+      style={{
+        ...itemStyle,
+        // hover時にz-indexを最前面に
+        ...(isHovered && { zIndex: 50 }),
+      }}
+    >
       <div
         {...listeners}
         {...attributes}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         onClick={(e) => {
           e.stopPropagation();
           if (!isSelected) {
@@ -104,30 +109,31 @@ function EventBlock({
           }
         }}
         className={cn(
-          'h-full w-full cursor-pointer overflow-hidden px-1.5 py-0.5 text-xs transition-shadow hover:shadow-lg',
+          'h-full w-full cursor-pointer overflow-hidden rounded text-xs transition-shadow',
           isDragging && 'opacity-40',
-          isPast && 'opacity-60',
+          isPast && 'opacity-70',
           isSelected && 'ring-2 ring-offset-1 ring-[#1a73e8]',
         )}
         style={{
-          backgroundColor: isPast ? `${gcalColor.bg}99` : gcalColor.bg,
+          backgroundColor: gcalColor.bg,
           color: gcalColor.text,
           borderRadius: '4px',
-          borderLeft: `4px solid ${darkenColor(gcalColor.bg, 0.15)}`,
+          padding: '2px 8px',
+          boxShadow: isHovered ? GCAL_HOVER_SHADOW : undefined,
         }}
-        title={`${ev.summary} — クリックで詳細 / ドラッグで移動`}
+        title={`${ev.summary}\n${minutesToTime(ev.startMin)}〜${minutesToTime(effectiveEnd)}`}
       >
         {isCompact ? (
-          <span className="line-clamp-1 text-[11px] font-medium leading-tight">
+          <span className="line-clamp-1 text-[11px] font-medium leading-snug">
             {minutesToTime(ev.startMin)} {ev.summary}
           </span>
         ) : (
           <>
-            <span className="line-clamp-2 text-[12px] font-medium leading-tight">
+            <span className="line-clamp-2 text-[12px] font-medium leading-snug">
               {ev.summary}
             </span>
-            {heightPx >= 36 && (
-              <span className="block text-[10px] opacity-80 mt-0.5">
+            {heightPx >= 40 && (
+              <span className="block text-[10px] opacity-80 leading-snug">
                 {minutesToTime(ev.startMin)}〜{minutesToTime(effectiveEnd)}
               </span>
             )}
@@ -137,14 +143,14 @@ function EventBlock({
 
       {onResizeStart && (
         <div
-          className="absolute bottom-0 left-0 right-0 h-2 cursor-s-resize group"
+          className="absolute bottom-0 left-0 right-0 h-2.5 cursor-s-resize group"
           onMouseDown={(e) => {
             e.stopPropagation();
             e.preventDefault();
             onResizeStart(ev.id, 'event', e.clientY, ev.endMin, date, ev.startMin);
           }}
         >
-          <div className="mx-auto mt-0.5 h-0.5 w-6 rounded-full bg-white opacity-0 group-hover:opacity-60 transition-opacity" />
+          <div className="mx-auto mt-1 h-[3px] w-8 rounded-full bg-white/60 opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       )}
 
@@ -152,13 +158,14 @@ function EventBlock({
         <div
           data-event-popover
           className={cn(
-            'absolute left-0 z-40 w-72 rounded-lg bg-white p-4 shadow-[0_8px_10px_1px_rgba(60,64,67,0.15),0_3px_14px_2px_rgba(60,64,67,0.12),0_5px_5px_-3px_rgba(60,64,67,0.2)]',
+            'absolute left-0 z-[60] w-[300px] rounded-xl bg-white p-4',
+            'shadow-[0_24px_38px_3px_rgba(0,0,0,0.14),0_9px_46px_8px_rgba(0,0,0,0.12),0_11px_15px_-7px_rgba(0,0,0,0.2)]',
             popoverDirection === 'below' ? 'top-full mt-1' : 'bottom-full mb-1',
           )}
           onClick={(e) => e.stopPropagation()}
         >
           {editing ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <input
                 autoFocus
                 value={editTitle}
@@ -171,23 +178,22 @@ function EventBlock({
                   }
                   if (e.key === 'Escape') setEditing(false);
                 }}
-                className="w-full rounded border border-[#dadce0] bg-white px-2.5 py-1.5 text-sm text-[#202124] focus:outline-none focus:ring-2 focus:ring-[#1a73e8]"
+                className="w-full border-b-2 border-[#1a73e8] bg-transparent px-1 py-1.5 text-[22px] font-normal text-[#202124] focus:outline-none"
               />
-              <div className="flex gap-1.5">
+              <div className="flex gap-2">
                 <button
                   onClick={() => {
                     onEditEvent?.(ev.id, editTitle, ev.startMin, ev.endMin);
                     setEditing(false);
                     onSelect(null);
                   }}
-                  className="flex items-center gap-1 rounded-full bg-[#1a73e8] px-3.5 py-1.5 text-xs font-medium text-white hover:bg-[#1967d2]"
+                  className="rounded-full bg-[#1a73e8] px-4 py-2 text-sm font-medium text-white hover:bg-[#1967d2] hover:shadow-sm"
                 >
-                  <Check className="h-3 w-3" />
                   保存
                 </button>
                 <button
                   onClick={() => { setEditTitle(ev.summary); setEditing(false); }}
-                  className="rounded-full px-3.5 py-1.5 text-xs text-[#5f6368] hover:bg-[#f0f4f9]"
+                  className="rounded-full px-4 py-2 text-sm font-medium text-[#3c4043] hover:bg-[#f1f3f4]"
                 >
                   キャンセル
                 </button>
@@ -197,28 +203,28 @@ function EventBlock({
             <>
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-3.5 w-3.5 rounded-sm shrink-0" style={{ backgroundColor: gcalColor.bg }} />
-                    <span className="text-sm font-normal text-[#202124] line-clamp-2">{ev.summary}</span>
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className="h-4 w-4 rounded shrink-0" style={{ backgroundColor: gcalColor.bg }} />
+                    <span className="text-lg font-normal text-[#3c4043] line-clamp-2">{ev.summary}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-[#5f6368]">
-                    <Clock className="h-3.5 w-3.5" />
-                    {minutesToTime(ev.startMin)}〜{minutesToTime(ev.endMin)}
+                  <div className="flex items-center gap-2 text-sm text-[#70757a] ml-[26px]">
+                    <Clock className="h-4 w-4 shrink-0" />
+                    <span>{minutesToTime(ev.startMin)}〜{minutesToTime(ev.endMin)}</span>
                   </div>
                 </div>
                 <button
                   onClick={() => onSelect(null)}
-                  className="ml-1 shrink-0 rounded-full p-1.5 hover:bg-[#f0f4f9]"
+                  className="ml-2 shrink-0 rounded-full p-1.5 text-[#5f6368] hover:bg-[#f1f3f4] transition-colors"
                 >
-                  <X className="h-4 w-4 text-[#5f6368]" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
-              <div className="mt-3 flex gap-1 border-t border-[#dadce0] pt-2.5">
+              <div className="mt-4 flex gap-1 border-t border-[#e8eaed] pt-3">
                 <button
                   onClick={() => { setEditTitle(ev.summary); setEditing(true); }}
-                  className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-[#5f6368] hover:bg-[#f0f4f9]"
+                  className="flex items-center gap-2 rounded-full px-3 py-2 text-sm text-[#3c4043] hover:bg-[#f1f3f4] transition-colors"
                 >
-                  <Pencil className="h-3.5 w-3.5" />
+                  <Pencil className="h-4 w-4" />
                   編集
                 </button>
                 <button
@@ -226,9 +232,9 @@ function EventBlock({
                     onSelect(null);
                     onDeleteEvent(ev.id);
                   }}
-                  className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-[#5f6368] hover:bg-[#f0f4f9]"
+                  className="flex items-center gap-2 rounded-full px-3 py-2 text-sm text-[#3c4043] hover:bg-[#f1f3f4] transition-colors"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-4 w-4" />
                   削除
                 </button>
               </div>
@@ -240,7 +246,7 @@ function EventBlock({
   );
 }
 
-// --- Task Block ---
+// --- Task Block (Google Calendar style — タスクもイベントと同等の見た目) ---
 
 function TaskBlock({
   task,
@@ -283,6 +289,7 @@ function TaskBlock({
     },
   });
 
+  const [isHovered, setIsHovered] = useState(false);
   const isCompact = heightPx < 36;
 
   return (
@@ -291,43 +298,44 @@ function TaskBlock({
       {...listeners}
       {...attributes}
       data-schedule-item
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       className={cn(
-        'cursor-grab overflow-hidden px-1.5 py-0.5 text-xs text-white active:cursor-grabbing transition-shadow hover:shadow-md',
-        !isRegistered && 'border border-dashed border-white/40',
-        isRegistered && 'shadow-sm',
-        task.status === 'tight' && 'border-2 border-dashed border-white/50',
-        isPast && 'opacity-50',
-        !isPast && !isRegistered && 'opacity-70',
+        'cursor-grab overflow-hidden text-xs text-white active:cursor-grabbing transition-shadow',
+        !isRegistered && 'ring-1 ring-inset ring-white/30',
+        isPast && 'opacity-70',
         isDragging && 'opacity-40',
       )}
       style={{
         ...itemStyle,
-        backgroundColor: isPast ? `${color}99` : color,
+        backgroundColor: color,
         borderRadius: '4px',
-        borderLeft: `4px solid ${darkenColor(color, 0.2)}`,
+        padding: '2px 8px',
+        boxShadow: isHovered ? GCAL_HOVER_SHADOW : undefined,
+        ...(isHovered && { zIndex: 50 }),
       }}
-      title={`${task.title} (${task.priority}) — ドラッグで移動`}
+      title={`${task.title} (${task.priority})\n${minutesToTime(task.startMin)}〜${minutesToTime(effectiveEnd)}`}
     >
       <button
         onClick={(e) => { e.stopPropagation(); onOpenTask(task.taskId); }}
-        className="block w-full truncate text-left text-[12px] font-medium leading-tight hover:opacity-80"
+        className="block w-full truncate text-left text-[12px] font-medium leading-snug"
       >
         {task.title}
       </button>
       {!isCompact && (
-        <span className="block text-[10px] opacity-75 mt-0.5">
+        <span className="block text-[10px] opacity-80 leading-snug">
           {minutesToTime(task.startMin)}〜{minutesToTime(effectiveEnd)}
         </span>
       )}
-      {heightPx >= 48 && (
-        <span className="block text-[10px] opacity-50 mt-0.5">
+      {heightPx >= 52 && (
+        <span className="block text-[10px] opacity-60 leading-snug">
           {task.priority} · {((task.endMin - task.startMin) / 60).toFixed(1)}h
         </span>
       )}
       <button
         onClick={(e) => { e.stopPropagation(); onRegisterBlock(task.taskId, date, task.startMin, task.endMin); }}
         disabled={isRegistering}
-        className="absolute right-0.5 top-0.5 rounded p-0.5 hover:bg-white/20 transition-colors"
+        className="absolute right-1 top-1 rounded-full p-0.5 hover:bg-white/20 transition-colors"
         title={isRegistered ? 'カレンダー登録解除' : 'Googleカレンダーに登録'}
       >
         {isRegistering ? (
@@ -335,49 +343,28 @@ function TaskBlock({
         ) : isRegistered ? (
           <CalendarCheck className="h-3 w-3" />
         ) : (
-          <CalendarPlus className="h-3 w-3 opacity-50" />
+          <CalendarPlus className="h-3 w-3 opacity-40" />
         )}
       </button>
 
       {onResizeStart && (
         <div
-          className="absolute bottom-0 left-0 right-0 h-2 cursor-s-resize group"
+          className="absolute bottom-0 left-0 right-0 h-2.5 cursor-s-resize group"
           onMouseDown={(e) => {
             e.stopPropagation();
             e.preventDefault();
             onResizeStart(task.taskId, 'task', e.clientY, task.endMin, date, task.startMin);
           }}
         >
-          <div className="mx-auto mt-0.5 h-0.5 w-6 rounded-full bg-white opacity-0 group-hover:opacity-40 transition-opacity" />
+          <div className="mx-auto mt-1 h-[3px] w-8 rounded-full bg-white/50 opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       )}
     </div>
   );
 }
 
-// --- Past time overlay (Google Calendar style) ---
-
-function PastTimeOverlay({ workStartMin, hourHeight }: { workStartMin: number; hourHeight: number }) {
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const currentMin = now.getHours() * 60 + now.getMinutes();
-  const top = ((currentMin - workStartMin) / 60) * hourHeight;
-  if (top <= 0) return null;
-
-  return (
-    <div
-      className="absolute left-0 right-0 top-0 z-[1] pointer-events-none bg-white/40"
-      style={{ height: Math.max(0, top) }}
-    />
-  );
-}
-
 // --- Current time indicator (Google Calendar style) ---
+// 赤い2px線 + 左端に12pxの赤い丸
 
 function CurrentTimeLine({ workStartMin, hourHeight }: { workStartMin: number; hourHeight: number }) {
   const [now, setNow] = useState(new Date());
@@ -392,9 +379,9 @@ function CurrentTimeLine({ workStartMin, hourHeight }: { workStartMin: number; h
   if (top < 0) return null;
 
   return (
-    <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top }}>
+    <div className="absolute left-0 right-0 z-30 pointer-events-none" style={{ top }}>
       <div className="relative">
-        <div className="absolute -left-[5px] -top-[5px] h-[10px] w-[10px] rounded-full bg-[#ea4335]" />
+        <div className="absolute -left-[6px] -top-[5px] h-[12px] w-[12px] rounded-full bg-[#ea4335]" />
         <div className="h-[2px] w-full bg-[#ea4335]" />
       </div>
     </div>
@@ -410,7 +397,7 @@ function AllDayRow({ events }: { events: string[] }) {
       {events.slice(0, 3).map((name, i) => (
         <div
           key={i}
-          className="truncate rounded px-1.5 py-0.5 text-[11px] font-medium text-white"
+          className="truncate rounded px-2 py-0.5 text-[11px] font-medium text-white"
           style={{ backgroundColor: '#039BE5', borderRadius: '4px' }}
           title={name}
         >
@@ -502,7 +489,7 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
     return () => document.removeEventListener('mousedown', handler);
   }, [selectedEvent]);
 
-  // Overlap layout
+  // Overlap layout — events + tasks を統合してカラム配置
   const overlapItems = useMemo(() => {
     const items = [
       ...day.events.map((ev, i) => ({
@@ -527,9 +514,7 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
     return layoutMap;
   }, [day.events, day.tasks, workStartMin, workEndMin]);
 
-  // Google Calendar style: 重なりアイテムのスタイル計算
-  // - 重なりなし → フル幅
-  // - 重なりあり → カラム幅配分 + 右カラムは手前に浮き出す（shadow + z-index）
+  // Google Calendar: きれいに横並び、各カラムは均等幅、1pxギャップ
   function getItemStyle(type: 'event' | 'task', index: number, topPx: number, heightPx: number): React.CSSProperties {
     const layout = overlapItems.get(`${type}-${index}`);
     const col = layout?.column ?? 0;
@@ -541,33 +526,23 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
         position: 'absolute' as const,
         top: topPx,
         height: Math.max(heightPx, 20),
-        left: '2px',
-        right: '4px',
+        left: '1px',
+        right: '3px',
       };
     }
 
-    // Google Calendar実装:
-    // - 左イベント: 全幅の (span/total)×100% を占有
-    // - 右イベント: 左イベントに少し被さる形で配置（左に数px食い込む）
-    // - 右イベントほど手前（高いz-index + box-shadow）
-    const baseWidth = 100 / total;
-    const leftPercent = col * baseWidth;
-    const widthPercent = baseWidth * span;
-
-    // 右カラムのイベントは左に少し食い込む（Google Calendar風の重なり）
-    const OVERLAP_PX = col > 0 ? 8 : 0;
+    // Google Calendar: 均等幅で横並び、1pxのギャップで分離
+    const colWidth = 100 / total;
+    const leftPct = col * colWidth;
+    const widthPct = colWidth * span;
 
     return {
       position: 'absolute' as const,
       top: topPx,
       height: Math.max(heightPx, 20),
-      left: `calc(${leftPercent}% - ${OVERLAP_PX}px)`,
-      width: `calc(${Math.min(widthPercent, 100 - leftPercent)}% + ${OVERLAP_PX}px - 3px)`,
+      left: `calc(${leftPct}% + 1px)`,
+      width: `calc(${widthPct}% - 2px)`,
       zIndex: col + 1,
-      // 右カラム（手前）のイベントに影をつけて奥行きを表現
-      ...(col > 0 && {
-        boxShadow: '-2px 0 4px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08)',
-      }),
     };
   }
 
@@ -599,25 +574,24 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
 
   return (
     <div className="shrink-0 border-l border-[#dadce0]" style={{ width: dayColWidth }}>
-      {/* 日付ヘッダー */}
+      {/* 日付ヘッダー — Google Calendar: 曜日(小) + 日付(大) + 今日は青丸 */}
       <div
         className={cn(
-          'flex flex-col items-center justify-center h-14 border-b border-[#dadce0]',
-          isPast && 'opacity-50',
-          isWeekend && !isPast && 'bg-[#f8f9fa]',
+          'flex flex-col items-center justify-center h-16 border-b border-[#dadce0]',
+          isWeekend && 'bg-[#f8f9fa]',
         )}
       >
         <span className={cn(
-          'text-[11px] font-medium uppercase tracking-wide',
+          'text-[11px] font-medium uppercase tracking-wider',
           isToday ? 'text-[#1a73e8]' : 'text-[#70757a]',
         )}>
           {dayOfWeek}
         </span>
         <span className={cn(
-          'text-[22px] font-normal leading-none mt-0.5',
+          'leading-none mt-0.5',
           isToday
-            ? 'bg-[#1a73e8] text-white rounded-full w-[36px] h-[36px] flex items-center justify-center text-[14px] font-medium'
-            : 'text-[#202124]',
+            ? 'bg-[#1a73e8] text-white rounded-full w-[44px] h-[44px] flex items-center justify-center text-[20px] font-medium'
+            : 'text-[26px] font-normal text-[#3c4043]',
         )}>
           {dateNum}
         </span>
@@ -630,31 +604,31 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
         ref={gridRefCallback}
         className={cn(
           'relative',
-          isOver ? 'bg-[#1a73e8]/5' : isPast ? 'bg-[#f8f9fa]' : isWeekend ? 'bg-[#fafafa]' : 'bg-white',
+          isOver ? 'bg-[#e8f0fe]' : isWeekend ? 'bg-[#f8f9fa]' : 'bg-white',
         )}
         style={{ height: totalHeight }}
         onDoubleClick={handleGridDoubleClick}
       >
+        {/* 1時間線 */}
         {Array.from({ length: workHours }, (_, i) => (
           <div
             key={i}
-            className="absolute left-0 w-full border-t border-[#dadce0]"
+            className="absolute left-0 w-full border-b border-[#dadce0]"
             style={{ top: i * HOUR_HEIGHT }}
           />
         ))}
+        {/* 30分線 (Google Calendar: 細い破線) */}
         {Array.from({ length: workHours }, (_, i) => (
           <div
             key={`h-${i}`}
-            className="absolute left-0 w-full border-t border-dashed border-[#e8eaed]"
+            className="absolute left-0 w-full border-b border-dashed border-[#e8eaed]"
             style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2 }}
           />
         ))}
 
+        {/* 現在時刻インジケーター（今日のみ） */}
         {isToday && (
-          <>
-            <PastTimeOverlay workStartMin={workStartMin} hourHeight={HOUR_HEIGHT} />
-            <CurrentTimeLine workStartMin={workStartMin} hourHeight={HOUR_HEIGHT} />
-          </>
+          <CurrentTimeLine workStartMin={workStartMin} hourHeight={HOUR_HEIGHT} />
         )}
 
         {/* イベント */}
@@ -692,7 +666,7 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
           const heightPx = ((dropIndicator.endMin - dropIndicator.startMin) / 60) * HOUR_HEIGHT;
           return (
             <div
-              className="absolute left-0.5 right-0.5 z-10 flex items-start rounded border-2 border-[#1a73e8] bg-[#1a73e8]/15 px-1.5 py-0.5 transition-all duration-100"
+              className="absolute left-1 right-1 z-10 flex items-start rounded bg-[#1a73e8]/15 border-2 border-[#1a73e8] px-2 py-0.5 transition-all duration-100"
               style={{ top: topPx, height: heightPx, borderRadius: '4px' }}
             >
               <span className="text-[11px] font-medium text-[#1a73e8]">

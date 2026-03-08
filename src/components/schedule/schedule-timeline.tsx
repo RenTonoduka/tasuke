@@ -66,8 +66,8 @@ export function ScheduleTimeline({
       <div className="flex" style={{ minWidth: TIME_LABEL_WIDTH + daysData.length * MIN_DAY_COL_WIDTH }}>
         {/* 時刻ラベル列 — Google Calendar style */}
         <div className="shrink-0" style={{ width: TIME_LABEL_WIDTH }}>
-          {/* ヘッダー高さ分を空ける */}
-          <div className="h-14" />
+          {/* ヘッダー高さ分を空ける（day-columnのh-16に合わせる） */}
+          <div className="h-16" />
           {/* 終日イベントがある場合のスペーサー */}
           {daysData.some(d => d.allDayEvents.length > 0) && (
             <div className="border-b border-[#dadce0]" style={{ height: Math.min(Math.max(...daysData.map(d => d.allDayEvents.length)), 3) * 22 + 6 || 0 }} />
