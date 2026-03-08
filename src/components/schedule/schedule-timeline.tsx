@@ -64,19 +64,19 @@ export function ScheduleTimeline({
   return (
     <div ref={containerRef} className="overflow-x-auto">
       <div className="flex" style={{ minWidth: TIME_LABEL_WIDTH + daysData.length * MIN_DAY_COL_WIDTH }}>
-        {/* 時刻ラベル列 */}
+        {/* 時刻ラベル列 — Google Calendar style */}
         <div className="shrink-0" style={{ width: TIME_LABEL_WIDTH }}>
-          {/* ヘッダー高さ分 + 終日イベント分を空ける */}
-          <div className="h-12" />
-          {/* 終日イベントがある場合のスペーサー — 各日の最大終日イベント数に合わせる */}
+          {/* ヘッダー高さ分を空ける */}
+          <div className="h-14" />
+          {/* 終日イベントがある場合のスペーサー */}
           {daysData.some(d => d.allDayEvents.length > 0) && (
-            <div className="border-b border-g-border" style={{ height: Math.min(Math.max(...daysData.map(d => d.allDayEvents.length)), 3) * 24 + 8 || 0 }} />
+            <div className="border-b border-[#dadce0]" style={{ height: Math.min(Math.max(...daysData.map(d => d.allDayEvents.length)), 3) * 22 + 6 || 0 }} />
           )}
           <div className="relative" style={{ height: totalHeight }}>
             {Array.from({ length: workHours + 1 }, (_, i) => (
               <span
                 key={i}
-                className="absolute right-2 -translate-y-1/2 text-[11px] font-medium text-g-text-muted tabular-nums"
+                className="absolute right-2 -translate-y-1/2 text-[10px] font-medium text-[#70757a] tabular-nums"
                 style={{ top: i * HOUR_HEIGHT }}
               >
                 {String(workStart + i).padStart(2, '0')}:00

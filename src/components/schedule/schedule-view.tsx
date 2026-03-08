@@ -42,15 +42,15 @@ function EventCreateDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" onClick={onClose}>
       <div
-        className="w-80 rounded-xl border border-g-border bg-g-bg p-4 shadow-2xl"
+        className="w-[400px] rounded-lg bg-white p-5 shadow-[0_8px_10px_1px_rgba(60,64,67,0.15),0_3px_14px_2px_rgba(60,64,67,0.12),0_5px_5px_-3px_rgba(60,64,67,0.2)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-g-text">予定を作成</h3>
-          <button onClick={onClose} className="rounded-md p-1 hover:bg-g-surface-hover">
-            <X className="h-4 w-4 text-g-text-muted" />
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-normal text-[#202124]">予定を作成</h3>
+          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-[#f0f4f9]">
+            <X className="h-4 w-4 text-[#5f6368]" />
           </button>
         </div>
         <input
@@ -61,25 +61,26 @@ function EventCreateDialog({
             if (e.key === 'Enter') handleSubmit();
             if (e.key === 'Escape') onClose();
           }}
-          placeholder="タイトルを入力"
-          className="w-full rounded-lg border border-g-border bg-g-surface px-3 py-2 text-sm text-g-text placeholder:text-g-text-muted focus:outline-none focus:ring-2 focus:ring-[#4285F4]"
+          placeholder="タイトルを追加"
+          className="w-full border-b-2 border-[#dadce0] bg-transparent px-0 py-2 text-[22px] font-normal text-[#202124] placeholder:text-[#70757a] focus:border-[#1a73e8] focus:outline-none transition-colors"
         />
-        <div className="mt-2 flex items-center gap-2 text-xs text-g-text-secondary">
+        <div className="mt-3 flex items-center gap-2 text-sm text-[#5f6368]">
+          <CalendarClock className="h-4 w-4" />
           <span>{date.replace(/-/g, '/')}</span>
-          <span>{minutesToTime(startMin)}〜{minutesToTime(endMin)}</span>
+          <span className="text-[#70757a]">{minutesToTime(startMin)}〜{minutesToTime(endMin)}</span>
         </div>
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-5 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium text-g-text-muted hover:bg-g-surface-hover"
+            className="rounded-full px-4 py-2 text-sm font-medium text-[#1a73e8] hover:bg-[#e8f0fe] transition-colors"
           >
             キャンセル
           </button>
           <button
             onClick={handleSubmit}
-            className="rounded-lg bg-[#4285F4] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#3367D6]"
+            className="rounded-full bg-[#1a73e8] px-5 py-2 text-sm font-medium text-white hover:bg-[#1967d2] hover:shadow-[0_1px_3px_0_rgba(60,64,67,0.3)] transition-all"
           >
-            作成
+            保存
           </button>
         </div>
       </div>
@@ -94,37 +95,37 @@ function TimelineSkeleton({ workStart, workEnd }: { workStart: number; workEnd: 
     <div className="flex-1 overflow-auto p-2">
       <div className="flex">
         <div className="shrink-0 w-14">
-          <div className="h-12" />
+          <div className="h-14" />
           <div className="relative" style={{ height: hours * HOUR_HEIGHT }}>
             {Array.from({ length: hours + 1 }, (_, i) => (
               <div key={i} className="absolute right-2 -translate-y-1/2" style={{ top: i * HOUR_HEIGHT }}>
-                <div className="h-3 w-8 rounded bg-g-surface-hover animate-pulse" />
+                <div className="h-2.5 w-7 rounded bg-[#e8eaed] animate-pulse" />
               </div>
             ))}
           </div>
         </div>
         {Array.from({ length: 5 }, (_, d) => (
-          <div key={d} className="flex-1 border-l border-g-border">
-            <div className="h-12 flex items-center justify-center">
-              <div className="h-4 w-12 rounded bg-g-surface-hover animate-pulse" />
+          <div key={d} className="flex-1 border-l border-[#dadce0]">
+            <div className="h-14 flex flex-col items-center justify-center gap-0.5">
+              <div className="h-2.5 w-6 rounded bg-[#e8eaed] animate-pulse" />
+              <div className="h-5 w-5 rounded-full bg-[#e8eaed] animate-pulse" />
             </div>
             <div className="relative" style={{ height: hours * HOUR_HEIGHT }}>
               {Array.from({ length: hours }, (_, i) => (
                 <div
                   key={i}
-                  className="absolute left-0 w-full border-t border-g-border/40"
+                  className="absolute left-0 w-full border-t border-[#dadce0]"
                   style={{ top: i * HOUR_HEIGHT }}
                 />
               ))}
-              {/* Skeleton events */}
               {d < 4 && (
                 <>
                   <div
-                    className="absolute left-2 right-2 rounded-md bg-g-surface-hover animate-pulse"
+                    className="absolute left-1 right-1 rounded bg-[#e8eaed] animate-pulse"
                     style={{ top: (1 + d) * HOUR_HEIGHT, height: HOUR_HEIGHT * 1.5 }}
                   />
                   <div
-                    className="absolute left-2 right-2 rounded-md bg-g-surface-hover/60 animate-pulse"
+                    className="absolute left-1 right-1 rounded bg-[#e8eaed]/60 animate-pulse"
                     style={{ top: (4 + d * 0.5) * HOUR_HEIGHT, height: HOUR_HEIGHT }}
                   />
                 </>
@@ -480,34 +481,35 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     [fetchSchedule],
   );
 
-  // DragOverlay content — improved
+  // DragOverlay content — Google Calendar style
   const renderDragOverlay = () => {
     if (!activeDragData) return null;
     if (activeDragData.type === 'sidebar-task' || activeDragData.type === 'timeline-task') {
       const color = PRIORITY_COLORS[activeDragData.priority] ?? '#4285F4';
       return (
         <div
-          className="rounded-lg px-3 py-2 text-sm font-medium text-white shadow-xl border border-white/20"
-          style={{ backgroundColor: color, width: 200, opacity: 0.9 }}
+          className="rounded px-2 py-1.5 text-xs font-medium text-white shadow-[0_1px_3px_0_rgba(60,64,67,0.3),0_4px_8px_3px_rgba(60,64,67,0.15)]"
+          style={{ backgroundColor: color, width: 180, borderRadius: '4px', opacity: 0.92 }}
         >
-          <span className="line-clamp-1 font-semibold">{activeDragData.taskTitle}</span>
-          <span className="block text-xs opacity-70 mt-0.5">{activeDragData.estimatedHours}h · {activeDragData.priority}</span>
+          <span className="line-clamp-1">{activeDragData.taskTitle}</span>
+          <span className="block text-[10px] opacity-75 mt-0.5">{activeDragData.estimatedHours}h · {activeDragData.priority}</span>
         </div>
       );
     }
     const gcalColor = (activeDragData.colorId && GCAL_COLORS[activeDragData.colorId]) || GCAL_DEFAULT_COLOR;
     return (
       <div
-        className="rounded-lg border-l-[3px] px-3 py-2 text-sm font-medium shadow-xl"
+        className="rounded px-2 py-1.5 text-xs font-medium shadow-[0_1px_3px_0_rgba(60,64,67,0.3),0_4px_8px_3px_rgba(60,64,67,0.15)]"
         style={{
-          backgroundColor: `${gcalColor.bg}ee`,
-          borderLeftColor: gcalColor.bg,
+          backgroundColor: gcalColor.bg,
           color: gcalColor.text,
-          width: 200,
+          width: 180,
+          borderRadius: '4px',
+          opacity: 0.92,
         }}
       >
-        <span className="line-clamp-1 font-semibold">{activeDragData.summary}</span>
-        <span className="block text-xs opacity-70 mt-0.5">{Math.round(activeDragData.durationMin)}分</span>
+        <span className="line-clamp-1">{activeDragData.summary}</span>
+        <span className="block text-[10px] opacity-75 mt-0.5">{Math.round(activeDragData.durationMin)}分</span>
       </div>
     );
   };
@@ -562,13 +564,13 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
         {/* 初期状態 */}
         {!data && !loading && (
           <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
-            <CalendarClock className="mb-4 h-12 w-12 text-g-border" />
-            <p className="text-sm text-g-text-secondary">
+            <CalendarClock className="mb-4 h-12 w-12 text-[#dadce0]" />
+            <p className="text-sm text-[#5f6368]">
               Googleカレンダーの予定を取得し、
               <br />
               タスクの最適なスケジュールを提案します
             </p>
-            <p className="mt-2 text-xs text-g-text-muted">
+            <p className="mt-2 text-xs text-[#70757a]">
               タスクに「期限」と「見積もり時間」を設定してください
             </p>
           </div>
@@ -584,7 +586,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
           <div className="flex flex-1 overflow-hidden">
             {/* サイドバー（デスクトップ & 週ビュー） */}
             {viewMode === 'week' && (
-              <div className="hidden w-56 shrink-0 overflow-y-auto border-r border-g-border p-3 md:block">
+              <div className="hidden w-56 shrink-0 overflow-y-auto border-r border-[#dadce0] bg-white p-3 md:block">
                 {data.suggestions.length > 0 && (
                   <ScheduleTaskList compact suggestions={data.suggestions} onOpenTask={openPanel} />
                 )}
