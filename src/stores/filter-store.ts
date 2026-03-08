@@ -20,6 +20,7 @@ interface FilterStore extends FilterState {
   setSortOrder: (v: FilterState['sortOrder']) => void;
   reset: () => void;
   hasActiveFilters: () => boolean;
+  hasFilterConditions: () => boolean;
 }
 
 const initialState: FilterState = {
@@ -51,6 +52,16 @@ export const useFilterStore = create<FilterStore>((set, get) => ({
       s.label.length > 0 ||
       s.dueDateFilter !== 'all' ||
       s.sortBy !== 'position'
+    );
+  },
+  hasFilterConditions: () => {
+    const s = get();
+    return (
+      s.priority.length > 0 ||
+      s.status.length > 0 ||
+      s.assignee.length > 0 ||
+      s.label.length > 0 ||
+      s.dueDateFilter !== 'all'
     );
   },
 }));

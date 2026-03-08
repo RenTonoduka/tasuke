@@ -60,8 +60,10 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
   // Track source section for undo
   const dragSourceRef = useRef<{ sectionId: string; taskIndex: number } | null>(null);
 
-  const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder, hasActiveFilters } = useFilterStore();
+  const { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder, hasActiveFilters, hasFilterConditions } = useFilterStore();
   const isFiltered = hasActiveFilters();
+  const isDndDisabled = hasFilterConditions();
+  const isSortedOnly = sortBy !== 'position' && !isDndDisabled;
   const filteredSections = useMemo(() => {
     const f: FilterState = { priority, status, assignee, label, dueDateFilter, sortBy, sortOrder };
     return sections.map((s) => ({ ...s, tasks: filterTasks(s.tasks, f) }));
@@ -73,7 +75,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
     useSensor(KeyboardSensor)
   );
   const emptySensors = useSensors();
-  const sensors = isFiltered ? emptySensors : activeSensors;
+  const sensors = isDndDisabled ? emptySensors : activeSensors;
   const totalFilteredTasks = filteredSections.reduce((sum, s) => sum + s.tasks.length, 0);
 
   // [FIX] Clean up pointer listeners on unmount to prevent memory leaks
@@ -223,7 +225,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
     const section = findSectionByTaskId(activeId);
     if (!section) return;
 
-    if (activeId !== overId && !overId.startsWith('section-')) {
+    if (activeId !== overId && !overId.startsWith('section-') && !isSortedOnly) {
       const sameSection = section.tasks.some((t) => t.id === overId);
       if (sameSection) {
         setSections((prev) =>
