@@ -388,30 +388,7 @@ function CurrentTimeLine({ workStartMin, hourHeight }: { workStartMin: number; h
   );
 }
 
-// --- All-day events row ---
-
-function AllDayRow({ events }: { events: string[] }) {
-  if (events.length === 0) return null;
-  return (
-    <div className="border-b border-[#dadce0] px-0.5 py-0.5 space-y-0.5">
-      {events.slice(0, 3).map((name, i) => (
-        <div
-          key={i}
-          className="truncate rounded px-2 py-0.5 text-[11px] font-medium text-white"
-          style={{ backgroundColor: '#039BE5', borderRadius: '4px' }}
-          title={name}
-        >
-          {name}
-        </div>
-      ))}
-      {events.length > 3 && (
-        <button className="text-[11px] font-medium text-[#1a73e8] px-1 hover:underline">
-          +{events.length - 3}件
-        </button>
-      )}
-    </div>
-  );
-}
+// AllDayRow は schedule-timeline.tsx の sticky ヘッダーに移動済み
 
 // --- Main component ---
 
@@ -514,7 +491,7 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
     return layoutMap;
   }, [day.events, day.tasks, workStartMin, workEndMin]);
 
-  // Google Calendar: きれいに横並び、各カラムは均等幅、1pxギャップ
+  // Google Calendar: 重なりイベントは横並び + 右が左に少し被る
   function getItemStyle(type: 'event' | 'task', index: number, topPx: number, heightPx: number): React.CSSProperties {
     const layout = overlapItems.get(`${type}-${index}`);
     const col = layout?.column ?? 0;
@@ -531,17 +508,20 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
       };
     }
 
-    // Google Calendar: 均等幅で横並び、1pxのギャップで分離
+    // 各カラムの基本幅
     const colWidth = 100 / total;
     const leftPct = col * colWidth;
     const widthPct = colWidth * span;
+
+    // 右カラムは左に10px食い込む → 重なり感を出す
+    const overlapPx = col > 0 ? 10 : 0;
 
     return {
       position: 'absolute' as const,
       top: topPx,
       height: Math.max(heightPx, 20),
-      left: `calc(${leftPct}% + 1px)`,
-      width: `calc(${widthPct}% - 2px)`,
+      left: `calc(${leftPct}% - ${overlapPx}px + 1px)`,
+      width: `calc(${widthPct}% + ${overlapPx}px - 2px)`,
       zIndex: col + 1,
     };
   }
@@ -568,38 +548,9 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
 
   const showDropIndicator = dropIndicator && dropIndicator.date === day.date;
 
-  const dateObj = new Date(day.date + 'T00:00:00');
-  const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][dateObj.getDay()];
-  const dateNum = dateObj.getDate();
-
   return (
     <div className="shrink-0 border-l border-[#dadce0]" style={{ width: dayColWidth }}>
-      {/* 日付ヘッダー — Google Calendar: 曜日(小) + 日付(大) + 今日は青丸 */}
-      <div
-        className={cn(
-          'flex flex-col items-center justify-center h-16 border-b border-[#dadce0]',
-          isWeekend && 'bg-[#f8f9fa]',
-        )}
-      >
-        <span className={cn(
-          'text-[11px] font-medium uppercase tracking-wider',
-          isToday ? 'text-[#1a73e8]' : 'text-[#70757a]',
-        )}>
-          {dayOfWeek}
-        </span>
-        <span className={cn(
-          'leading-none mt-0.5',
-          isToday
-            ? 'bg-[#1a73e8] text-white rounded-full w-[44px] h-[44px] flex items-center justify-center text-[20px] font-medium'
-            : 'text-[26px] font-normal text-[#3c4043]',
-        )}>
-          {dateNum}
-        </span>
-      </div>
-
-      <AllDayRow events={day.allDayEvents} />
-
-      {/* タイムグリッド */}
+      {/* タイムグリッド（ヘッダーは timeline の sticky に分離済み） */}
       <div
         ref={gridRefCallback}
         className={cn(
