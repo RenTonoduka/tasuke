@@ -104,7 +104,7 @@ function EventBlock({
           }
         }}
         className={cn(
-          'h-full w-full cursor-pointer overflow-hidden px-1.5 py-0.5 text-xs transition-shadow hover:shadow-md',
+          'h-full w-full cursor-pointer overflow-hidden px-1.5 py-0.5 text-xs transition-shadow hover:shadow-lg',
           isDragging && 'opacity-40',
           isPast && 'opacity-60',
           isSelected && 'ring-2 ring-offset-1 ring-[#1a73e8]',
@@ -528,9 +528,8 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
   }, [day.events, day.tasks, workStartMin, workEndMin]);
 
   // Google Calendar style: 重なりアイテムのスタイル計算
-  // - 重なりなし → フル幅（左右に小さなマージン）
-  // - 重なりあり → 各イベントは均等幅、左のイベントが右に少しはみ出す
-  //   （Google Calendarの実際の動作: 左のイベントが右のイベントの上に少し被る）
+  // - 重なりなし → フル幅
+  // - 重なりあり → カラム幅配分 + 右カラムは手前に浮き出す（shadow + z-index）
   function getItemStyle(type: 'event' | 'task', index: number, topPx: number, heightPx: number): React.CSSProperties {
     const layout = overlapItems.get(`${type}-${index}`);
     const col = layout?.column ?? 0;
@@ -547,30 +546,28 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
       };
     }
 
-    // Google Calendar風レイアウト:
-    // 各カラムの基本幅 = 100% / totalColumns
-    // ただし、左のイベントは右に10%はみ出す（右のイベントの上に被る）
-    // 右のイベントは自分のカラム位置から開始
+    // Google Calendar実装:
+    // - 左イベント: 全幅の (span/total)×100% を占有
+    // - 右イベント: 左イベントに少し被さる形で配置（左に数px食い込む）
+    // - 右イベントほど手前（高いz-index + box-shadow）
     const baseWidth = 100 / total;
-    const EXTEND = 10; // 右にはみ出す%
-
-    // 左端のイベント(col=0): 幅が広め（span分 + EXTEND%はみ出し）
-    // 右端のイベント: 幅が狭め
     const leftPercent = col * baseWidth;
-    let widthPercent = baseWidth * span;
+    const widthPercent = baseWidth * span;
 
-    // span=1で最右カラムでなければ、右にはみ出す
-    if (span === 1 && col + 1 < total) {
-      widthPercent += EXTEND;
-    }
+    // 右カラムのイベントは左に少し食い込む（Google Calendar風の重なり）
+    const OVERLAP_PX = col > 0 ? 8 : 0;
 
     return {
       position: 'absolute' as const,
       top: topPx,
       height: Math.max(heightPx, 20),
-      left: `calc(${leftPercent}% + 1px)`,
-      width: `calc(${Math.min(widthPercent, 100 - leftPercent)}% - 3px)`,
+      left: `calc(${leftPercent}% - ${OVERLAP_PX}px)`,
+      width: `calc(${Math.min(widthPercent, 100 - leftPercent)}% + ${OVERLAP_PX}px - 3px)`,
       zIndex: col + 1,
+      // 右カラム（手前）のイベントに影をつけて奥行きを表現
+      ...(col > 0 && {
+        boxShadow: '-2px 0 4px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08)',
+      }),
     };
   }
 
