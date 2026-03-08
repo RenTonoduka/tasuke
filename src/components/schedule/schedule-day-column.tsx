@@ -16,7 +16,16 @@ import {
 } from './schedule-types';
 import type { DayData, DayEvent, DayTask, DropIndicator, RegisteredBlock } from './schedule-types';
 
-// --- 過去判定ユーティリティ ---
+// --- ユーティリティ ---
+
+/** HEXカラーを暗くする */
+function darkenColor(hex: string, amount: number): string {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = Math.max(0, Math.round(((num >> 16) & 0xff) * (1 - amount)));
+  const g = Math.max(0, Math.round(((num >> 8) & 0xff) * (1 - amount)));
+  const b = Math.max(0, Math.round((num & 0xff) * (1 - amount)));
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
 
 function isPastDate(dateStr: string): boolean {
   const today = new Date();
@@ -33,7 +42,8 @@ function getCurrentMinutes(): number {
   return now.getHours() * 60 + now.getMinutes();
 }
 
-// --- Event Block (Google Calendar events) ---
+// --- Event Block (Google Calendar style) ---
+// Google Calendar: ソリッド背景 + 左に濃いボーダー4px + rounded 4px
 
 function EventBlock({
   ev,
@@ -41,7 +51,6 @@ function EventBlock({
   heightPx,
   effectiveEnd,
   isPast,
-  isInOverlapGroup,
   isSelected,
   popoverDirection,
   onSelect,
@@ -55,7 +64,6 @@ function EventBlock({
   heightPx: number;
   effectiveEnd: number;
   isPast: boolean;
-  isInOverlapGroup: boolean;
   isSelected: boolean;
   popoverDirection: 'above' | 'below';
   onSelect: (ev: DayEvent | null, direction?: 'above' | 'below') => void;
@@ -79,11 +87,6 @@ function EventBlock({
   const [editTitle, setEditTitle] = useState(ev.summary);
   const gcalColor = (ev.colorId && GCAL_COLORS[ev.colorId]) || GCAL_DEFAULT_COLOR;
   const isCompact = heightPx < 36;
-
-  // Google Calendar: 重なり時は左に濃いボーダーを表示
-  const borderLeftStyle = isInOverlapGroup
-    ? { borderLeft: `3px solid ${gcalColor.bg}`, borderRadius: '0 4px 4px 0' }
-    : { borderRadius: '4px' };
 
   return (
     <div ref={setNodeRef} data-schedule-item style={itemStyle}>
@@ -109,7 +112,8 @@ function EventBlock({
         style={{
           backgroundColor: isPast ? `${gcalColor.bg}99` : gcalColor.bg,
           color: gcalColor.text,
-          ...borderLeftStyle,
+          borderRadius: '4px',
+          borderLeft: `4px solid ${darkenColor(gcalColor.bg, 0.15)}`,
         }}
         title={`${ev.summary} — クリックで詳細 / ドラッグで移動`}
       >
@@ -245,7 +249,6 @@ function TaskBlock({
   effectiveEnd,
   color,
   isPast,
-  isInOverlapGroup,
   slotKey,
   isRegistered,
   isRegistering,
@@ -260,7 +263,6 @@ function TaskBlock({
   effectiveEnd: number;
   color: string;
   isPast: boolean;
-  isInOverlapGroup: boolean;
   slotKey: string;
   isRegistered: boolean;
   isRegistering: boolean;
@@ -283,10 +285,6 @@ function TaskBlock({
 
   const isCompact = heightPx < 36;
 
-  const borderLeftStyle = isInOverlapGroup
-    ? { borderLeft: `3px solid ${color}`, borderRadius: '0 4px 4px 0' }
-    : { borderRadius: '4px' };
-
   return (
     <div
       ref={setNodeRef}
@@ -302,7 +300,12 @@ function TaskBlock({
         !isPast && !isRegistered && 'opacity-70',
         isDragging && 'opacity-40',
       )}
-      style={{ ...itemStyle, backgroundColor: isPast ? `${color}99` : color, ...borderLeftStyle }}
+      style={{
+        ...itemStyle,
+        backgroundColor: isPast ? `${color}99` : color,
+        borderRadius: '4px',
+        borderLeft: `4px solid ${darkenColor(color, 0.2)}`,
+      }}
       title={`${task.title} (${task.priority}) — ドラッグで移動`}
     >
       <button
@@ -398,7 +401,7 @@ function CurrentTimeLine({ workStartMin, hourHeight }: { workStartMin: number; h
   );
 }
 
-// --- All-day events row (Google Calendar style colored bars) ---
+// --- All-day events row ---
 
 function AllDayRow({ events }: { events: string[] }) {
   if (events.length === 0) return null;
@@ -488,7 +491,6 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
     [setNodeRef, day.date, dayGridRefs],
   );
 
-  // Popover outside click
   useEffect(() => {
     if (!selectedEvent) return;
     const handler = (e: MouseEvent) => {
@@ -500,7 +502,7 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
     return () => document.removeEventListener('mousedown', handler);
   }, [selectedEvent]);
 
-  // Overlap layout — Google Calendar style
+  // Overlap layout
   const overlapItems = useMemo(() => {
     const items = [
       ...day.events.map((ev, i) => ({
@@ -526,8 +528,9 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
   }, [day.events, day.tasks, workStartMin, workEndMin]);
 
   // Google Calendar style: 重なりアイテムのスタイル計算
-  // - 重なりグループ内の最初のアイテムは幅を広めに（右に少し被る）
-  // - 2番目以降は通常幅
+  // - 重なりなし → フル幅（左右に小さなマージン）
+  // - 重なりあり → 各イベントは均等幅、左のイベントが右に少しはみ出す
+  //   （Google Calendarの実際の動作: 左のイベントが右のイベントの上に少し被る）
   function getItemStyle(type: 'event' | 'task', index: number, topPx: number, heightPx: number): React.CSSProperties {
     const layout = overlapItems.get(`${type}-${index}`);
     const col = layout?.column ?? 0;
@@ -535,31 +538,39 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
     const span = layout?.span ?? 1;
 
     if (total === 1) {
-      // 重なりなし: フル幅（左右に少しパディング）
       return {
         position: 'absolute' as const,
         top: topPx,
         height: Math.max(heightPx, 20),
         left: '2px',
-        right: '2px',
+        right: '4px',
       };
     }
 
-    // Google Calendar風: 各カラムは均等分割 + 少し重ねる
-    // 最初のカラムのアイテムは少し広めに表示（Google Calendar風の段差表示）
-    const colWidthPercent = 100 / total;
-    const overlapPercent = 5; // 隣接アイテムと少し重ねる
+    // Google Calendar風レイアウト:
+    // 各カラムの基本幅 = 100% / totalColumns
+    // ただし、左のイベントは右に10%はみ出す（右のイベントの上に被る）
+    // 右のイベントは自分のカラム位置から開始
+    const baseWidth = 100 / total;
+    const EXTEND = 10; // 右にはみ出す%
 
-    const leftPercent = col * colWidthPercent;
-    const widthPercent = colWidthPercent * span + (col === 0 && span < total ? overlapPercent : 0);
+    // 左端のイベント(col=0): 幅が広め（span分 + EXTEND%はみ出し）
+    // 右端のイベント: 幅が狭め
+    const leftPercent = col * baseWidth;
+    let widthPercent = baseWidth * span;
+
+    // span=1で最右カラムでなければ、右にはみ出す
+    if (span === 1 && col + 1 < total) {
+      widthPercent += EXTEND;
+    }
 
     return {
       position: 'absolute' as const,
       top: topPx,
       height: Math.max(heightPx, 20),
       left: `calc(${leftPercent}% + 1px)`,
-      width: `calc(${Math.min(widthPercent, 100 - leftPercent)}% - 2px)`,
-      zIndex: col + 1, // 後のカラムが上に来る
+      width: `calc(${Math.min(widthPercent, 100 - leftPercent)}% - 3px)`,
+      zIndex: col + 1,
     };
   }
 
@@ -568,7 +579,6 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
     if (direction) setPopoverDirection(direction);
   }, []);
 
-  // Double-click to create event
   const handleGridDoubleClick = useCallback(
     (e: React.MouseEvent) => {
       if (!onClickCreate) return;
@@ -586,14 +596,13 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
 
   const showDropIndicator = dropIndicator && dropIndicator.date === day.date;
 
-  // Parse date for header display
   const dateObj = new Date(day.date + 'T00:00:00');
   const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][dateObj.getDay()];
   const dateNum = dateObj.getDate();
 
   return (
     <div className="shrink-0 border-l border-[#dadce0]" style={{ width: dayColWidth }}>
-      {/* 日付ヘッダー — Google Calendar style */}
+      {/* 日付ヘッダー */}
       <div
         className={cn(
           'flex flex-col items-center justify-center h-14 border-b border-[#dadce0]',
@@ -617,7 +626,6 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
         </span>
       </div>
 
-      {/* 終日イベント */}
       <AllDayRow events={day.allDayEvents} />
 
       {/* タイムグリッド */}
@@ -630,7 +638,6 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
         style={{ height: totalHeight }}
         onDoubleClick={handleGridDoubleClick}
       >
-        {/* 1時間グリッド線 */}
         {Array.from({ length: workHours }, (_, i) => (
           <div
             key={i}
@@ -638,7 +645,6 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
             style={{ top: i * HOUR_HEIGHT }}
           />
         ))}
-        {/* 30分グリッド線 */}
         {Array.from({ length: workHours }, (_, i) => (
           <div
             key={`h-${i}`}
@@ -647,7 +653,6 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
           />
         ))}
 
-        {/* 今日: 過去時間のオーバーレイ + 現在時刻線 */}
         {isToday && (
           <>
             <PastTimeOverlay workStartMin={workStartMin} hourHeight={HOUR_HEIGHT} />
@@ -655,7 +660,7 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
           </>
         )}
 
-        {/* Googleカレンダー予定 */}
+        {/* イベント */}
         {day.events.map((ev, i) => {
           const clampedStart = Math.max(ev.startMin, workStartMin);
           const isResizingThis = resizingId === ev.id;
@@ -664,8 +669,6 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
           if (clampedStart >= clampedEnd) return null;
           const topPx = ((clampedStart - workStartMin) / 60) * HOUR_HEIGHT;
           const heightPx = ((clampedEnd - clampedStart) / 60) * HOUR_HEIGHT;
-          const layout = overlapItems.get(`event-${i}`);
-          const isInGroup = (layout?.totalColumns ?? 1) > 1;
           const isEventPast = isPast || (isToday && ev.endMin <= currentMin);
           return (
             <EventBlock
@@ -675,7 +678,6 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
               heightPx={heightPx}
               effectiveEnd={effectiveEnd}
               isPast={isEventPast}
-              isInOverlapGroup={isInGroup}
               isSelected={selectedEvent?.id === ev.id}
               popoverDirection={popoverDirection}
               onSelect={handleSelect}
@@ -703,7 +705,7 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
           );
         })()}
 
-        {/* タスクスロット */}
+        {/* タスク */}
         {day.tasks.map((task, i) => {
           const clampedStart = Math.max(task.startMin, workStartMin);
           const isResizingThis = resizingId === task.taskId;
@@ -716,8 +718,6 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
           const slotKey = `${task.taskId}|${day.date}|${minutesToTime(task.startMin)}`;
           const isRegistered = registeredBlocks.has(slotKey);
           const isRegistering = registeringSlot === slotKey;
-          const layout = overlapItems.get(`task-${i}`);
-          const isInGroup = (layout?.totalColumns ?? 1) > 1;
           const isTaskPast = isPast || (isToday && task.endMin <= currentMin);
           return (
             <TaskBlock
@@ -728,7 +728,6 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
               effectiveEnd={effectiveEnd}
               color={color}
               isPast={isTaskPast}
-              isInOverlapGroup={isInGroup}
               slotKey={slotKey}
               isRegistered={isRegistered}
               isRegistering={isRegistering}
