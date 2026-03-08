@@ -30,7 +30,6 @@ import {
   MessageCircle,
   Bot,
   ShieldCheck,
-  Layers,
   FolderOpen,
   Palette,
   ArrowRight,
@@ -663,11 +662,6 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
       label: 'ダッシュボード',
       href: `/${currentWorkspaceSlug}`,
       icon: LayoutDashboard,
-    },
-    {
-      label: 'All Projects',
-      href: `/${currentWorkspaceSlug}/all-projects`,
-      icon: Layers,
     },
     {
       label: 'インボックス',

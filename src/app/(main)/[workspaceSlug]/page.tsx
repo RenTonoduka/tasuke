@@ -3,11 +3,11 @@ import { getAuthSession } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { Header } from '@/components/layout/header';
 import { StatCard } from '@/components/dashboard/stat-card';
-import { ProjectProgress } from '@/components/dashboard/project-progress';
 import { UpcomingDeadlines } from '@/components/dashboard/upcoming-deadlines';
 import { DashboardClient } from './dashboard-client';
+import { ProjectPortfolio } from '@/components/dashboard/project-portfolio';
 import { CheckCircle, Clock, AlertCircle, ListTodo } from 'lucide-react';
-import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, endOfWeek } from 'date-fns';
 import { getAccessibleProjectIds } from '@/lib/project-access';
 
 export default async function WorkspacePage({
@@ -57,18 +57,72 @@ export default async function WorkspacePage({
   });
   const byPriority = priorityGroups.map((g) => ({ priority: g.priority, count: g._count._all }));
 
-  // 修正1: byProject を groupBy で 1クエリに統合
-  const taskStats = await prisma.task.groupBy({
-    by: ['projectId', 'status'],
-    where: { projectId: { in: projectIds }, status: { not: 'ARCHIVED' } },
-    _count: { _all: true },
-  });
-  const byProject = projects.map((project) => {
+  // プロジェクト別統計 (ポートフォリオ用)
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+  const [taskStats, overdueByProject, dueThisWeekByProject, nextDeadlineByProject] =
+    await Promise.all([
+      prisma.task.groupBy({
+        by: ['projectId', 'status'],
+        where: { projectId: { in: projectIds }, status: { not: 'ARCHIVED' } },
+        _count: { _all: true },
+      }),
+      prisma.task.groupBy({
+        by: ['projectId'],
+        where: {
+          projectId: { in: projectIds },
+          dueDate: { lt: startOfDay(now) },
+          status: { notIn: ['DONE', 'ARCHIVED'] },
+        },
+        _count: { _all: true },
+      }),
+      prisma.task.groupBy({
+        by: ['projectId'],
+        where: {
+          projectId: { in: projectIds },
+          dueDate: { gte: startOfDay(now), lte: weekEnd },
+          status: { notIn: ['DONE', 'ARCHIVED'] },
+        },
+        _count: { _all: true },
+      }),
+      prisma.task.findMany({
+        where: {
+          projectId: { in: projectIds },
+          dueDate: { gte: now },
+          status: { notIn: ['DONE', 'ARCHIVED'] },
+        },
+        orderBy: { dueDate: 'asc' },
+        select: { projectId: true, title: true, dueDate: true },
+        distinct: ['projectId'],
+      }),
+    ]);
+
+  const portfolioData = projects.map((project) => {
     const rows = taskStats.filter((r) => r.projectId === project.id);
     const total = rows.reduce((sum, r) => sum + r._count._all, 0);
     const completed = rows.find((r) => r.status === 'DONE')?._count._all ?? 0;
-    return { id: project.id, name: project.name, total, completed, color: project.color };
+    const inProgress = rows.find((r) => r.status === 'IN_PROGRESS')?._count._all ?? 0;
+    const todo = rows.find((r) => r.status === 'TODO')?._count._all ?? 0;
+    const overdue = overdueByProject.find((r) => r.projectId === project.id)?._count._all ?? 0;
+    const dueThisWeek = dueThisWeekByProject.find((r) => r.projectId === project.id)?._count._all ?? 0;
+    const nextDl = nextDeadlineByProject.find((r) => r.projectId === project.id);
+    return {
+      id: project.id,
+      name: project.name,
+      color: project.color,
+      total,
+      completed,
+      inProgress,
+      todo,
+      overdue,
+      dueThisWeek,
+      nextDeadline: nextDl ? { title: nextDl.title, date: nextDl.dueDate!.toISOString() } : null,
+    };
   });
+
+  // byProject (既存コンポーネント互換)
+  const byProject = portfolioData.map((p) => ({
+    id: p.id, name: p.name, total: p.total, completed: p.completed, color: p.color,
+  }));
 
   // 修正2: recentActivity を 1クエリ + JS側集計に変更
   const fourteenDaysAgo = startOfDay(subDays(now, 13));
@@ -197,6 +251,9 @@ export default async function WorkspacePage({
             />
           </div>
 
+          {/* プロジェクトポートフォリオ */}
+          <ProjectPortfolio data={portfolioData} workspaceSlug={params.workspaceSlug} />
+
           {/* グラフ（クライアントコンポーネント） */}
           <DashboardClient
             byStatus={byStatus}
@@ -206,11 +263,8 @@ export default async function WorkspacePage({
             ganttProjects={ganttProjects}
           />
 
-          {/* プロジェクト別進捗 + 期限迫るタスク */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <ProjectProgress data={byProject} />
-            <UpcomingDeadlines data={upcomingDeadlines} workspaceSlug={params.workspaceSlug} />
-          </div>
+          {/* 期限迫るタスク */}
+          <UpcomingDeadlines data={upcomingDeadlines} workspaceSlug={params.workspaceSlug} />
         </div>
       </div>
     </>
