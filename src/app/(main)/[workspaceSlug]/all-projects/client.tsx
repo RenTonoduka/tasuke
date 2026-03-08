@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronRight, FolderKanban, Calendar, AlertCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, FolderKanban, Calendar, AlertCircle, CheckCircle2, Clock, ListTodo } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, isPast, isToday } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -51,6 +51,90 @@ const PRIORITY_COLORS: Record<string, string> = {
 const STATUS_FILTER_OPTIONS = ['ALL', 'TODO', 'IN_PROGRESS', 'DONE'] as const;
 const PRIORITY_FILTER_OPTIONS = ['ALL', 'P0', 'P1', 'P2', 'P3'] as const;
 
+interface ProjectStats {
+  total: number;
+  todo: number;
+  inProgress: number;
+  done: number;
+  overdue: number;
+  completionRate: number;
+  priorityBreakdown: Record<string, number>;
+}
+
+function computeProjectStats(projectTasks: TaskData[]): ProjectStats {
+  const total = projectTasks.length;
+  const todo = projectTasks.filter(t => t.status === 'TODO').length;
+  const inProgress = projectTasks.filter(t => t.status === 'IN_PROGRESS').length;
+  const done = projectTasks.filter(t => t.status === 'DONE').length;
+  const overdue = projectTasks.filter(t =>
+    t.dueDate && isPast(new Date(t.dueDate)) && !isToday(new Date(t.dueDate)) && t.status !== 'DONE'
+  ).length;
+  const completionRate = total > 0 ? Math.round((done / total) * 100) : 0;
+  const priorityBreakdown: Record<string, number> = { P0: 0, P1: 0, P2: 0, P3: 0 };
+  for (const t of projectTasks) {
+    if (t.status !== 'DONE') priorityBreakdown[t.priority] = (priorityBreakdown[t.priority] || 0) + 1;
+  }
+  return { total, todo, inProgress, done, overdue, completionRate, priorityBreakdown };
+}
+
+function MiniDashboard({ stats, color }: { stats: ProjectStats; color: string }) {
+  if (stats.total === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-g-border/50 px-4 py-3">
+      {/* Progress bar */}
+      <div className="flex min-w-[180px] flex-1 items-center gap-3">
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-g-border">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${stats.completionRate}%`, backgroundColor: color }}
+          />
+        </div>
+        <span className="shrink-0 text-xs font-semibold text-g-text">{stats.completionRate}%</span>
+      </div>
+
+      {/* Status counts */}
+      <div className="flex items-center gap-3 text-xs">
+        <span className="flex items-center gap-1 text-gray-500">
+          <ListTodo className="h-3.5 w-3.5" />
+          {stats.todo}
+        </span>
+        <span className="flex items-center gap-1 text-blue-500">
+          <Clock className="h-3.5 w-3.5" />
+          {stats.inProgress}
+        </span>
+        <span className="flex items-center gap-1 text-green-500">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          {stats.done}
+        </span>
+        {stats.overdue > 0 && (
+          <span className="flex items-center gap-1 font-medium text-red-500">
+            <AlertCircle className="h-3.5 w-3.5" />
+            {stats.overdue} 超過
+          </span>
+        )}
+      </div>
+
+      {/* Priority breakdown (only non-zero, active tasks) */}
+      {(stats.priorityBreakdown.P0 > 0 || stats.priorityBreakdown.P1 > 0) && (
+        <div className="flex items-center gap-2 text-xs">
+          {stats.priorityBreakdown.P0 > 0 && (
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              P0: {stats.priorityBreakdown.P0}
+            </span>
+          )}
+          {stats.priorityBreakdown.P1 > 0 && (
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-orange-500" />
+              P1: {stats.priorityBreakdown.P1}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AllProjectsClient({ projects, tasks, workspaceSlug }: AllProjectsClientProps) {
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -63,6 +147,21 @@ export function AllProjectsClient({ projects, tasks, workspaceSlug }: AllProject
       return next;
     });
   };
+
+  // Stats computed from ALL tasks (unfiltered)
+  const statsByProject = useMemo(() => {
+    const map = new Map<string, ProjectStats>();
+    const grouped = new Map<string, TaskData[]>();
+    for (const t of tasks) {
+      const arr = grouped.get(t.projectId) ?? [];
+      arr.push(t);
+      grouped.set(t.projectId, arr);
+    }
+    for (const project of projects) {
+      map.set(project.id, computeProjectStats(grouped.get(project.id) ?? []));
+    }
+    return map;
+  }, [tasks, projects]);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(t => {
@@ -126,11 +225,13 @@ export function AllProjectsClient({ projects, tasks, workspaceSlug }: AllProject
           </span>
         </div>
 
-        {/* Project groups */}
+        {/* Project cards with dashboard */}
         {projects.map((project) => {
+          const stats = statsByProject.get(project.id);
           const projectTasks = tasksByProject.get(project.id) ?? [];
-          if (projectTasks.length === 0) return null;
           const isCollapsed = collapsedProjects.has(project.id);
+
+          if (!stats || stats.total === 0) return null;
 
           return (
             <div key={project.id} className="rounded-lg border border-g-border bg-g-bg">
@@ -141,9 +242,14 @@ export function AllProjectsClient({ projects, tasks, workspaceSlug }: AllProject
                 {isCollapsed ? <ChevronRight className="h-4 w-4 text-g-text-muted" /> : <ChevronDown className="h-4 w-4 text-g-text-muted" />}
                 <FolderKanban className="h-4 w-4" style={{ color: project.color }} />
                 <span className="font-medium text-g-text">{project.name}</span>
-                <span className="ml-auto text-xs text-g-text-muted">{projectTasks.length} タスク</span>
+                <span className="ml-auto text-xs text-g-text-muted">
+                  {stats.done}/{stats.total} 完了
+                </span>
               </button>
-              {!isCollapsed && (
+
+              <MiniDashboard stats={stats} color={project.color} />
+
+              {!isCollapsed && projectTasks.length > 0 && (
                 <div className="border-t border-g-border">
                   {projectTasks.map((task) => {
                     const isOverdue = task.dueDate && isPast(new Date(task.dueDate)) && !isToday(new Date(task.dueDate)) && task.status !== 'DONE';
@@ -175,6 +281,12 @@ export function AllProjectsClient({ projects, tasks, workspaceSlug }: AllProject
                       </Link>
                     );
                   })}
+                </div>
+              )}
+
+              {!isCollapsed && projectTasks.length === 0 && (
+                <div className="border-t border-g-border px-4 py-3 text-center text-xs text-g-text-muted">
+                  フィルタ条件に一致するタスクなし
                 </div>
               )}
             </div>
