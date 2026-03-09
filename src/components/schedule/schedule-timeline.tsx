@@ -35,22 +35,22 @@ function DayHeader({ day, width }: { day: DayData; width: number }) {
   return (
     <div
       className={cn(
-        'shrink-0 flex flex-col items-center justify-center h-16 border-l border-[#dadce0]',
+        'shrink-0 flex items-center justify-center gap-1 h-9 border-l border-[#dadce0]',
         isWeekend && 'bg-[#f8f9fa]',
       )}
       style={{ width }}
     >
       <span className={cn(
-        'text-[11px] font-medium uppercase tracking-wider',
+        'text-[11px] font-medium',
         isToday ? 'text-[#1a73e8]' : 'text-[#70757a]',
       )}>
         {dayOfWeek}
       </span>
       <span className={cn(
-        'leading-none mt-0.5',
+        'leading-none',
         isToday
-          ? 'bg-[#1a73e8] text-white rounded-full w-[44px] h-[44px] flex items-center justify-center text-[20px] font-medium'
-          : 'text-[26px] font-normal text-[#3c4043]',
+          ? 'bg-[#1a73e8] text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium'
+          : 'text-sm font-medium text-[#3c4043]',
       )}>
         {dateNum}
       </span>
@@ -108,7 +108,7 @@ export function ScheduleTimeline({
         <div className="sticky top-0 z-20 bg-white border-b border-[#dadce0]">
           <div className="flex">
             {/* 時刻ラベル列のスペーサー */}
-            <div className="shrink-0 h-16" style={{ width: TIME_LABEL_WIDTH }} />
+            <div className="shrink-0 h-9" style={{ width: TIME_LABEL_WIDTH }} />
             {/* 日付ヘッダー */}
             {daysData.map((day) => (
               <DayHeader key={day.date} day={day} width={dayColWidth} />

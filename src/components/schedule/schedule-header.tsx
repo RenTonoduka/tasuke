@@ -55,47 +55,37 @@ export function ScheduleHeader({
 
   return (
     <>
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        {/* Today + 週ナビゲーション — Google Calendar style */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={onToday}
-            disabled={loading}
-            className={cn(
-              'rounded-full border border-[#dadce0] px-4 py-1.5 text-sm font-medium transition-colors',
-              weekOffset === 0
-                ? 'bg-[#1a73e8] text-white border-[#1a73e8]'
-                : 'text-[#202124] hover:bg-[#f0f4f9]',
-            )}
-          >
-            今日
-          </button>
-          <button
-            onClick={onPrevWeek}
-            disabled={loading}
-            className="rounded-full p-1.5 text-[#5f6368] hover:bg-[#f0f4f9] transition-colors"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <button
-            onClick={onNextWeek}
-            disabled={loading}
-            className="rounded-full p-1.5 text-[#5f6368] hover:bg-[#f0f4f9] transition-colors"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
-          <span className="ml-2 text-[22px] font-normal text-[#202124]">{weekLabel}</span>
-        </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {/* Today + 週ナビゲーション */}
+        <button
+          onClick={onToday}
+          disabled={loading}
+          className={cn(
+            'rounded border border-[#dadce0] px-2.5 py-0.5 text-xs font-medium transition-colors',
+            weekOffset === 0
+              ? 'bg-[#1a73e8] text-white border-[#1a73e8]'
+              : 'text-[#3c4043] hover:bg-[#f0f4f9]',
+          )}
+        >
+          今日
+        </button>
+        <button onClick={onPrevWeek} disabled={loading} className="rounded-full p-1 text-[#5f6368] hover:bg-[#f0f4f9] transition-colors">
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <button onClick={onNextWeek} disabled={loading} className="rounded-full p-1 text-[#5f6368] hover:bg-[#f0f4f9] transition-colors">
+          <ChevronRight className="h-4 w-4" />
+        </button>
+        <span className="text-sm font-medium text-[#3c4043]">{weekLabel}</span>
 
-        {/* ビューモード切替 — Google Calendar style dropdown feel */}
-        <div className="ml-auto flex items-center gap-2">
-          <div className="flex items-center rounded-lg border border-[#dadce0] bg-white p-0.5">
+        {/* 右側コントロール */}
+        <div className="ml-auto flex items-center gap-1.5">
+          <div className="flex items-center rounded border border-[#dadce0] bg-white p-px">
             {(['day', '3day', 'week'] as ViewMode[]).map((mode) => (
               <button
                 key={mode}
                 onClick={() => onViewModeChange(mode)}
                 className={cn(
-                  'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                  'rounded px-2 py-0.5 text-[11px] font-medium transition-colors',
                   viewMode === mode
                     ? 'bg-[#e8f0fe] text-[#1a73e8]'
                     : 'text-[#5f6368] hover:bg-[#f0f4f9]',
@@ -107,40 +97,40 @@ export function ScheduleHeader({
           </div>
 
           {hasData && totalFreeHours !== undefined && (
-            <span className="text-xs font-medium text-[#5f6368] bg-[#f0f4f9] rounded-full px-3 py-1.5">
-              空き {totalFreeHours}h
+            <span className="text-[11px] font-medium text-[#5f6368] bg-[#f0f4f9] rounded px-2 py-0.5">
+              空き{totalFreeHours}h
             </span>
           )}
 
           <button
             onClick={onRefresh}
             disabled={loading}
-            className="flex items-center gap-1.5 rounded-full bg-[#1a73e8] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#1967d2] hover:shadow-[0_1px_3px_0_rgba(60,64,67,0.3)] transition-all disabled:opacity-50"
+            className="flex items-center gap-1 rounded bg-[#1a73e8] px-2.5 py-1 text-[11px] font-medium text-white hover:bg-[#1967d2] transition-all disabled:opacity-50"
           >
             {loading ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <CalendarClock className="h-4 w-4" />
+              <CalendarClock className="h-3.5 w-3.5" />
             )}
-            {hasData ? '再取得' : 'スケジュール提案'}
+            {hasData ? '再取得' : '提案'}
           </button>
 
           <button
             onClick={onToggleSettings}
             className={cn(
-              'rounded-full p-2 transition-colors',
+              'rounded-full p-1 transition-colors',
               showSettings ? 'bg-[#e8f0fe] text-[#1a73e8]' : 'text-[#5f6368] hover:bg-[#f0f4f9]',
             )}
           >
-            <Settings2 className="h-5 w-5" />
+            <Settings2 className="h-4 w-4" />
           </button>
         </div>
       </div>
 
       {showSettings && (
-        <div className="mb-2 flex flex-wrap items-center gap-4 rounded-xl border border-[#dadce0] bg-white p-3">
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-[#5f6368]">営業時間:</label>
+        <div className="mt-1 flex flex-wrap items-center gap-3 rounded-lg border border-[#dadce0] bg-white px-3 py-1.5">
+          <div className="flex items-center gap-1.5">
+            <label className="text-[11px] font-medium text-[#5f6368]">営業時間:</label>
             <select
               value={editingSettings.workStart}
               onChange={(e) => {
@@ -148,60 +138,56 @@ export function ScheduleHeader({
                 const newEnd = editingSettings.workEnd <= v ? v + 1 : editingSettings.workEnd;
                 onSettingsChange({ ...editingSettings, workStart: v, workEnd: newEnd });
               }}
-              className="rounded-md border border-[#dadce0] bg-white px-2 py-1 text-xs text-[#202124]"
+              className="rounded border border-[#dadce0] bg-white px-1.5 py-0.5 text-[11px] text-[#202124]"
             >
               {Array.from({ length: 17 }, (_, i) => i + 6).map((h) => (
-                <option key={h} value={h}>
-                  {h}:00
-                </option>
+                <option key={h} value={h}>{h}:00</option>
               ))}
             </select>
-            <span className="text-xs text-[#70757a]">~</span>
+            <span className="text-[11px] text-[#70757a]">~</span>
             <select
               value={editingSettings.workEnd}
               onChange={(e) =>
                 onSettingsChange({ ...editingSettings, workEnd: Number(e.target.value) })
               }
-              className="rounded-md border border-[#dadce0] bg-white px-2 py-1 text-xs text-[#202124]"
+              className="rounded border border-[#dadce0] bg-white px-1.5 py-0.5 text-[11px] text-[#202124]"
             >
               {Array.from({ length: 23 - editingSettings.workStart }, (_, i) => i + editingSettings.workStart + 1).map((h) => (
-                <option key={h} value={h}>
-                  {h}:00
-                </option>
+                <option key={h} value={h}>{h}:00</option>
               ))}
             </select>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Switch
               checked={editingSettings.skipWeekends}
               onCheckedChange={(v) =>
                 onSettingsChange({ ...editingSettings, skipWeekends: v })
               }
             />
-            <label className="text-xs text-[#5f6368]">土日を除外</label>
+            <label className="text-[11px] text-[#5f6368]">土日除外</label>
           </div>
           <Button
             size="sm"
             onClick={onSaveSettings}
-            className="ml-auto rounded-full bg-[#1a73e8] text-white hover:bg-[#1967d2] text-xs h-8"
+            className="ml-auto rounded bg-[#1a73e8] text-white hover:bg-[#1967d2] text-[11px] h-6 px-2.5"
           >
-            <Save className="mr-1.5 h-3.5 w-3.5" />
+            <Save className="mr-1 h-3 w-3" />
             保存
           </Button>
         </div>
       )}
 
       {unestimatedTasks && unestimatedTasks.length > 0 ? (
-        <div className="mb-2 rounded-xl border border-[#F6BF26]/50 bg-[#FEF7E0]">
+        <div className="mt-1 rounded-lg border border-[#F6BF26]/50 bg-[#FEF7E0]">
           <button
             onClick={() => setShowUnestimated(!showUnestimated)}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left"
+            className="flex w-full items-center gap-1.5 px-2.5 py-1 text-left"
           >
-            <AlertTriangle className="h-4 w-4 shrink-0 text-[#F6BF26]" />
-            <span className="flex-1 text-xs font-medium text-[#5f6368]">
-              設定不足のタスクが {unestimatedTasks.length} 件
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-[#F6BF26]" />
+            <span className="flex-1 text-[11px] font-medium text-[#5f6368]">
+              設定不足 {unestimatedTasks.length} 件
             </span>
-            <ChevronDown className={cn('h-4 w-4 text-[#70757a] transition-transform', showUnestimated && 'rotate-180')} />
+            <ChevronDown className={cn('h-3.5 w-3.5 text-[#70757a] transition-transform', showUnestimated && 'rotate-180')} />
           </button>
           {showUnestimated && (
             <div className="space-y-1.5 border-t border-[#F6BF26]/30 px-3 py-2">

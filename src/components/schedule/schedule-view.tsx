@@ -95,7 +95,7 @@ function TimelineSkeleton({ workStart, workEnd }: { workStart: number; workEnd: 
     <div className="flex-1 overflow-auto p-2">
       <div className="flex">
         <div className="shrink-0 w-14">
-          <div className="h-16" />
+          <div className="h-9" />
           <div className="relative" style={{ height: hours * HOUR_HEIGHT }}>
             {Array.from({ length: hours + 1 }, (_, i) => (
               <div key={i} className="absolute right-2 -translate-y-1/2" style={{ top: i * HOUR_HEIGHT }}>
@@ -106,7 +106,7 @@ function TimelineSkeleton({ workStart, workEnd }: { workStart: number; workEnd: 
         </div>
         {Array.from({ length: 5 }, (_, d) => (
           <div key={d} className="flex-1 border-l border-[#dadce0]">
-            <div className="h-16 flex flex-col items-center justify-center gap-1">
+            <div className="h-9 flex items-center justify-center gap-1">
               <div className="h-2.5 w-6 rounded bg-[#e8eaed] animate-pulse" />
               <div className="h-8 w-8 rounded-full bg-[#e8eaed] animate-pulse" />
             </div>
@@ -526,7 +526,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
     >
       <div className="flex h-full flex-col overflow-hidden">
         {/* 固定ヘッダー */}
-        <div className="shrink-0 px-4 pt-3 pb-1">
+        <div className="shrink-0 px-3 pt-1.5 pb-0.5">
           <ScheduleHeader
             loading={loading}
             hasData={!!data}
@@ -597,7 +597,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
             )}
 
             {/* タイムライン */}
-            <div ref={timelineContainerRef} className="flex-1 overflow-auto p-2">
+            <div ref={timelineContainerRef} className="flex-1 overflow-auto p-1">
               {/* モバイル / 日ビュー時: タスクリスト */}
               {(viewMode !== 'week') && (
                 <div className="mb-2">

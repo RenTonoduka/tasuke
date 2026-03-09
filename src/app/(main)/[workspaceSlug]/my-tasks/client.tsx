@@ -179,56 +179,39 @@ export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksCli
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* ビュー切替タブ + ソート */}
-      <div className="flex items-center gap-1 border-b border-g-border bg-g-bg px-4 py-1.5">
-        <button
-          onClick={() => setView('today')}
-          className={cn(
-            'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-            view === 'today'
-              ? 'bg-g-border text-g-text'
-              : 'text-g-text-secondary hover:bg-g-surface-hover'
-          )}
-        >
-          <Sun className="h-3.5 w-3.5" />
-          Today
-        </button>
-        <button
-          onClick={() => setView('list')}
-          className={cn(
-            'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-            view === 'list'
-              ? 'bg-g-border text-g-text'
-              : 'text-g-text-secondary hover:bg-g-surface-hover'
-          )}
-        >
-          <List className="h-3.5 w-3.5" />
-          リスト
-        </button>
-        <button
-          onClick={() => setView('schedule')}
-          className={cn(
-            'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-            view === 'schedule'
-              ? 'bg-g-border text-g-text'
-              : 'text-g-text-secondary hover:bg-g-surface-hover'
-          )}
-        >
-          <CalendarClock className="h-3.5 w-3.5" />
-          スケジュール
-        </button>
+      <div className="flex items-center gap-0.5 border-b border-g-border bg-g-bg px-3 py-1">
+        {([
+          { key: 'today' as ViewType, label: 'Today', Icon: Sun },
+          { key: 'list' as ViewType, label: 'リスト', Icon: List },
+          { key: 'schedule' as ViewType, label: 'スケジュール', Icon: CalendarClock },
+        ]).map(({ key, label, Icon }) => (
+          <button
+            key={key}
+            onClick={() => setView(key)}
+            className={cn(
+              'flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
+              view === key
+                ? 'bg-g-border text-g-text'
+                : 'text-g-text-secondary hover:bg-g-surface-hover',
+            )}
+          >
+            <Icon className="h-3 w-3" />
+            {label}
+          </button>
+        ))}
 
         {view === 'list' && (
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-0.5">
             <ArrowUpDown className="h-3 w-3 text-g-text-muted" />
             {(Object.keys(sortLabels) as SortKey[]).map((key) => (
               <button
                 key={key}
                 onClick={() => setSortKey(key)}
                 className={cn(
-                  'rounded-md px-2 py-1 text-[11px] transition-colors',
+                  'rounded px-1.5 py-0.5 text-[11px] transition-colors',
                   sortKey === key
                     ? 'bg-[#4285F4]/10 font-medium text-[#4285F4]'
-                    : 'text-g-text-muted hover:bg-g-surface-hover hover:text-g-text-secondary'
+                    : 'text-g-text-muted hover:bg-g-surface-hover hover:text-g-text-secondary',
                 )}
               >
                 {sortLabels[key]}
