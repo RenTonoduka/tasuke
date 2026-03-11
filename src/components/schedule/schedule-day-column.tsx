@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useMemo, memo } from 'react';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
-import { CalendarPlus, CalendarCheck, RefreshCw, Trash2, Clock, X, Pencil, Check } from 'lucide-react';
+import { CalendarPlus, CalendarCheck, RefreshCw, Trash2, Clock, X, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   HOUR_HEIGHT,

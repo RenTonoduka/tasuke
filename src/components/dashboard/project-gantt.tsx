@@ -306,7 +306,7 @@ function DashboardGanttRow({
     };
   }, [task, rangeStart, today]);
 
-  const color = PRIORITY_COLORS[task.priority] ?? '#4285F4';
+  const color = PRIORITY_COLORS[task.priority] ?? PRIORITY_COLORS.P3;
   const isDone = task.status === 'DONE';
 
   return (

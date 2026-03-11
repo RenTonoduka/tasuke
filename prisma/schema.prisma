@@ -243,6 +243,7 @@ model Task {
   @@index([projectId, status])
   @@index([sectionId])
   @@index([dueDate])
+  @@index([completedAt])
   @@index([githubIssueNodeId])
 }
 

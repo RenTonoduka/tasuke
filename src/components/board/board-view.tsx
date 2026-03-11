@@ -76,7 +76,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
   );
   const emptySensors = useSensors();
   const sensors = isDndDisabled ? emptySensors : activeSensors;
-  const totalFilteredTasks = filteredSections.reduce((sum, s) => sum + s.tasks.length, 0);
+  const totalFilteredTasks = useMemo(() => filteredSections.reduce((sum, s) => sum + s.tasks.length, 0), [filteredSections]);
 
   // [FIX] Clean up pointer listeners on unmount to prevent memory leaks
   useEffect(() => {
@@ -263,7 +263,6 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
       });
 
       if (res.ok && movedAcrossSections && draggedTask) {
-        const sourceSectionName = sections.find((s) => s.id === dragSource.sectionId)?.name ?? '';
         const destSectionName = updatedSection.name;
         toast({
           title: `「${draggedTask.title}」を「${destSectionName}」に移動`,
@@ -278,6 +277,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
                 }),
               });
               setSections(snapshot);
+              router.refresh();
             }}>
               元に戻す
             </ToastAction>
@@ -285,7 +285,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
         });
       }
     } catch {
-      setSections(initialSections);
+      setSections(snapshot);
       toast({ title: 'タスクの移動に失敗', variant: 'destructive' });
     }
   };
