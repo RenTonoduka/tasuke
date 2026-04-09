@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import { TaskStatus } from '@prisma/client';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
@@ -8,6 +9,21 @@ const fromTemplateSchema = z.object({
   templateId: z.string().min(1, 'テンプレートIDは必須です'),
   name: z.string().min(1, 'プロジェクト名は必須です').max(100),
 });
+
+// 既知のセクション名に対するデフォルトプリセット（色 + statusMapping）
+const DEFAULT_SECTION_PRESET: Record<string, { color: string; statusMapping: TaskStatus }> = {
+  'Todo': { color: '#9AA0A6', statusMapping: 'TODO' },
+  'todo': { color: '#9AA0A6', statusMapping: 'TODO' },
+  'TODO': { color: '#9AA0A6', statusMapping: 'TODO' },
+  'やること': { color: '#9AA0A6', statusMapping: 'TODO' },
+  '未着手': { color: '#9AA0A6', statusMapping: 'TODO' },
+  '進行中': { color: '#4285F4', statusMapping: 'IN_PROGRESS' },
+  'In Progress': { color: '#4285F4', statusMapping: 'IN_PROGRESS' },
+  '対応中': { color: '#4285F4', statusMapping: 'IN_PROGRESS' },
+  '完了': { color: '#34A853', statusMapping: 'DONE' },
+  'Done': { color: '#34A853', statusMapping: 'DONE' },
+  'done': { color: '#34A853', statusMapping: 'DONE' },
+};
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -52,7 +68,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         workspaceId: params.id,
         position: (maxPos._max.position ?? 0) + 1,
         sections: {
-          create: sectionNames.map((name, index) => ({ name, position: index })),
+          create: sectionNames.map((name, index) => {
+            const preset = DEFAULT_SECTION_PRESET[name];
+            return {
+              name,
+              position: index,
+              color: preset?.color ?? null,
+              statusMapping: preset?.statusMapping ?? null,
+            };
+          }),
         },
       },
       include: { sections: { orderBy: { position: 'asc' } } },

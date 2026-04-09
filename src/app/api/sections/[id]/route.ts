@@ -2,11 +2,13 @@ import { NextRequest } from 'next/server';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
+import { TaskStatus } from '@prisma/client';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 
 const updateSectionSchema = z.object({
   name: z.string().min(1).max(50).optional(),
   color: z.string().optional().nullable(),
+  statusMapping: z.nativeEnum(TaskStatus).optional().nullable(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {

@@ -6,7 +6,8 @@ import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils'
 import { logActivity } from '@/lib/activity';
 import type { TaskStatus } from '@prisma/client';
 
-const SECTION_STATUS_MAP: Record<string, TaskStatus> = {
+// statusMapping が null の（＝旧データや未指定の）セクションのための名前ベースフォールバック
+const SECTION_NAME_FALLBACK: Record<string, TaskStatus> = {
   'todo': 'TODO',
   'Todo': 'TODO',
   'TODO': 'TODO',
@@ -48,10 +49,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (data.sectionId) {
       const targetSection = await prisma.section.findUnique({
         where: { id: data.sectionId },
-        select: { name: true },
+        select: { name: true, statusMapping: true },
       });
       if (targetSection) {
-        const mappedStatus = SECTION_STATUS_MAP[targetSection.name];
+        // 優先: セクションに設定された statusMapping
+        // フォールバック: セクション名ベースのハードコードマップ（旧データ用）
+        const mappedStatus =
+          targetSection.statusMapping ?? SECTION_NAME_FALLBACK[targetSection.name];
         if (mappedStatus) {
           updateData.status = mappedStatus;
           updateData.completedAt = mappedStatus === 'DONE' ? new Date() : null;

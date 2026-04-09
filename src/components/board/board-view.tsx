@@ -14,8 +14,9 @@ import {
   type DragOverEvent,
   type DropAnimation,
 } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
+import { arrayMove, SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { BoardColumn } from './board-column';
+import { AddColumnButton } from './add-column-button';
 import { TaskCard } from './task-card';
 import { useFilterStore } from '@/stores/filter-store';
 import { useSubtaskExpand } from '@/hooks/use-subtask-expand';
@@ -26,13 +27,18 @@ import { SearchX } from 'lucide-react';
 import { useDragToProjectStore } from '@/stores/drag-to-project-store';
 import { toast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
-import type { Section, Task } from '@/types';
+import type { Section, Task, TaskStatusValue } from '@/types';
 
-const SECTION_STATUS_MAP: Record<string, 'TODO' | 'IN_PROGRESS' | 'DONE'> = {
+// statusMapping が null の旧データ用の名前ベースフォールバック
+const SECTION_NAME_FALLBACK: Record<string, TaskStatusValue> = {
   'todo': 'TODO', 'Todo': 'TODO', 'TODO': 'TODO', 'やること': 'TODO', '未着手': 'TODO',
   '進行中': 'IN_PROGRESS', 'In Progress': 'IN_PROGRESS', '対応中': 'IN_PROGRESS',
   '完了': 'DONE', 'Done': 'DONE', 'done': 'DONE',
 };
+
+function resolveSectionStatus(section: Pick<Section, 'name' | 'statusMapping'>): TaskStatusValue | undefined {
+  return section.statusMapping ?? SECTION_NAME_FALLBACK[section.name];
+}
 
 const DROP_ANIMATION: DropAnimation = {
   duration: 200,
@@ -53,6 +59,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const pointerRef = useRef<{ x: number; y: number } | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
   const { expanded: stExpanded, subtasks: stSubtasks, loading: stLoading, toggle: stToggle, toggleStatus: stToggleStatus, deleteSubtask: stDelete } = useSubtaskExpand();
@@ -92,6 +99,11 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
+    // Column drag
+    if (active.data.current?.type === 'column') {
+      setActiveColumnId(active.data.current.sectionId as string);
+      return;
+    }
     const task = active.data.current?.task as Task | undefined;
     if (task) {
       setActiveTask(task);
@@ -118,6 +130,9 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     if (!over) return;
+
+    // Column drag: skip (handled in handleDragEnd)
+    if (active.data.current?.type === 'column') return;
 
     const activeId = active.id as string;
     const overId = over.id as string;
@@ -146,7 +161,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
           const overIndex = s.tasks.findIndex((t) => t.id === overId);
           const insertIndex = overIndex >= 0 ? overIndex : s.tasks.length;
           const newTasks = [...s.tasks];
-          const mappedStatus = SECTION_STATUS_MAP[s.name];
+          const mappedStatus = resolveSectionStatus(s);
           newTasks.splice(insertIndex, 0, {
             ...task,
             sectionId: s.id,
@@ -161,6 +176,44 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+
+    // Column drag end
+    if (active.data.current?.type === 'column') {
+      setActiveColumnId(null);
+      if (!over || active.id === over.id) return;
+      const activeSectionId = active.data.current.sectionId as string;
+      const overData = over.data.current;
+      const overSectionId =
+        overData?.type === 'column' ? (overData.sectionId as string) : null;
+      if (!overSectionId || activeSectionId === overSectionId) return;
+
+      const prevSnapshot = sectionsRef.current.map((s) => ({ ...s, tasks: [...s.tasks] }));
+      setSections((prev) => {
+        const oldIndex = prev.findIndex((s) => s.id === activeSectionId);
+        const newIndex = prev.findIndex((s) => s.id === overSectionId);
+        if (oldIndex === -1 || newIndex === -1) return prev;
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+
+      // Persist new order
+      const reordered = sectionsRef.current;
+      const payload = {
+        sections: reordered.map((s, idx) => ({ id: s.id, position: idx })),
+      };
+      try {
+        const res = await fetch(`/api/projects/${projectId}/sections`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error('failed');
+      } catch {
+        setSections(prevSnapshot);
+        toast({ title: 'カラムの並べ替えに失敗', variant: 'destructive' });
+      }
+      return;
+    }
+
     const draggedTask = activeTask;
     const dragSource = dragSourceRef.current;
     setActiveTask(null);
@@ -328,6 +381,51 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
     }
   };
 
+  const handleCreateSection = async (name: string) => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/sections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) {
+        toast({ title: 'カラムの作成に失敗', variant: 'destructive' });
+        return;
+      }
+      const payload = await res.json();
+      const created = payload?.data ?? payload;
+      setSections((prev) => {
+        const next = [...prev, { ...created, tasks: [] } as Section];
+        onSectionsChange?.(next);
+        return next;
+      });
+    } catch {
+      toast({ title: 'カラムの作成に失敗', variant: 'destructive' });
+    }
+  };
+
+  const handleUpdateSection = async (
+    sectionId: string,
+    data: { color?: string | null; statusMapping?: TaskStatusValue | null },
+  ) => {
+    // Optimistic update
+    const snapshot = sectionsRef.current.map((s) => ({ ...s, tasks: [...s.tasks] }));
+    setSections((prev) =>
+      prev.map((s) => (s.id === sectionId ? { ...s, ...data } : s)),
+    );
+    try {
+      const res = await fetch(`/api/sections/${sectionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('failed');
+    } catch {
+      setSections(snapshot);
+      toast({ title: 'カラムの更新に失敗', variant: 'destructive' });
+    }
+  };
+
   const handleAddTask = async (sectionId: string, title: string) => {
     try {
       const res = await fetch(`/api/projects/${projectId}/tasks`, {
@@ -362,6 +460,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
       onDragEnd={handleDragEnd}
       onDragCancel={() => {
         setActiveTask(null);
+        setActiveColumnId(null);
         dragSourceRef.current = null;
         cleanupRef.current?.();
         cleanupRef.current = null;
@@ -369,26 +468,34 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
         useDragToProjectStore.getState().reset();
       }}
     >
-      <div className="relative flex gap-4 overflow-x-auto p-4">
+      <div className="relative flex items-start gap-4 overflow-x-auto p-4">
         {logoUrl && (
           <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center opacity-[0.03]">
             <img src={logoUrl} alt="" className="max-h-[60%] max-w-[60%] object-contain" />
           </div>
         )}
-        {filteredSections.map((section, index) => (
-          <BoardColumn
-            key={section.id}
-            section={section}
-            onAddTask={handleAddTask}
-            onRenameSection={handleRenameSection}
-            onDeleteSection={handleDeleteSection}
-            listenNewTask={index === 0}
-            subtaskState={{ expanded: stExpanded, subtasks: stSubtasks, loading: stLoading }}
-            onToggleSubtask={stToggle}
-            onToggleSubtaskStatus={stToggleStatus}
-            onDeleteSubtask={stDelete}
-          />
-        ))}
+        <SortableContext
+          items={filteredSections.map((s) => `column-${s.id}`)}
+          strategy={horizontalListSortingStrategy}
+        >
+          {filteredSections.map((section, index) => (
+            <BoardColumn
+              key={section.id}
+              section={section}
+              onAddTask={handleAddTask}
+              onRenameSection={handleRenameSection}
+              onDeleteSection={handleDeleteSection}
+              onUpdateSection={handleUpdateSection}
+              listenNewTask={index === 0}
+              subtaskState={{ expanded: stExpanded, subtasks: stSubtasks, loading: stLoading }}
+              onToggleSubtask={stToggle}
+              onToggleSubtaskStatus={stToggleStatus}
+              onDeleteSubtask={stDelete}
+              sortableDisabled={isDndDisabled}
+            />
+          ))}
+        </SortableContext>
+        {!isDndDisabled && <AddColumnButton onAdd={handleCreateSection} />}
       </div>
       {isFiltered && totalFilteredTasks === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-g-text-muted">
@@ -398,7 +505,25 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
       )}
 
       <DragOverlay dropAnimation={DROP_ANIMATION}>
-        {activeTask ? <TaskCard task={activeTask} overlay /> : null}
+        {activeTask ? (
+          <TaskCard task={activeTask} overlay />
+        ) : activeColumnId ? (
+          (() => {
+            const s = sections.find((sec) => sec.id === activeColumnId);
+            if (!s) return null;
+            return (
+              <div className="w-[280px] rounded-lg bg-g-surface opacity-90 shadow-lg">
+                <div className="h-1" style={{ backgroundColor: s.color ?? '#E0E0E0' }} />
+                <div className="px-3 py-2 text-sm font-semibold text-g-text">
+                  {s.name}{' '}
+                  <span className="ml-1 rounded-full bg-g-border px-2 py-0.5 text-xs text-g-text-secondary">
+                    {s.tasks.length}
+                  </span>
+                </div>
+              </div>
+            );
+          })()
+        ) : null}
       </DragOverlay>
     </DndContext>
   );

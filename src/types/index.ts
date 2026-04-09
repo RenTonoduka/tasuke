@@ -49,11 +49,14 @@ export interface Task {
   _count: { subtasks: number };
 }
 
+export type TaskStatusValue = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'ARCHIVED';
+
 export interface Section {
   id: string;
   name: string;
   position: number;
   color: string | null;
+  statusMapping: TaskStatusValue | null;
   projectId: string;
   tasks: Task[];
 }

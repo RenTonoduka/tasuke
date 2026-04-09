@@ -1,5 +1,21 @@
 import prisma from '@/lib/prisma';
+import { TaskStatus } from '@prisma/client';
 import { getAccessibleProjectIds } from '@/lib/project-access';
+
+// 既知のセクション名に対するデフォルトプリセット（色 + statusMapping）
+const DEFAULT_SECTION_PRESET: Record<string, { color: string; statusMapping: TaskStatus }> = {
+  'Todo': { color: '#9AA0A6', statusMapping: 'TODO' },
+  'todo': { color: '#9AA0A6', statusMapping: 'TODO' },
+  'TODO': { color: '#9AA0A6', statusMapping: 'TODO' },
+  'やること': { color: '#9AA0A6', statusMapping: 'TODO' },
+  '未着手': { color: '#9AA0A6', statusMapping: 'TODO' },
+  '進行中': { color: '#4285F4', statusMapping: 'IN_PROGRESS' },
+  'In Progress': { color: '#4285F4', statusMapping: 'IN_PROGRESS' },
+  '対応中': { color: '#4285F4', statusMapping: 'IN_PROGRESS' },
+  '完了': { color: '#34A853', statusMapping: 'DONE' },
+  'Done': { color: '#34A853', statusMapping: 'DONE' },
+  'done': { color: '#34A853', statusMapping: 'DONE' },
+};
 import { getGoogleClient, getCalendarClient, getTasksClient } from '@/lib/google';
 import { findFreeSlots, generateScheduleSuggestions } from '@/lib/schedule';
 import type { CalendarEvent, SchedulableTask } from '@/lib/schedule';
@@ -342,9 +358,9 @@ export async function handleProjectCreate(
         position: (maxPos._max.position ?? 0) + 1,
         sections: {
           create: [
-            { name: 'Todo', position: 0 },
-            { name: '進行中', position: 1 },
-            { name: '完了', position: 2 },
+            { name: 'Todo', position: 0, color: '#9AA0A6', statusMapping: 'TODO' },
+            { name: '進行中', position: 1, color: '#4285F4', statusMapping: 'IN_PROGRESS' },
+            { name: '完了', position: 2, color: '#34A853', statusMapping: 'DONE' },
           ],
         },
       },
@@ -1772,7 +1788,17 @@ export async function handleProjectFromTemplate(
         color: template.color,
         workspaceId: ctx.workspaceId,
         position: (maxPos._max.position ?? 0) + 1,
-        sections: { create: sectionNames.map((name, index) => ({ name, position: index })) },
+        sections: {
+          create: sectionNames.map((name, index) => {
+            const preset = DEFAULT_SECTION_PRESET[name];
+            return {
+              name,
+              position: index,
+              color: preset?.color ?? null,
+              statusMapping: preset?.statusMapping ?? null,
+            };
+          }),
+        },
       },
       include: { sections: { orderBy: { position: 'asc' } } },
     });
