@@ -9,6 +9,7 @@ import {
   useSensor,
   useSensors,
   closestCenter,
+  type CollisionDetection,
   type DragStartEvent,
   type DragEndEvent,
   type DragOverEvent,
@@ -84,6 +85,20 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
   const emptySensors = useSensors();
   const sensors = isDndDisabled ? emptySensors : activeSensors;
   const totalFilteredTasks = useMemo(() => filteredSections.reduce((sum, s) => sum + s.tasks.length, 0), [filteredSections]);
+
+  // Custom collision detection: when dragging a column, only consider other columns as targets
+  // (otherwise `section-${id}` droppable or task cards would win and column reorder wouldn't fire)
+  const collisionDetection: CollisionDetection = useCallback((args) => {
+    const activeType = args.active.data.current?.type;
+    if (activeType === 'column') {
+      const columnContainers = args.droppableContainers.filter(
+        (c) => c.data.current?.type === 'column' && c.id !== args.active.id,
+      );
+      return closestCenter({ ...args, droppableContainers: columnContainers });
+    }
+    // Task drag: keep the existing closestCenter behavior
+    return closestCenter(args);
+  }, []);
 
   // [FIX] Clean up pointer listeners on unmount to prevent memory leaks
   useEffect(() => {
@@ -188,15 +203,13 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
       if (!overSectionId || activeSectionId === overSectionId) return;
 
       const prevSnapshot = sectionsRef.current.map((s) => ({ ...s, tasks: [...s.tasks] }));
-      setSections((prev) => {
-        const oldIndex = prev.findIndex((s) => s.id === activeSectionId);
-        const newIndex = prev.findIndex((s) => s.id === overSectionId);
-        if (oldIndex === -1 || newIndex === -1) return prev;
-        return arrayMove(prev, oldIndex, newIndex);
-      });
+      const oldIndex = prevSnapshot.findIndex((s) => s.id === activeSectionId);
+      const newIndex = prevSnapshot.findIndex((s) => s.id === overSectionId);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reordered = arrayMove(prevSnapshot, oldIndex, newIndex);
+      setSections(reordered);
 
       // Persist new order
-      const reordered = sectionsRef.current;
       const payload = {
         sections: reordered.map((s, idx) => ({ id: s.id, position: idx })),
       };
@@ -454,7 +467,7 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={collisionDetection}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
