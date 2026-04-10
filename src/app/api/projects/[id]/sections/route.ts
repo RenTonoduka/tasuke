@@ -2,11 +2,14 @@ import { NextRequest } from 'next/server';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
+import { TaskStatus } from '@prisma/client';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { canAccessProject } from '@/lib/project-access';
 
 const createSectionSchema = z.object({
   name: z.string().min(1).max(50),
+  color: z.string().max(20).optional().nullable(),
+  statusMapping: z.nativeEnum(TaskStatus).optional().nullable(),
 });
 
 const reorderSchema = z.object({
@@ -61,6 +64,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         name: data.name,
         projectId: params.id,
         position: (maxPos._max.position ?? 0) + 1,
+        color: data.color ?? null,
+        statusMapping: data.statusMapping ?? null,
       },
     });
 

@@ -71,7 +71,10 @@ export function TaskCard({
         isDragging && 'opacity-40 scale-[0.98]',
         overlay && 'shadow-xl ring-2 ring-[#4285F4]/30 scale-[1.02]'
       )}
+      role="button"
+      tabIndex={0}
       onClick={() => openPanel(task.id)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPanel(task.id); } }}
     >
       <div className="flex items-start gap-2">
         <button

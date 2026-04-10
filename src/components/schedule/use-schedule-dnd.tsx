@@ -40,9 +40,6 @@ export function useScheduleDnd({
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
   const droppingRef = useRef(false);
 
-  // Keep original position for undo
-  const originalPositionRef = useRef<{ date: string; startMin: number; endMin: number } | null>(null);
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
@@ -77,21 +74,6 @@ export function useScheduleDnd({
     const data = event.active.data.current as ScheduleDragData;
     setActiveDragData(data);
 
-    // Capture original position for undo
-    if (data.type === 'timeline-event') {
-      // Find the event in the DOM to get its current position
-      const activeEl = document.querySelector(`[data-schedule-item]`)?.closest(`[id="event-${data.calendarEventId}"]`);
-      // We'll capture from the indicator on drag end
-      originalPositionRef.current = null;
-    } else if (data.type === 'timeline-task' && data.fromSlotKey) {
-      const [, date, startTime] = data.fromSlotKey.split('|');
-      const block = registeredBlocks.get(data.fromSlotKey);
-      if (block) {
-        const startMin = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1]);
-        const endMin = parseInt(block.endTime.split(':')[0]) * 60 + parseInt(block.endTime.split(':')[1]);
-        originalPositionRef.current = { date, startMin, endMin };
-      }
-    }
   }, [registeredBlocks]);
 
   const handleDragMove = useCallback(
@@ -303,7 +285,6 @@ export function useScheduleDnd({
         }
       } finally {
         droppingRef.current = false;
-        originalPositionRef.current = null;
       }
     },
     [activeDragData, dropIndicator, registeredBlocks, setRegisteredBlocks, setRegisteringSlot, fetchSchedule],
@@ -312,7 +293,6 @@ export function useScheduleDnd({
   const handleDragCancel = useCallback(() => {
     setActiveDragData(null);
     setDropIndicator(null);
-    originalPositionRef.current = null;
   }, []);
 
   return {

@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Plus } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
 
 interface AddTaskInlineProps {
   onAdd: (title: string) => void;
@@ -14,6 +13,7 @@ export function AddTaskInline({ onAdd, listenNewTask }: AddTaskInlineProps) {
   const [title, setTitle] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const composingRef = useRef(false);
+  const escapingRef = useRef(false);
 
   useEffect(() => {
     if (!listenNewTask) return;
@@ -26,14 +26,14 @@ export function AddTaskInline({ onAdd, listenNewTask }: AddTaskInlineProps) {
   }, [listenNewTask]);
 
   const handleSubmit = () => {
+    if (escapingRef.current) {
+      escapingRef.current = false;
+      return;
+    }
     const trimmed = title.trim();
     if (trimmed) {
       onAdd(trimmed);
       setTitle('');
-      toast({
-        title: '担当者が未設定です',
-        description: 'タスクをクリックして担当者を設定してください',
-      });
     }
     setIsEditing(false);
   };
@@ -64,7 +64,10 @@ export function AddTaskInline({ onAdd, listenNewTask }: AddTaskInlineProps) {
         onKeyDown={(e) => {
           if (e.nativeEvent.isComposing || composingRef.current) return;
           if (e.key === 'Enter') handleSubmit();
-          if (e.key === 'Escape') setIsEditing(false);
+          if (e.key === 'Escape') {
+            escapingRef.current = true;
+            setIsEditing(false);
+          }
         }}
         onBlur={handleSubmit}
         placeholder="タスク名を入力..."

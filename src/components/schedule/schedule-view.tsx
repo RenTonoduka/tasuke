@@ -274,31 +274,46 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
           const block = registeredBlocks.get(slotKey);
           if (block) {
             try {
-              await fetch('/api/calendar/schedule-block', {
+              const deleteRes = await fetch('/api/calendar/schedule-block', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ scheduleBlockId: block.id }),
               });
-              const res = await fetch('/api/calendar/schedule-block', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  taskId: resizing.id,
-                  date,
-                  start: minutesToTime(startMin),
-                  end: minutesToTime(finalEndMin),
-                }),
-              });
-              if (res.ok) {
-                const newBlock = await res.json();
-                setRegisteredBlocks((prev) => {
-                  const m = new Map(prev);
-                  m.delete(slotKey);
-                  m.set(slotKey, { id: newBlock.id, endTime: minutesToTime(finalEndMin) });
-                  return m;
-                });
-              } else {
+              if (!deleteRes.ok) {
                 toast({ title: 'タスクブロックのリサイズに失敗', variant: 'destructive' });
+              } else {
+                const res = await fetch('/api/calendar/schedule-block', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    taskId: resizing.id,
+                    date,
+                    start: minutesToTime(startMin),
+                    end: minutesToTime(finalEndMin),
+                  }),
+                });
+                if (res.ok) {
+                  const newBlock = await res.json();
+                  setRegisteredBlocks((prev) => {
+                    const m = new Map(prev);
+                    m.delete(slotKey);
+                    m.set(slotKey, { id: newBlock.id, endTime: minutesToTime(finalEndMin) });
+                    return m;
+                  });
+                } else {
+                  // POST失敗→旧ブロック復元
+                  await fetch('/api/calendar/schedule-block', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      taskId: resizing.id,
+                      date,
+                      start: minutesToTime(startMin),
+                      end: block.endTime,
+                    }),
+                  });
+                  toast({ title: 'タスクブロックのリサイズに失敗', variant: 'destructive' });
+                }
               }
             } catch {
               toast({ title: 'タスクブロックのリサイズに失敗', variant: 'destructive' });

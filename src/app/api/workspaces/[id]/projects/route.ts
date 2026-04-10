@@ -54,9 +54,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         ...(groupId && { groupId }),
         sections: {
           create: [
-            { name: 'Todo', position: 0 },
-            { name: '進行中', position: 1 },
-            { name: '完了', position: 2 },
+            { name: 'Todo', position: 0, color: '#9AA0A6', statusMapping: 'TODO' },
+            { name: '進行中', position: 1, color: '#4285F4', statusMapping: 'IN_PROGRESS' },
+            { name: '完了', position: 2, color: '#34A853', statusMapping: 'DONE' },
           ],
         },
         ...(data.isPrivate && {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -86,48 +86,62 @@ export function MyTasksClient({ tasks: initialTasks, workspaceSlug }: MyTasksCli
     if (typeof taskId !== 'string') return;
     try {
       const res = await fetch(`/api/tasks/${taskId}`);
-      if (res.ok) {
-        const updated = await res.json();
-        setTasks((prev) =>
-          prev.map((t) => t.id === taskId ? {
-            ...t,
-            title: updated.title,
-            status: updated.status,
-            priority: updated.priority,
-            dueDate: updated.dueDate,
-            assignees: updated.assignees,
-            labels: updated.labels,
-            project: updated.project,
-          } : t)
-        );
-      }
-    } catch {}
+      if (!res.ok) return;
+      const updated = await res.json();
+      setTasks((prev) =>
+        prev.map((t) => t.id === taskId ? {
+          ...t,
+          title: updated.title,
+          status: updated.status,
+          priority: updated.priority,
+          dueDate: updated.dueDate,
+          assignees: updated.assignees,
+          labels: updated.labels,
+          project: updated.project,
+        } : t)
+      );
+    } catch {
+      // ネットワークエラー時はリフレッシュをスキップ
+    }
+  }, []);
+
+  // タスク削除イベントでリストから除去
+  const removeTask = useCallback((taskId: unknown) => {
+    if (typeof taskId !== 'string') return;
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
   }, []);
 
   useEffect(() => {
-    const unsub = eventBus.on(EVENTS.TASK_UPDATED, refreshTask);
-    return unsub;
-  }, [refreshTask]);
+    const unsub1 = eventBus.on(EVENTS.TASK_UPDATED, refreshTask);
+    const unsub2 = eventBus.on(EVENTS.TASK_DELETED, removeTask);
+    return () => { unsub1(); unsub2(); };
+  }, [refreshTask, removeTask]);
 
-  const handleToggle = async (taskId: string, currentStatus: string) => {
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
+
+  const handleToggle = useCallback(async (taskId: string, currentStatus: string) => {
+    if (togglingIds.has(taskId)) return;
     const newStatus = currentStatus === 'DONE' ? 'TODO' : 'DONE';
+    // 楽観的更新
+    setTogglingIds((prev) => new Set(prev).add(taskId));
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)));
     try {
       await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-      setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
-      );
-    } catch (err) {
-      console.error('ステータス更新エラー:', err);
+    } catch {
+      // エラー時はロールバック
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: currentStatus } : t)));
+    } finally {
+      setTogglingIds((prev) => { const s = new Set(prev); s.delete(taskId); return s; });
     }
-  };
+  }, [togglingIds]);
 
-  const sorted = sortTasks(tasks, sortKey);
-  const pending = sorted.filter((t) => t.status !== 'DONE');
-  const done = sorted.filter((t) => t.status === 'DONE');
+  const sorted = useMemo(() => sortTasks(tasks, sortKey), [tasks, sortKey]);
+  const pending = useMemo(() => sorted.filter((t) => t.status !== 'DONE'), [sorted]);
+  const done = useMemo(() => sorted.filter((t) => t.status === 'DONE'), [sorted]);
 
   // Today ビュー用のセクション分け
   const todaySections = useMemo(() => {
