@@ -21,7 +21,7 @@ export default async function LandingPage() {
       {/* Header */}
       <header className="border-b border-gray-100">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <h1 className="text-xl font-bold text-gray-900">タス助</h1>
+          <h1 className="text-xl font-bold text-gray-900">Task Core</h1>
           <Link
             href="/login"
             className="rounded-lg bg-[#4285F4] px-5 py-2 text-sm font-medium text-white hover:bg-[#3367D6] transition-colors"
@@ -39,7 +39,7 @@ export default async function LandingPage() {
           シンプルに
         </h2>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-600">
-          タス助は、プロジェクト管理・タスク管理・スケジュール管理を一つにまとめたツールです。
+          Task Coreは、プロジェクト管理・タスク管理・スケジュール管理を一つにまとめたツールです。
           Googleカレンダーとの連携で、チームの生産性を最大化します。
         </p>
         <div className="mt-10">
@@ -88,7 +88,7 @@ export default async function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-gray-100 py-8">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 text-sm text-gray-500">
-          <span>&copy; {new Date().getFullYear()} タス助</span>
+          <span>&copy; {new Date().getFullYear()} Task Core</span>
           <div className="flex gap-6">
             <Link href="/terms" className="hover:text-gray-700">利用規約</Link>
             <Link href="/privacy" className="hover:text-gray-700">プライバシーポリシー</Link>

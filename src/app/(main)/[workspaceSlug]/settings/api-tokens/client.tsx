@@ -300,7 +300,7 @@ function SetupGuide() {
     <div className="rounded-lg border border-g-border overflow-hidden">
       <div className="bg-g-surface px-4 py-3 border-b border-g-border">
         <h3 className="text-sm font-semibold text-g-text">接続ガイド</h3>
-        <p className="text-xs text-g-text-muted mt-0.5">AIツールからタス助に接続する3つの方法</p>
+        <p className="text-xs text-g-text-muted mt-0.5">AIツールからTask Coreに接続する3つの方法</p>
       </div>
 
       {/* Claude Desktop (MCP) */}
@@ -333,7 +333,7 @@ function SetupGuide() {
         </p>
         <CodeBlock>{`# CLAUDE.md に追記
 
-## タス助 CLI
+## Task Core CLI
 タスク管理は \`tasuke\` CLIを使用。
 環境変数 TASUKE_API_TOKEN を設定済み。
 

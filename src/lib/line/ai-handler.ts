@@ -15,7 +15,7 @@ function getClient(): Anthropic {
 
 const TOOL_DEFINITION: Anthropic.Tool = {
   name: 'execute_cli',
-  description: 'タス助CLIコマンドを実行します。コマンド文字列を指定してください。',
+  description: 'Task Core CLIコマンドを実行します。コマンド文字列を指定してください。',
   input_schema: {
     type: 'object' as const,
     properties: {

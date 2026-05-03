@@ -1,5 +1,5 @@
 export const metadata = {
-  title: '利用規約 - タス助',
+  title: '利用規約 - Task Core',
 };
 
 export default function TermsPage() {
@@ -11,7 +11,7 @@ export default function TermsPage() {
       </div>
 
       <p>
-        この利用規約（以下「本規約」）は、タス助（以下「本サービス」）の利用条件を定めるものです。
+        この利用規約（以下「本規約」）は、Task Core（以下「本サービス」）の利用条件を定めるものです。
         本サービスをご利用いただくことにより、本規約に同意したものとみなします。
       </p>
 
