@@ -300,8 +300,34 @@ function SetupGuide() {
     <div className="rounded-lg border border-g-border overflow-hidden">
       <div className="bg-g-surface px-4 py-3 border-b border-g-border">
         <h3 className="text-sm font-semibold text-g-text">接続ガイド</h3>
-        <p className="text-xs text-g-text-muted mt-0.5">AIツールからTask Coreに接続する3つの方法</p>
+        <p className="text-xs text-g-text-muted mt-0.5">AIツールからTask Coreに接続する方法</p>
       </div>
+
+      {/* Claude Code (MCP) - 推奨 */}
+      <GuideSection icon={<Terminal className="h-4 w-4 text-[#4285F4]" />} title="Claude Code（MCP / 推奨）">
+        <p className="text-xs text-g-text-secondary">
+          ターミナルで以下のコマンドを1行実行するだけで接続完了します。
+        </p>
+        <CodeBlock>{`claude mcp add tasuke --transport http ${origin}/api/mcp \\
+  --header "Authorization: Bearer tsk_あなたのトークン"`}</CodeBlock>
+        <p className="text-xs text-g-text-secondary mt-2">
+          またはプロジェクト直下の <code className="rounded bg-g-surface px-1">.mcp.json</code> に以下を追記:
+        </p>
+        <CodeBlock>{`{
+  "mcpServers": {
+    "tasuke": {
+      "type": "http",
+      "url": "${origin}/api/mcp",
+      "headers": {
+        "Authorization": "Bearer tsk_あなたのトークン"
+      }
+    }
+  }
+}`}</CodeBlock>
+        <p className="text-xs text-g-text-muted">
+          追加後、Claude Codeを再起動すると <code className="rounded bg-g-surface px-1">mcp__tasuke__*</code> ツールが利用可能になります。
+        </p>
+      </GuideSection>
 
       {/* Claude Desktop (MCP) */}
       <GuideSection icon={<Monitor className="h-4 w-4 text-[#4285F4]" />} title="Claude Desktop（MCP）">
@@ -313,20 +339,17 @@ function SetupGuide() {
   "mcpServers": {
     "tasuke": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "${origin}/api/mcp"],
-      "env": {
-        "API_TOKEN": "tsk_あなたのトークン"
-      }
+      "args": ["-y", "mcp-remote", "${origin}/api/mcp", "--header", "Authorization: Bearer tsk_あなたのトークン"]
     }
   }
 }`}</CodeBlock>
         <p className="text-xs text-g-text-muted">
-          24ツール（タスクCRUD、プロジェクト管理、ダッシュボード等）が自動で読み込まれます。
+          タスクCRUD・プロジェクト管理・ダッシュボード等のツールが自動で読み込まれます。
         </p>
       </GuideSection>
 
-      {/* Claude Code (CLI) */}
-      <GuideSection icon={<Terminal className="h-4 w-4 text-[#34A853]" />} title="Claude Code（CLI）">
+      {/* Claude Code (CLI mode) */}
+      <GuideSection icon={<Terminal className="h-4 w-4 text-[#34A853]" />} title="Claude Code（CLIモード / リポジトリ作業者向け）">
         <p className="text-xs text-g-text-secondary">
           CLAUDE.mdに以下を記載すると、Claude CodeがCLIツールとして認識します。
           CLIHub方式でトークンコスト94%削減。
