@@ -9,7 +9,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-g-bg">
       <div className="w-full max-w-sm space-y-8 px-4">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-g-text">タス助</h1>
+          <h1 className="text-3xl font-bold text-g-text">Task Core</h1>
           <p className="mt-2 text-sm text-g-text-secondary">
             チームのタスク管理をシンプルに
           </p>

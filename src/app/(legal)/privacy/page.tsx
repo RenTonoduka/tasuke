@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'プライバシーポリシー - タス助',
+  title: 'プライバシーポリシー - Task Core',
 };
 
 export default function PrivacyPage() {
@@ -11,7 +11,7 @@ export default function PrivacyPage() {
       </div>
 
       <p>
-        タス助（以下「本サービス」）は、ユーザーのプライバシーを尊重し、個人情報の保護に努めます。
+        Task Core（以下「本サービス」）は、ユーザーのプライバシーを尊重し、個人情報の保護に努めます。
         本ポリシーでは、本サービスが収集・利用する情報について説明します。
       </p>
 
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
                 </tr>
                 <tr className="border-b border-g-border">
                   <td className="py-2 pr-4">Google Tasks</td>
-                  <td className="py-2">タス助のタスクをGoogle Tasksと同期</td>
+                  <td className="py-2">Task CoreのタスクをGoogle Tasksと同期</td>
                 </tr>
                 <tr className="border-b border-g-border">
                   <td className="py-2 pr-4">Google Drive（読み取り専用）</td>

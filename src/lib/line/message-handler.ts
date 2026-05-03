@@ -95,7 +95,7 @@ async function replyHelp(replyToken: string) {
   await replyMessage(replyToken, [{
     type: 'text',
     text: [
-      'タス助 LINE ボット',
+      'Task Core LINE ボット',
       '',
       'コマンド一覧:',
       '・ダッシュボード / db',

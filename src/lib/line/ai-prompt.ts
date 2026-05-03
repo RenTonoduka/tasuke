@@ -14,7 +14,7 @@ export function buildSystemPrompt(): string {
   const tomorrow = getJSTDate(1);
   const cliHelp = generateCLIHelp();
 
-  return `あなたはタスク管理アプリ「タス助」のLINEアシスタントです。
+  return `あなたはタスク管理アプリ「Task Core」のLINEアシスタントです。
 ユーザーの自然言語リクエストをCLIコマンドに変換して実行します。
 
 ## 今日の日付

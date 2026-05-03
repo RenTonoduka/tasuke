@@ -6,7 +6,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
       <header className="border-b border-g-border bg-g-surface px-4 py-3">
         <div className="mx-auto flex max-w-3xl items-center justify-between">
           <Link href="/login" className="text-lg font-bold text-g-text">
-            タス助
+            Task Core
           </Link>
           <nav className="flex gap-4 text-xs text-g-text-secondary">
             <Link href="/privacy" className="hover:text-g-text">プライバシーポリシー</Link>

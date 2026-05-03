@@ -50,14 +50,14 @@ async function handleFollow(event: LineWebhookEvent) {
     if (event.replyToken) {
       await replyMessage(event.replyToken, [{
         type: 'text',
-        text: 'おかえりなさい！タス助LINEボットです。\nタスク管理をLINEから行えます。\n\n「ヘルプ」と送信してコマンド一覧を確認できます。',
+        text: 'おかえりなさい！Task Core LINEボットです。\nタスク管理をLINEから行えます。\n\n「ヘルプ」と送信してコマンド一覧を確認できます。',
       }]);
     }
   } else {
     if (event.replyToken) {
       await replyMessage(event.replyToken, [{
         type: 'text',
-        text: `タス助LINEボットへようこそ！\n\nまずWebアプリからLINEログインで連携してください。\n${getAppUrl()}/login`,
+        text: `Task Core LINEボットへようこそ！\n\nまずWebアプリからLINEログインで連携してください。\n${getAppUrl()}/login`,
       }]);
     }
   }

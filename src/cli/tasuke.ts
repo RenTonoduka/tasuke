@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * タス助 CLI - MCP 76ツールを軽量CLIとして提供
+ * Task Core CLI - MCP 76ツールを軽量CLIとして提供
  *
  * CLIHub方式: 全スキーマを事前ロードせず、--help で遅延取得
  * → AIエージェントのトークンコスト94%削減
@@ -319,7 +319,7 @@ async function main() {
 
   // 引数なし or --help → コマンド一覧（軽量リスト）
   if (argv.length === 0 || argv[0] === '--help' || argv[0] === '-h') {
-    console.log('タス助 CLI v0.3.0\n');
+    console.log('Task Core CLI v0.3.0\n');
     console.log('Usage: tasuke <command> [options]\n');
     console.log('Commands:');
     const maxLen = Math.max(...COMMANDS.map((c) => c.name.length));
