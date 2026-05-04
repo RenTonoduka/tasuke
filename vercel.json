@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/drive-watch-renew",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/drive-poll",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
