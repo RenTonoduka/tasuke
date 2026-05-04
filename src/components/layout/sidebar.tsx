@@ -33,6 +33,7 @@ import {
   FolderOpen,
   Palette,
   ArrowRight,
+  FileText,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
@@ -667,6 +668,11 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
       label: 'インボックス',
       href: `/${currentWorkspaceSlug}/inbox`,
       icon: Inbox,
+    },
+    {
+      label: '議事録',
+      href: `/${currentWorkspaceSlug}/meetings`,
+      icon: FileText,
     },
     {
       label: 'AI秘書 (LINE)',
