@@ -582,6 +582,25 @@ model Meeting {
   @@index([createdAt])
 }
 
+model DriveWatchChannel {
+  id          String @id @default(cuid())
+  userId      String
+  workspaceId String
+
+  channelId      String    @unique
+  resourceId     String
+  pageToken      String
+  expiration     DateTime
+  enabled        Boolean   @default(true)
+  lastNotifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, workspaceId])
+  @@index([expiration])
+}
+
 model ExtractedTask {
   id        String              @id @default(cuid())
   meetingId String

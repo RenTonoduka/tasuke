@@ -785,6 +785,12 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
                 GitHub連携
               </Link>
             </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/${currentWorkspaceSlug}/settings/drive-watch`}>
+                <FileText className="mr-2 h-4 w-4" />
+                Drive議事録自動取込
+              </Link>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <button
