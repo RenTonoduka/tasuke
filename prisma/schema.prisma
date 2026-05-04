@@ -24,13 +24,14 @@ model User {
   projectMembers         ProjectMember[]
   taskAssignments        TaskAssignment[]
   comments               Comment[]
-  createdTasks           Task[]         @relation("CreatedBy")
+  createdTasks           Task[]                  @relation("CreatedBy")
   activities             Activity[]
   notifications          Notification[]
   googleTaskListMappings GoogleTaskListMapping[]
   apiTokens              ApiToken[]
   githubRepoMappings     GitHubRepoMapping[]
   lineUserMappings       LineUserMapping[]
+  createdMeetings        Meeting[]               @relation("MeetingCreatedBy")
 }
 
 model Account {
@@ -86,13 +87,14 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members           WorkspaceMember[]
-  projects          Project[]
-  projectGroups     ProjectGroup[]
-  labels            Label[]
-  projectTemplates  ProjectTemplate[]
-  apiTokens         ApiToken[]
-  lineUserMappings  LineUserMapping[]
+  members          WorkspaceMember[]
+  projects         Project[]
+  projectGroups    ProjectGroup[]
+  labels           Label[]
+  projectTemplates ProjectTemplate[]
+  apiTokens        ApiToken[]
+  lineUserMappings LineUserMapping[]
+  meetings         Meeting[]
 }
 
 model WorkspaceMember {
@@ -136,7 +138,7 @@ model Project {
   workspaceId String
   groupId     String?
 
-  workspace              Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace              Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   group                  ProjectGroup?           @relation(fields: [groupId], references: [id], onDelete: SetNull)
   sections               Section[]
   tasks                  Task[]
@@ -191,20 +193,20 @@ enum TaskStatus {
 }
 
 model Task {
-  id          String     @id @default(cuid())
-  title       String
-  description String?    @db.Text
-  priority    Priority   @default(P3)
-  status      TaskStatus @default(TODO)
-  position    Float      @default(0)
+  id             String     @id @default(cuid())
+  title          String
+  description    String?    @db.Text
+  priority       Priority   @default(P3)
+  status         TaskStatus @default(TODO)
+  position       Float      @default(0)
   dueDate        DateTime?
   startDate      DateTime?
   scheduledStart DateTime?
   scheduledEnd   DateTime?
   estimatedHours Float?
-  completedAt DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  completedAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   // Relations
   sectionId   String?
@@ -213,20 +215,20 @@ model Task {
   createdById String
 
   // Google sync
-  googleCalendarEventId   String?
-  googleCalendarSyncedAt  DateTime?
-  googleTaskId            String?
-  googleTaskSyncedAt      DateTime?
-  googleTaskListId        String?
-  importedFromGoogle      Boolean    @default(false)
+  googleCalendarEventId  String?
+  googleCalendarSyncedAt DateTime?
+  googleTaskId           String?
+  googleTaskSyncedAt     DateTime?
+  googleTaskListId       String?
+  importedFromGoogle     Boolean   @default(false)
 
   // GitHub sync
-  githubIssueId           Int?
-  githubIssueNodeId       String?
-  githubRepoFullName      String?
-  githubIssueSyncedAt     DateTime?
-  importedFromGitHub      Boolean    @default(false)
-  githubSyncSource        String?
+  githubIssueId       Int?
+  githubIssueNodeId   String?
+  githubRepoFullName  String?
+  githubIssueSyncedAt DateTime?
+  importedFromGitHub  Boolean   @default(false)
+  githubSyncSource    String?
 
   section   Section? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -234,12 +236,12 @@ model Task {
   subtasks  Task[]   @relation("Subtasks")
   createdBy User     @relation("CreatedBy", fields: [createdById], references: [id])
 
-  assignees       TaskAssignment[]
-  labels          TaskLabel[]
-  comments        Comment[]
-  activities      Activity[]
-  attachments     TaskAttachment[]
-  scheduleBlocks  ScheduleBlock[]
+  assignees      TaskAssignment[]
+  labels         TaskLabel[]
+  comments       Comment[]
+  activities     Activity[]
+  attachments    TaskAttachment[]
+  scheduleBlocks ScheduleBlock[]
 
   @@index([projectId, status])
   @@index([sectionId])
@@ -265,9 +267,9 @@ model ScheduleBlock {
   id                    String   @id @default(cuid())
   taskId                String
   googleCalendarEventId String
-  date                  String   // "2026-02-21"
-  startTime             String   // "09:00"
-  endTime               String   // "11:00"
+  date                  String // "2026-02-21"
+  startTime             String // "09:00"
+  endTime               String // "11:00"
   createdAt             DateTime @default(now())
 
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -520,4 +522,99 @@ model LineAIUsage {
   updatedAt  DateTime @updatedAt
 
   @@unique([lineUserId, date])
+}
+
+// ========== Meeting Extraction ==========
+
+enum MeetingStatus {
+  EXTRACTING
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  FAILED
+}
+
+enum MeetingSource {
+  MANUAL_PASTE
+  DRIVE_WATCH
+}
+
+enum ExtractedTaskStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  MERGED
+}
+
+model Meeting {
+  id          String        @id @default(cuid())
+  workspaceId String
+  createdById String
+  source      MeetingSource @default(MANUAL_PASTE)
+  status      MeetingStatus @default(EXTRACTING)
+
+  title       String
+  transcript  String    @db.Text
+  meetingDate DateTime?
+  attendees   Json?
+
+  // Phase B (Drive Watch) fields
+  driveFileId      String? @unique
+  driveFileName    String?
+  driveWebViewLink String?
+  driveOwnerEmail  String?
+
+  // LLM trace
+  llmModel        String?
+  llmInputTokens  Int?
+  llmOutputTokens Int?
+  failureReason   String? @db.Text
+
+  approvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy      User            @relation("MeetingCreatedBy", fields: [createdById], references: [id])
+  extractedTasks ExtractedTask[]
+
+  @@index([workspaceId, status])
+  @@index([createdAt])
+}
+
+model ExtractedTask {
+  id        String              @id @default(cuid())
+  meetingId String
+  status    ExtractedTaskStatus @default(PENDING)
+
+  // Traceability
+  originalQuote String @db.Text
+  confidence    Float
+
+  // LLM suggestions
+  suggestedTitle             String
+  suggestedDescription       String?   @db.Text
+  suggestedAssigneeId        String?
+  suggestedAssigneeName      String?
+  suggestedProjectId         String?
+  suggestedProjectCandidates Json?
+  suggestedDueDate           DateTime?
+  suggestedPriority          Priority  @default(P3)
+
+  // Final values (used at approval time)
+  finalTitle       String?
+  finalDescription String?   @db.Text
+  finalAssigneeId  String?
+  finalProjectId   String?
+  finalSectionId   String?
+  finalDueDate     DateTime?
+  finalPriority    Priority?
+  createdTaskId    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId, status])
 }
