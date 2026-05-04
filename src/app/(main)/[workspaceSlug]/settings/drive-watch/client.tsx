@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, RefreshCw, DownloadCloud } from 'lucide-react';
 
 interface ChannelInfo {
   id: string;
@@ -51,6 +51,25 @@ export function DriveWatchClient({ workspaceId }: { workspaceId: string; workspa
         return;
       }
       toast({ title: 'Drive自動取込を有効化しました' });
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pollNow = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/settings/drive-watch/poll-now?workspaceId=${workspaceId}`, {
+        method: 'POST',
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({ title: '取得に失敗しました', description: json.error ?? '', variant: 'destructive' });
+        return;
+      }
+      const data = json as { ingested: number; skipped: number };
+      toast({ title: `${data.ingested}件取り込み（${data.skipped}件スキップ）` });
       await load();
     } finally {
       setBusy(false);
@@ -114,7 +133,11 @@ export function DriveWatchClient({ workspaceId }: { workspaceId: string; workspa
                 )}
               </div>
             </div>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button size="sm" onClick={pollNow} disabled={busy}>
+                <DownloadCloud className="h-3.5 w-3.5" />
+                いますぐ取得
+              </Button>
               <Button variant="outline" size="sm" onClick={enable} disabled={busy}>
                 <RefreshCw className="h-3.5 w-3.5" />
                 再登録（renew）
@@ -130,6 +153,9 @@ export function DriveWatchClient({ workspaceId }: { workspaceId: string; workspa
                 無効化
               </Button>
             </div>
+            <p className="mt-2 text-xs text-emerald-700">
+              ※ 15分ごとに自動ポーリング（webhook通知の取りこぼし対策）
+            </p>
           </div>
         ) : (
           <div className="rounded-lg border border-g-border bg-white p-4">
