@@ -1017,6 +1017,44 @@ const TOOLS: ToolDef[] = [
     },
     readOnly: false,
   },
+  {
+    name: 'meeting_extract',
+    description: '議事録テキストからAIでタスク抽出（PENDING_REVIEWのMeeting作成）',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        transcript: { type: 'string' },
+        meetingDate: { type: 'string' },
+        attendees: { type: 'array', items: { type: 'object' } },
+      },
+      required: ['title', 'transcript'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'meeting_extract_from_drive',
+    description: 'Google Drive Doc(fileId)を取得してタスク抽出',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        fileId: { type: 'string' },
+        titleOverride: { type: 'string' },
+      },
+      required: ['fileId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'meeting_re_extract',
+    description: '既存Meetingを保存済みtranscriptで再抽出',
+    inputSchema: {
+      type: 'object',
+      properties: { meetingId: { type: 'string' } },
+      required: ['meetingId'],
+    },
+    readOnly: false,
+  },
 ];
 
 // ツール名 → ハンドラーのマッピング
@@ -1102,6 +1140,9 @@ const TOOL_HANDLERS: Record<string, (params: any, ctx: ToolContext) => Promise<h
   meeting_get: handlers.handleMeetingGet,
   extracted_task_update: handlers.handleExtractedTaskUpdate,
   meeting_approve: handlers.handleMeetingApprove,
+  meeting_extract: handlers.handleMeetingExtract,
+  meeting_extract_from_drive: handlers.handleMeetingExtractFromDrive,
+  meeting_re_extract: handlers.handleMeetingReExtract,
 };
 
 // JSON-RPC レスポンスヘルパー

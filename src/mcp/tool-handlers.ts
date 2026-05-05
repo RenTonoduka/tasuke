@@ -2418,17 +2418,22 @@ export async function handleProjectMemberList(
 // ==================== Meeting Tools ====================
 
 export async function handleMeetingList(
-  params: { status?: string; limit?: number },
+  params: { status?: string; limit?: number | string },
   ctx: ToolContext,
 ): Promise<ToolResult> {
   try {
+    // limitは文字列で来ることがあるのでcoerce
+    const limitNum = params.limit !== undefined && params.limit !== null
+      ? (typeof params.limit === 'number' ? params.limit : parseInt(String(params.limit), 10))
+      : 50;
+    const safeLimit = Number.isFinite(limitNum) && limitNum > 0 ? Math.min(limitNum, 200) : 50;
     const meetings = await prisma.meeting.findMany({
       where: {
         workspaceId: ctx.workspaceId,
         ...(params.status ? { status: params.status as 'EXTRACTING' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'FAILED' } : {}),
       },
       orderBy: { createdAt: 'desc' },
-      take: params.limit ?? 50,
+      take: safeLimit,
       select: {
         id: true,
         title: true,
@@ -2644,6 +2649,148 @@ export async function handleMeetingApprove(
     });
 
     return ok({ approved, rejected, skipped });
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function handleMeetingExtract(
+  params: {
+    title: string;
+    transcript: string;
+    meetingDate?: string;
+    attendees?: { name?: string; email?: string }[];
+  },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const { extractMeeting } = await import('@/lib/meeting/extractor');
+    const result = await extractMeeting({
+      workspaceId: ctx.workspaceId,
+      userId: ctx.userId,
+      title: params.title,
+      transcript: params.transcript,
+      meetingDate: params.meetingDate ? new Date(params.meetingDate) : null,
+      attendees: params.attendees,
+      source: 'MANUAL_PASTE',
+    });
+    if (result.failed) return err(result.failureReason ?? '抽出失敗');
+    return ok({
+      meetingId: result.meetingId,
+      extractedCount: result.extractedCount,
+      url: `meetings/${result.meetingId}`,
+    });
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function handleMeetingExtractFromDrive(
+  params: { fileId: string; titleOverride?: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const { extractMeeting } = await import('@/lib/meeting/extractor');
+    const { getGoogleClient, getDriveClient } = await import('@/lib/google');
+
+    const auth = await getGoogleClient(ctx.userId);
+    const drive = getDriveClient(auth);
+
+    // メタデータ取得
+    const meta = await drive.files.get({
+      fileId: params.fileId,
+      fields: 'id,name,mimeType,webViewLink,owners(emailAddress)',
+    });
+    if (meta.data.mimeType !== 'application/vnd.google-apps.document') {
+      return err('Googleドキュメント以外は取り込めません');
+    }
+
+    // 既存チェック（重複防止）
+    const existing = await prisma.meeting.findUnique({ where: { driveFileId: params.fileId } });
+    if (existing) {
+      return ok({
+        meetingId: existing.id,
+        extractedCount: 0,
+        url: `meetings/${existing.id}`,
+        note: '既に取込済み',
+      });
+    }
+
+    // text/plain export
+    const exportRes = await drive.files.export(
+      { fileId: params.fileId, mimeType: 'text/plain' },
+      { responseType: 'text' },
+    );
+    const transcript = String(exportRes.data ?? '');
+    if (transcript.trim().length < 10) {
+      return err('議事録本文が短すぎます');
+    }
+
+    const result = await extractMeeting({
+      workspaceId: ctx.workspaceId,
+      userId: ctx.userId,
+      title: params.titleOverride ?? meta.data.name ?? 'Untitled',
+      transcript,
+      source: 'DRIVE_WATCH',
+      driveFileId: meta.data.id ?? params.fileId,
+      driveFileName: meta.data.name ?? null,
+      driveWebViewLink: meta.data.webViewLink ?? null,
+      driveOwnerEmail: meta.data.owners?.[0]?.emailAddress ?? null,
+    });
+
+    if (result.failed) return err(result.failureReason ?? '抽出失敗');
+    return ok({
+      meetingId: result.meetingId,
+      extractedCount: result.extractedCount,
+      url: `meetings/${result.meetingId}`,
+    });
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function handleMeetingReExtract(
+  params: { meetingId: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const meeting = await prisma.meeting.findFirst({
+      where: { id: params.meetingId, workspaceId: ctx.workspaceId },
+    });
+    if (!meeting) return err('議事録が見つかりません');
+    if (meeting.status === 'APPROVED') return err('承認済みの議事録は再抽出できません');
+
+    // 既存のPENDING/REJECTED ExtractedTaskを削除
+    await prisma.extractedTask.deleteMany({
+      where: { meetingId: meeting.id, status: { in: ['PENDING', 'REJECTED'] } },
+    });
+
+    // 同じtranscriptで再実行
+    const { extractMeeting } = await import('@/lib/meeting/extractor');
+    // 既存Meetingレコードを使うので、新規Meeting作らずに再実行できる関数が必要
+    // → 簡易版: 既存Meetingを削除して新規作成
+    await prisma.meeting.delete({ where: { id: meeting.id } });
+
+    const result = await extractMeeting({
+      workspaceId: meeting.workspaceId,
+      userId: ctx.userId,
+      title: meeting.title,
+      transcript: meeting.transcript,
+      meetingDate: meeting.meetingDate,
+      attendees: (meeting.attendees as { name?: string; email?: string }[] | null) ?? undefined,
+      source: meeting.source,
+      driveFileId: meeting.driveFileId,
+      driveFileName: meeting.driveFileName,
+      driveWebViewLink: meeting.driveWebViewLink,
+      driveOwnerEmail: meeting.driveOwnerEmail,
+    });
+
+    if (result.failed) return err(result.failureReason ?? '再抽出失敗');
+    return ok({
+      meetingId: result.meetingId,
+      extractedCount: result.extractedCount,
+      note: '元のMeetingレコードは新規IDに置換されました',
+    });
   } catch (e: unknown) {
     return err(e instanceof Error ? e.message : String(e));
   }

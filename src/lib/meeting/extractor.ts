@@ -157,39 +157,64 @@ export async function extractMeeting(input: ExtractInput): Promise<ExtractResult
       select: { title: true, project: { select: { name: true } } },
     });
 
-    // 2.5) Gemini in Meet形式ならセクション分割し、要約+アクションアイテムのみLLMに渡す（90%コスト減）
+    // 2.5) Gemini in Meet形式の解析
     const parsed = parseMeetingDoc(transcript);
-    const llmTranscript = parsed.format === 'gemini' && parsed.llmInput ? parsed.llmInput : transcript;
 
-    // 3) LLM呼び出し
-    const userMessage = buildUserMessage({
-      meetingTitle: input.title,
-      meetingDate: input.meetingDate ?? null,
-      attendees: input.attendees ?? [],
-      projects,
-      members: memberLites,
-      recentTasks,
-      transcript: llmTranscript,
-    });
+    let llmTasks: LlmTask[] = [];
+    let usageInputTokens: number | null = null;
+    let usageOutputTokens: number | null = null;
 
-    const response = await getClient().messages.create({
-      model: MODEL,
-      max_tokens: MAX_OUTPUT_TOKENS,
-      system: [
-        { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
-      ],
-      tools: [TOOL],
-      tool_choice: { type: 'tool', name: TOOL_NAME },
-      messages: [{ role: 'user', content: userMessage }],
-    });
+    // 「次のステップ」セクションが構造化されていればLLM不要で直接抽出（最も確実・コストゼロ）
+    if (parsed.parsedActionItems.length > 0) {
+      llmTasks = parsed.parsedActionItems.map((a) => {
+        const matched = a.assigneeName ? matchMember(a.assigneeName, memberLites) : null;
+        return {
+          originalQuote: a.originalQuote,
+          suggestedTitle: a.title,
+          suggestedDescription: a.description,
+          suggestedAssigneeId: matched?.id ?? null,
+          suggestedAssigneeName: a.assigneeName,
+          suggestedProjectId: null,
+          suggestedProjectCandidates: undefined,
+          suggestedDueDate: null,
+          suggestedPriority: 'P3' as Priority,
+          confidence: 0.95, // 議事録に明示されたアクションは高信頼度
+        };
+      });
+    } else {
+      // フォールバック: LLMで抽出
+      const llmTranscript = parsed.format === 'gemini' && parsed.llmInput ? parsed.llmInput : transcript;
+      const userMessage = buildUserMessage({
+        meetingTitle: input.title,
+        meetingDate: input.meetingDate ?? null,
+        attendees: input.attendees ?? [],
+        projects,
+        members: memberLites,
+        recentTasks,
+        transcript: llmTranscript,
+      });
 
-    const toolUse = response.content.find(
-      (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === TOOL_NAME,
-    );
-    if (!toolUse) {
-      throw new Error('LLMがツール呼び出しを返しませんでした');
+      const response = await getClient().messages.create({
+        model: MODEL,
+        max_tokens: MAX_OUTPUT_TOKENS,
+        system: [
+          { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+        ],
+        tools: [TOOL],
+        tool_choice: { type: 'tool', name: TOOL_NAME },
+        messages: [{ role: 'user', content: userMessage }],
+      });
+
+      const toolUse = response.content.find(
+        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === TOOL_NAME,
+      );
+      if (!toolUse) {
+        throw new Error('LLMがツール呼び出しを返しませんでした');
+      }
+      llmTasks = ((toolUse.input as { tasks?: LlmTask[] })?.tasks) ?? [];
+      usageInputTokens = response.usage?.input_tokens ?? null;
+      usageOutputTokens = response.usage?.output_tokens ?? null;
     }
-    const llmTasks = ((toolUse.input as { tasks?: LlmTask[] })?.tasks) ?? [];
 
     // 4) 後処理: メンバー/プロジェクトIDを再検証 + name fallback マッチ
     const sanitized = llmTasks.map((t) => {
@@ -236,8 +261,8 @@ export async function extractMeeting(input: ExtractInput): Promise<ExtractResult
         data: {
           status: 'PENDING_REVIEW',
           llmModel: MODEL,
-          llmInputTokens: response.usage?.input_tokens ?? null,
-          llmOutputTokens: response.usage?.output_tokens ?? null,
+          llmInputTokens: usageInputTokens,
+          llmOutputTokens: usageOutputTokens,
         },
       }),
     ]);
