@@ -134,7 +134,7 @@ export function InboxClient({ initialNotifications }: InboxClientProps) {
               onClick={() => handleClick(n)}
               className={cn(
                 'flex w-full items-start gap-4 px-5 py-4 text-left transition-colors hover:bg-g-surface',
-                !n.read && 'bg-[#EEF3FE] hover:bg-[#E8F0FD]'
+                !n.read && 'bg-[#EEF3FE] dark:bg-blue-950/40 hover:bg-[#E8F0FD] dark:hover:bg-blue-950/60'
               )}
             >
               <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-g-bg shadow-sm border border-g-border">
