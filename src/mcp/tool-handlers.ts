@@ -2530,6 +2530,18 @@ export async function handleMeetingApprove(
         })
       ).map((p) => p.id),
     );
+    const allSections = await prisma.section.findMany({
+      where: { project: { workspaceId: ctx.workspaceId } },
+      select: { id: true, projectId: true, position: true },
+      orderBy: { position: 'asc' },
+    });
+    const sectionToProject = new Map(allSections.map((s) => [s.id, s.projectId]));
+    const defaultSectionByProject = new Map<string, string>();
+    for (const s of allSections) {
+      if (!defaultSectionByProject.has(s.projectId)) {
+        defaultSectionByProject.set(s.projectId, s.id);
+      }
+    }
     const memberUserIds = new Set(
       (
         await prisma.workspaceMember.findMany({
@@ -2579,13 +2591,22 @@ export async function handleMeetingApprove(
           continue;
         }
 
+        // セクション解決: finalSectionIdが有効ならそれ、それ以外はプロジェクト先頭セクション(Todo)
+        let sectionId: string | null = null;
+        if (et.finalSectionId && sectionToProject.get(et.finalSectionId) === finalProjectId) {
+          sectionId = et.finalSectionId;
+        }
+        if (!sectionId) {
+          sectionId = defaultSectionByProject.get(finalProjectId) ?? null;
+        }
+
         const created = await tx.task.create({
           data: {
             title: finalTitle,
             description: et.finalDescription ?? et.suggestedDescription ?? null,
             priority: finalPriority,
             projectId: finalProjectId,
-            sectionId: et.finalSectionId ?? null,
+            sectionId,
             createdById: ctx.userId,
             dueDate: finalDueDate ?? null,
             assignees: finalAssigneeId
@@ -2603,7 +2624,7 @@ export async function handleMeetingApprove(
             finalTitle,
             finalAssigneeId: finalAssigneeId ?? null,
             finalProjectId,
-            finalSectionId: et.finalSectionId ?? null,
+            finalSectionId: sectionId,
             finalDueDate: finalDueDate ?? null,
             finalPriority,
           },

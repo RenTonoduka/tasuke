@@ -36,14 +36,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         })
       ).map((p) => p.id),
     );
-    const sectionToProject = new Map(
-      (
-        await prisma.section.findMany({
-          where: { project: { workspaceId: meeting.workspaceId } },
-          select: { id: true, projectId: true },
-        })
-      ).map((s) => [s.id, s.projectId]),
-    );
+    const allSections = await prisma.section.findMany({
+      where: { project: { workspaceId: meeting.workspaceId } },
+      select: { id: true, projectId: true, position: true },
+      orderBy: { position: 'asc' },
+    });
+    const sectionToProject = new Map(allSections.map((s) => [s.id, s.projectId]));
+    // プロジェクト先頭セクション（position最小）= Todo相当
+    const defaultSectionByProject = new Map<string, string>();
+    for (const s of allSections) {
+      if (!defaultSectionByProject.has(s.projectId)) {
+        defaultSectionByProject.set(s.projectId, s.id);
+      }
+    }
     const memberUserIds = new Set(
       (
         await prisma.workspaceMember.findMany({
@@ -99,6 +104,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         if (finalSectionId) {
           const owner = sectionToProject.get(finalSectionId);
           if (owner === finalProjectId) sectionId = finalSectionId;
+        }
+        // 未指定 or 無効ならプロジェクト先頭セクション(Todo)に自動セット
+        if (!sectionId) {
+          sectionId = defaultSectionByProject.get(finalProjectId) ?? null;
         }
 
         if (finalAssigneeId && !memberUserIds.has(finalAssigneeId)) {
