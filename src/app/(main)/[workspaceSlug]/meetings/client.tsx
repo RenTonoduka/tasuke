@@ -26,11 +26,11 @@ const statusLabel: Record<MeetingListItem['status'], string> = {
 };
 
 const statusBadgeClass: Record<MeetingListItem['status'], string> = {
-  EXTRACTING: 'bg-blue-50 text-blue-700 border-blue-200',
-  PENDING_REVIEW: 'bg-amber-50 text-amber-700 border-amber-200',
-  APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  REJECTED: 'bg-gray-50 text-gray-600 border-gray-200',
-  FAILED: 'bg-red-50 text-red-700 border-red-200',
+  EXTRACTING: 'bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-200 border-blue-200 dark:border-blue-800',
+  PENDING_REVIEW: 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-200 border-amber-200 dark:border-amber-800',
+  APPROVED: 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800',
+  REJECTED: 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700',
+  FAILED: 'bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 border-red-200 dark:border-red-800',
 };
 
 export function MeetingsListClient({ workspaceId, workspaceSlug }: { workspaceId: string; workspaceSlug: string }) {
@@ -107,7 +107,7 @@ export function MeetingsListClient({ workspaceId, workspaceSlug }: { workspaceId
                         {m.title}
                       </Link>
                       {m.status === 'FAILED' && m.failureReason && (
-                        <p className="mt-0.5 text-xs text-red-600">{m.failureReason}</p>
+                        <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">{m.failureReason}</p>
                       )}
                     </td>
                     <td className="px-4 py-3">
