@@ -34,6 +34,7 @@ import {
   Palette,
   ArrowRight,
   FileText,
+  Mic,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
@@ -668,6 +669,11 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
       label: 'インボックス',
       href: `/${currentWorkspaceSlug}/inbox`,
       icon: Inbox,
+    },
+    {
+      label: 'クイックメモ',
+      href: `/${currentWorkspaceSlug}/quick-capture`,
+      icon: Mic,
     },
     {
       label: '議事録',

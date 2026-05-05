@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       transcript: data.transcript,
       meetingDate: data.meetingDate ? new Date(data.meetingDate) : null,
       attendees: data.attendees,
-      source: 'MANUAL_PASTE',
+      source: data.source ?? 'MANUAL_PASTE',
     });
 
     if (result.failed) {
