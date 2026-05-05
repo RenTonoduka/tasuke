@@ -952,6 +952,71 @@ const TOOLS: ToolDef[] = [
     },
     readOnly: true,
   },
+  // ── Meeting ──
+  {
+    name: 'meeting_list',
+    description: '議事録一覧を取得します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['EXTRACTING', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'FAILED'] },
+        limit: { type: 'number' },
+      },
+    },
+    readOnly: true,
+  },
+  {
+    name: 'meeting_get',
+    description: '議事録の詳細＋抽出タスクを取得',
+    inputSchema: {
+      type: 'object',
+      properties: { meetingId: { type: 'string' } },
+      required: ['meetingId'],
+    },
+    readOnly: true,
+  },
+  {
+    name: 'extracted_task_update',
+    description: '抽出タスクのfinal*編集（承認前）',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        extractedTaskId: { type: 'string' },
+        finalTitle: { type: 'string' },
+        finalDescription: { type: ['string', 'null'] },
+        finalAssigneeId: { type: ['string', 'null'] },
+        finalProjectId: { type: ['string', 'null'] },
+        finalSectionId: { type: ['string', 'null'] },
+        finalDueDate: { type: ['string', 'null'] },
+        finalPriority: { type: 'string', enum: ['P0', 'P1', 'P2', 'P3'] },
+      },
+      required: ['extractedTaskId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'meeting_approve',
+    description: '抽出タスクを一括承認/却下し本番Taskを作成',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        meetingId: { type: 'string' },
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              extractedTaskId: { type: 'string' },
+              action: { type: 'string', enum: ['approve', 'reject'] },
+            },
+            required: ['extractedTaskId', 'action'],
+          },
+        },
+      },
+      required: ['meetingId', 'items'],
+    },
+    readOnly: false,
+  },
 ];
 
 // ツール名 → ハンドラーのマッピング
@@ -1033,6 +1098,10 @@ const TOOL_HANDLERS: Record<string, (params: any, ctx: ToolContext) => Promise<h
   project_settings_update: handlers.handleProjectSettingsUpdate,
   project_reorder: handlers.handleProjectReorder,
   project_member_list: handlers.handleProjectMemberList,
+  meeting_list: handlers.handleMeetingList,
+  meeting_get: handlers.handleMeetingGet,
+  extracted_task_update: handlers.handleExtractedTaskUpdate,
+  meeting_approve: handlers.handleMeetingApprove,
 };
 
 // JSON-RPC レスポンスヘルパー

@@ -17,6 +17,7 @@ import { registerTemplateTools } from './tools/templates.js';
 import { registerGitHubTools } from './tools/github.js';
 import { registerGoogleTasksTools } from './tools/google-tasks.js';
 import { registerSettingsTools } from './tools/settings.js';
+import { registerMeetingTools } from './tools/meetings.js';
 
 const server = new McpServer({
   name: 'tasuke',
@@ -40,6 +41,7 @@ registerTemplateTools(server);
 registerGitHubTools(server);
 registerGoogleTasksTools(server);
 registerSettingsTools(server);
+registerMeetingTools(server);
 
 async function main() {
   const transport = new StdioServerTransport();

@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Check, X, Trash2, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Loader2, Check, X, Trash2, ArrowLeft, AlertTriangle, CloudUpload } from 'lucide-react';
 
 type Priority = 'P0' | 'P1' | 'P2' | 'P3';
 
@@ -124,8 +124,46 @@ export function MeetingDetailClient({ meetingId, workspaceSlug }: { meetingId: s
     return undefined;
   }
 
+  // ── auto-save (debounced PATCH) ──
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  function persistEdit(etId: string, partial: RowEdits) {
+    setSaveStatus('saving');
+    const body: Record<string, string | null | undefined> = {
+      finalTitle: partial.finalTitle,
+      finalAssigneeId: partial.finalAssigneeId,
+      finalProjectId: partial.finalProjectId,
+      finalSectionId: partial.finalSectionId,
+      finalDueDate: partial.finalDueDate ? new Date(partial.finalDueDate).toISOString() : partial.finalDueDate,
+      finalPriority: partial.finalPriority,
+    };
+    fetch(`/api/meetings/${meetingId}/extracted-tasks/${etId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then((r) => {
+        if (!r.ok) {
+          setSaveStatus('error');
+        } else {
+          setSaveStatus('saved');
+          window.setTimeout(() => setSaveStatus((s) => (s === 'saved' ? 'idle' : s)), 1500);
+        }
+      })
+      .catch(() => setSaveStatus('error'));
+  }
+
   function setEdit(etId: string, key: keyof RowEdits, value: string | null) {
-    setEdits((prev) => ({ ...prev, [etId]: { ...prev[etId], [key]: value } }));
+    setEdits((prev) => {
+      const next = { ...prev, [etId]: { ...prev[etId], [key]: value } };
+      // debounce per-row PATCH
+      if (saveTimers.current[etId]) clearTimeout(saveTimers.current[etId]);
+      saveTimers.current[etId] = setTimeout(() => {
+        persistEdit(etId, next[etId]);
+      }, 800);
+      return next;
+    });
   }
 
   function setDecision(etId: string, action: 'approve' | 'reject' | null) {
@@ -383,9 +421,27 @@ export function MeetingDetailClient({ meetingId, workspaceSlug }: { meetingId: s
             </div>
 
             <div className="sticky bottom-0 -mx-6 flex items-center justify-between border-t border-g-border bg-white px-6 py-3">
-              <p className="text-sm text-g-text-secondary">
-                {approveCount}件承認 / {rejectCount}件却下
-              </p>
+              <div className="flex items-center gap-3 text-sm text-g-text-secondary">
+                <span>{approveCount}件承認 / {rejectCount}件却下</span>
+                {saveStatus === 'saving' && (
+                  <span className="inline-flex items-center gap-1 text-xs text-g-text-muted">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    保存中...
+                  </span>
+                )}
+                {saveStatus === 'saved' && (
+                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+                    <CloudUpload className="h-3 w-3" />
+                    編集を保存しました
+                  </span>
+                )}
+                {saveStatus === 'error' && (
+                  <span className="inline-flex items-center gap-1 text-xs text-red-600">
+                    <AlertTriangle className="h-3 w-3" />
+                    保存失敗
+                  </span>
+                )}
+              </div>
               <Button onClick={submitBulk} disabled={submitting}>
                 {submitting ? (
                   <>
