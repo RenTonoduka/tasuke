@@ -29,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { UserPlus, Trash2, Crown, ShieldCheck, User, Eye, Upload, X, Loader2, ImagePlus } from 'lucide-react';
+import { UserPlus, Trash2, Crown, ShieldCheck, User, Eye, Upload, X, Loader2, ImagePlus, ArrowRightLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -90,6 +90,9 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
   const [inviteError, setInviteError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [transferTargetId, setTransferTargetId] = useState<string>('');
+  const [transferring, setTransferring] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl ?? null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [deletingLogo, setDeletingLogo] = useState(false);
@@ -283,6 +286,41 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
     return ['MEMBER', 'VIEWER'];
   }
 
+  async function handleTransferOwnership() {
+    if (!transferTargetId) return;
+    setTransferring(true);
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/transfer-ownership`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toMemberId: transferTargetId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: '移譲に失敗しました', description: data.error ?? '', variant: 'destructive' });
+        return;
+      }
+      // 楽観的UI更新: 自分→ADMIN、対象→OWNER
+      setMembers((prev) =>
+        prev.map((m) => {
+          if (m.id === transferTargetId) return { ...m, role: 'OWNER' as Role };
+          if (m.userId === currentUserId) return { ...m, role: 'ADMIN' as Role };
+          return m;
+        }),
+      );
+      toast({ title: 'オーナー権限を移譲しました', description: '画面を更新します' });
+      setTransferDialogOpen(false);
+      setTransferTargetId('');
+      // 権限変動でUI状態が変わるので確実にリロード
+      setTimeout(() => window.location.reload(), 800);
+    } finally {
+      setTransferring(false);
+    }
+  }
+
+  // 移譲候補（自分以外、ロール無関係に全員）
+  const transferCandidates = members.filter((m) => m.userId !== currentUserId);
+
   return (
     <div className="flex-1 overflow-auto p-6">
       <div className="mx-auto max-w-3xl space-y-6">
@@ -458,6 +496,28 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
           </div>
         )}
 
+        {/* オーナー権限移譲（OWNERのみ） */}
+        {myRole === 'OWNER' && transferCandidates.length > 0 && (
+          <div className="rounded-lg border border-g-border bg-g-bg p-5">
+            <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-g-text">
+              <ArrowRightLeft className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+              オーナー権限の移譲
+            </h2>
+            <p className="mb-3 text-xs text-g-text-secondary">
+              他のメンバーに OWNER 権限を移譲します。あなたは ADMIN に降格します（不可逆）。
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setTransferDialogOpen(true)}
+              className="border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300 hover:bg-yellow-50 dark:hover:bg-yellow-950"
+            >
+              <ArrowRightLeft className="h-3.5 w-3.5" />
+              オーナー権限を移譲する
+            </Button>
+          </div>
+        )}
+
         {/* メンバー一覧 */}
         <div className="rounded-lg border border-g-border bg-g-bg">
           <div className="border-b border-g-border px-5 py-3">
@@ -558,6 +618,67 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
               disabled={deleting}
             >
               {deleting ? '削除中...' : '削除する'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* オーナー権限移譲ダイアログ */}
+      <Dialog open={transferDialogOpen} onOpenChange={(o) => { if (!transferring) setTransferDialogOpen(o); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+              オーナー権限を移譲
+            </DialogTitle>
+            <DialogDescription>
+              移譲先メンバーを選択してください。あなたは <strong>ADMIN</strong> に降格します。
+              この操作は不可逆です。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <label className="text-xs font-medium text-g-text-secondary">移譲先</label>
+            <Select value={transferTargetId} onValueChange={setTransferTargetId}>
+              <SelectTrigger className="w-full border-g-border">
+                <SelectValue placeholder="メンバーを選択..." />
+              </SelectTrigger>
+              <SelectContent>
+                {transferCandidates.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    <span className="flex items-center gap-2">
+                      <span>{m.user.name ?? m.user.email ?? '名前未設定'}</span>
+                      <span className="text-xs text-g-text-muted">
+                        ({ROLE_LABELS[m.role]})
+                      </span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {transferTargetId && (
+              <div className="mt-3 rounded-md border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950 px-3 py-2 text-xs text-yellow-800 dark:text-yellow-200">
+                ⚠️ 移譲後、あなたは ADMIN になります。再度 OWNER に戻すには新オーナーから移譲してもらう必要があります。
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setTransferDialogOpen(false)}
+              disabled={transferring}
+            >
+              キャンセル
+            </Button>
+            <Button
+              onClick={handleTransferOwnership}
+              disabled={!transferTargetId || transferring}
+              className="bg-yellow-600 hover:bg-yellow-700 text-white"
+            >
+              {transferring ? (
+                <><Loader2 className="mr-1 h-3 w-3 animate-spin" />移譲中...</>
+              ) : (
+                '移譲する'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
