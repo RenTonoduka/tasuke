@@ -213,7 +213,7 @@ export function TemplateListDialog({
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-7 gap-1 px-2 text-xs text-[#4285F4] hover:bg-blue-50"
+                            className="h-7 gap-1 px-2 text-xs text-[#4285F4] hover:bg-blue-50 dark:hover:bg-blue-950"
                             onClick={() => handleSelectTemplate(template)}
                           >
                             <FolderPlus className="h-3.5 w-3.5" />
@@ -222,7 +222,7 @@ export function TemplateListDialog({
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-7 w-7 p-0 text-g-text-muted hover:bg-red-50 hover:text-red-500"
+                            className="h-7 w-7 p-0 text-g-text-muted hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-500"
                             onClick={() => setDeleteTarget(template)}
                           >
                             <Trash2 className="h-3.5 w-3.5" />

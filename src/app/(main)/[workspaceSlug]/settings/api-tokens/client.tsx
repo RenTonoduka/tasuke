@@ -120,7 +120,7 @@ export function ApiTokensClient({ workspaceId }: ApiTokensClientProps) {
 
         {/* 新規発行後のトークン表示 */}
         {newToken && (
-          <div className="rounded-lg border border-[#34A853] bg-green-50 p-4">
+          <div className="rounded-lg border border-[#34A853] bg-green-50 dark:bg-green-950 p-4">
             <p className="mb-2 text-sm font-medium text-[#34A853]">
               トークンが発行されました（この画面を閉じると二度と表示されません）
             </p>
@@ -209,8 +209,8 @@ export function ApiTokensClient({ workspaceId }: ApiTokensClientProps) {
                     <span className={cn(
                       'rounded px-1.5 py-0.5 text-[10px] font-medium',
                       t.scope === 'read_only'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-orange-100 text-orange-700',
+                        ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                        : 'bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300',
                     )}>
                       {t.scope === 'read_only' ? '読取専用' : '読み書き'}
                     </span>
@@ -236,7 +236,7 @@ export function ApiTokensClient({ workspaceId }: ApiTokensClientProps) {
                   size="sm"
                   variant="ghost"
                   onClick={() => handleRevoke(t.id)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>

@@ -109,7 +109,7 @@ export function ProjectDashboardView({ sections }: ProjectDashboardViewProps) {
             title="全タスク"
             value={stats.total}
             icon={ListTodo}
-            iconColor="text-blue-600"
+            iconColor="text-blue-600 dark:text-blue-400"
             iconBg="bg-blue-50 dark:bg-blue-900/30"
           />
           <StatCard
@@ -117,21 +117,21 @@ export function ProjectDashboardView({ sections }: ProjectDashboardViewProps) {
             value={stats.completed}
             subtitle={`完了率 ${stats.completionRate}%`}
             icon={CheckCircle}
-            iconColor="text-green-600"
+            iconColor="text-green-600 dark:text-green-400"
             iconBg="bg-green-50 dark:bg-green-900/30"
           />
           <StatCard
             title="進行中タスク"
             value={stats.inProgress}
             icon={Clock}
-            iconColor="text-yellow-600"
+            iconColor="text-yellow-600 dark:text-yellow-400"
             iconBg="bg-yellow-50 dark:bg-yellow-900/30"
           />
           <StatCard
             title="期限超過タスク"
             value={stats.overdue}
             icon={AlertCircle}
-            iconColor="text-red-600"
+            iconColor="text-red-600 dark:text-red-400"
             iconBg="bg-red-50 dark:bg-red-900/30"
           />
         </div>
@@ -174,7 +174,7 @@ export function ProjectDashboardView({ sections }: ProjectDashboardViewProps) {
                         <span
                           className={cn(
                             'text-xs whitespace-nowrap',
-                            daysLeft === 0 ? 'font-semibold text-red-600' : 'text-g-text-secondary'
+                            daysLeft === 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-g-text-secondary'
                           )}
                         >
                           {daysLeft === 0

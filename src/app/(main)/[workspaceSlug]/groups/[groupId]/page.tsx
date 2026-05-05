@@ -106,10 +106,10 @@ export default async function GroupDashboardPage({
       <div className="flex-1 overflow-auto bg-g-surface p-6">
         <div className="mx-auto max-w-7xl space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard title="全タスク" value={totalTasks} icon={ListTodo} iconColor="text-blue-600" iconBg="bg-blue-50" />
-            <StatCard title="完了タスク" value={completedTasks} subtitle={`完了率 ${completionRate}%`} icon={CheckCircle} iconColor="text-green-600" iconBg="bg-green-50" />
-            <StatCard title="進行中タスク" value={inProgressTasks} icon={Clock} iconColor="text-yellow-600" iconBg="bg-yellow-50" />
-            <StatCard title="期限超過タスク" value={overdueTasks} icon={AlertCircle} iconColor="text-red-600" iconBg="bg-red-50" />
+            <StatCard title="全タスク" value={totalTasks} icon={ListTodo} iconColor="text-blue-600 dark:text-blue-400" iconBg="bg-blue-50 dark:bg-blue-950" />
+            <StatCard title="完了タスク" value={completedTasks} subtitle={`完了率 ${completionRate}%`} icon={CheckCircle} iconColor="text-green-600 dark:text-green-400" iconBg="bg-green-50 dark:bg-green-950" />
+            <StatCard title="進行中タスク" value={inProgressTasks} icon={Clock} iconColor="text-yellow-600 dark:text-yellow-400" iconBg="bg-yellow-50 dark:bg-yellow-950" />
+            <StatCard title="期限超過タスク" value={overdueTasks} icon={AlertCircle} iconColor="text-red-600 dark:text-red-400" iconBg="bg-red-50 dark:bg-red-950" />
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">

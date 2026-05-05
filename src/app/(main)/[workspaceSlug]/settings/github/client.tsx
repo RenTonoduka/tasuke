@@ -208,7 +208,7 @@ export function GitHubSettingsClient({ workspaceSlug, workspaceId }: GitHubSetti
         {connected ? (
           <div className="space-y-4">
             <div className="flex items-center gap-3 rounded-md bg-green-500/10 px-4 py-3">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-g-text">
                   連携中{githubUsername ? `: @${githubUsername}` : ''}
@@ -219,7 +219,7 @@ export function GitHubSettingsClient({ workspaceSlug, workspaceId }: GitHubSetti
                 size="sm"
                 onClick={handleDisconnect}
                 disabled={deleting}
-                className="text-red-500 hover:bg-red-500/10 hover:text-red-600"
+                className="text-red-500 dark:text-red-400 hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-300"
               >
                 {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                 <span className="ml-1">解除</span>
@@ -274,7 +274,7 @@ export function GitHubSettingsClient({ workspaceSlug, workspaceId }: GitHubSetti
                     />
                     <span className="text-xs text-g-text-muted">{m.project.name}</span>
                     {m.webhookId && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] text-green-600">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] text-green-600 dark:text-green-400">
                         <Webhook className="h-2.5 w-2.5" />
                         Webhook有効
                       </span>

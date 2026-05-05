@@ -113,7 +113,7 @@ export function BulkActionBar({ onAction }: BulkActionBarProps) {
       <Button
         variant="outline"
         size="sm"
-        className="h-7 gap-1.5 text-xs text-[#EA4335] hover:bg-red-50 hover:text-[#EA4335]"
+        className="h-7 gap-1.5 text-xs text-[#EA4335] hover:bg-red-50 dark:hover:bg-red-950 hover:text-[#EA4335]"
         disabled={loading}
         onClick={() => setDeleteOpen(true)}
       >
