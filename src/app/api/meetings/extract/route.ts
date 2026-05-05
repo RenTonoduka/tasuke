@@ -5,7 +5,7 @@ import { extractMeetingSchema } from '@/lib/validations/meeting';
 import { extractMeeting } from '@/lib/meeting/extractor';
 import { assertWorkspaceAccess } from '@/lib/meeting/access';
 
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 export async function POST(req: NextRequest) {
   try {

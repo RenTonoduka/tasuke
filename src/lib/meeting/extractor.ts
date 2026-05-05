@@ -1,10 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
 import prisma from '@/lib/prisma';
 import { matchMember } from './member-matcher';
+import { parseMeetingDoc } from './gemini-parser';
 import type { Priority, MeetingSource } from '@prisma/client';
 
 const MODEL = 'claude-haiku-4-5-20251001';
-const MAX_TRANSCRIPT_CHARS = 50_000;
+const MAX_TRANSCRIPT_CHARS = 150_000; // 上限拡張: 10万字想定をカバー
 const MAX_OUTPUT_TOKENS = 4096;
 
 let _client: Anthropic | null = null;
@@ -156,6 +157,10 @@ export async function extractMeeting(input: ExtractInput): Promise<ExtractResult
       select: { title: true, project: { select: { name: true } } },
     });
 
+    // 2.5) Gemini in Meet形式ならセクション分割し、要約+アクションアイテムのみLLMに渡す（90%コスト減）
+    const parsed = parseMeetingDoc(transcript);
+    const llmTranscript = parsed.format === 'gemini' && parsed.llmInput ? parsed.llmInput : transcript;
+
     // 3) LLM呼び出し
     const userMessage = buildUserMessage({
       meetingTitle: input.title,
@@ -164,7 +169,7 @@ export async function extractMeeting(input: ExtractInput): Promise<ExtractResult
       projects,
       members: memberLites,
       recentTasks,
-      transcript,
+      transcript: llmTranscript,
     });
 
     const response = await getClient().messages.create({
