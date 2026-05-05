@@ -98,7 +98,7 @@ export function LineSettingsClient() {
             <Bot className="h-5 w-5 text-[#06C755]" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-g-text">TASUKE AI秘書</h2>
+            <h2 className="text-lg font-semibold text-g-text">Task Core AI秘書</h2>
             <p className="text-sm text-g-text-secondary">
               LINEからAIアシスタントでタスク管理できます
             </p>
@@ -137,7 +137,7 @@ export function LineSettingsClient() {
               className="w-full gap-2 bg-[#06C755] hover:bg-[#06C755]/90 text-white py-6 text-base"
             >
               <MessageCircle className="h-5 w-5" />
-              TASUKE AI秘書とLINE接続
+              Task Core AI秘書とLINE接続
             </Button>
           </div>
         ) : (
