@@ -537,6 +537,8 @@ enum MeetingStatus {
 enum MeetingSource {
   MANUAL_PASTE
   DRIVE_WATCH
+  WEB_QUICK_CAPTURE
+  LINE_QUICK
 }
 
 enum ExtractedTaskStatus {

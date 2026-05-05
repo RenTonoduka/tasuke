@@ -4,6 +4,7 @@ import { buildDashboardText } from './flex-messages';
 import * as handlers from '@/mcp/tool-handlers';
 import type { ToolContext } from '@/mcp/tool-handlers';
 import { checkRateLimit } from './rate-limit';
+import { extractMeeting } from '@/lib/meeting/extractor';
 
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
@@ -86,8 +87,57 @@ async function _handleLineMessage(replyToken: string, lineUserId: string, trimme
     await cmdOverdue(replyToken, ctx);
   } else if (trimmed.startsWith('検索 ') || trimmed.startsWith('search ')) {
     await cmdSearch(replyToken, trimmed, ctx);
+  } else if (trimmed.startsWith('メモ ') || trimmed.startsWith('memo ') || trimmed.startsWith('タスク抽出 ')) {
+    await cmdQuickCapture(replyToken, trimmed, ctx);
   } else {
     await handleAIFallback(replyToken, trimmed, lineUserId, ctx);
+  }
+}
+
+async function cmdQuickCapture(replyToken: string, text: string, ctx: ToolContext) {
+  const body = text.replace(/^(メモ|memo|タスク抽出)\s+/, '').trim();
+  if (body.length < 10) {
+    await replyMessage(replyToken, [{
+      type: 'text',
+      text: 'もう少し詳しく書いてください（10字以上）。\n例: メモ 明日までに資料Aレビュー、田中さんに連絡',
+    }]);
+    return;
+  }
+  const titleStub = body.length > 40 ? `${body.slice(0, 40)}...` : body;
+  const now = new Date();
+  const stamp = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  try {
+    const result = await extractMeeting({
+      workspaceId: ctx.workspaceId,
+      userId: ctx.userId,
+      title: `LINEメモ ${stamp} - ${titleStub}`,
+      transcript: body,
+      meetingDate: now,
+      source: 'LINE_QUICK',
+    });
+    if (result.failed) {
+      await replyMessage(replyToken, [{
+        type: 'text',
+        text: `抽出に失敗しました。\n${result.failureReason ?? ''}`,
+      }]);
+      return;
+    }
+    // ワークスペースslug取得
+    const ws = await prisma.workspace.findUnique({
+      where: { id: ctx.workspaceId },
+      select: { slug: true },
+    });
+    const url = `${getAppUrl()}/${ws?.slug ?? ''}/meetings/${result.meetingId}`;
+    await replyMessage(replyToken, [{
+      type: 'text',
+      text: `${result.extractedCount}件のタスク候補を抽出しました。\nレビュー: ${url}`,
+    }]);
+  } catch (err) {
+    console.error('[line-memo] error:', err);
+    await replyMessage(replyToken, [{
+      type: 'text',
+      text: '抽出処理でエラーが発生しました。もう一度お試しください。',
+    }]);
   }
 }
 
@@ -112,6 +162,8 @@ async function replyHelp(replyToken: string) {
       '  → 期限切れタスク',
       '・検索 <キーワード>',
       '  → タスク検索',
+      '・メモ <文章>',
+      '  → AIで複数タスク抽出（外出時のクイックメモ用）',
     ].join('\n'),
   }]);
 }
