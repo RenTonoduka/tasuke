@@ -129,12 +129,12 @@ export function ExtractClient({ workspaceId, workspaceSlug }: { workspaceId: str
           <textarea
             value={transcript}
             onChange={(e) => setTranscript(e.target.value)}
-            placeholder="議事録（最大5万字）をペーストするか、右上の「Driveから取得」を使ってください..."
+            placeholder="議事録（最大15万字）をペーストするか、右上の「Driveから取得」を使ってください..."
             rows={20}
             className="w-full rounded-md border border-g-border bg-g-bg px-3 py-2 font-mono text-xs leading-relaxed focus:border-[#4285F4] focus:outline-none"
             disabled={loading}
           />
-          <p className="text-xs text-g-text-muted">{transcript.length.toLocaleString()} / 50,000 字</p>
+          <p className="text-xs text-g-text-muted">{transcript.length.toLocaleString()} / 150,000 字</p>
         </div>
 
         <div className="flex justify-end pt-2">

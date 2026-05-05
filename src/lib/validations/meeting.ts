@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const extractMeetingSchema = z.object({
   title: z.string().min(1, 'タイトルは必須です').max(300),
-  transcript: z.string().min(10, '本文が短すぎます').max(50000, '本文が長すぎます（5万字以内）'),
+  transcript: z.string().min(10, '本文が短すぎます').max(150000, '本文が長すぎます（15万字以内）'),
   meetingDate: z.string().datetime().optional().nullable(),
   attendees: z
     .array(

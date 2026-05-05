@@ -16,8 +16,9 @@ import {
   ArrowRightLeft,
   Github,
   ExternalLink,
+  FileText,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -133,6 +134,18 @@ interface TaskDetail {
     size: number | null;
     createdAt: string;
   }[];
+  extractedFrom?: {
+    id: string;
+    originalQuote: string;
+    confidence: number;
+    meeting: {
+      id: string;
+      title: string;
+      meetingDate: string | null;
+      driveWebViewLink: string | null;
+      source: string;
+    };
+  } | null;
 }
 
 const MIN_WIDTH = 380;
@@ -142,6 +155,8 @@ const DEFAULT_WIDTH = 480;
 export function TaskDetailPanel() {
   const { activeTaskId, close } = useTaskPanelStore();
   const router = useRouter();
+  const pathname = usePathname();
+  const workspaceSlug = pathname?.split('/')[1] ?? '';
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -1022,6 +1037,54 @@ export function TaskDetailPanel() {
                 className="min-h-[80px] resize-none border-g-border text-sm"
               />
             </div>
+
+            {/* 議事録由来（あれば表示） */}
+            {task.extractedFrom && (
+              <div className="border-t border-g-border bg-blue-50/50 dark:bg-blue-950/20 px-4 py-3">
+                <div className="flex items-start gap-2">
+                  <FileText className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="font-medium text-g-text">議事録から抽出</span>
+                      <span className="text-g-text-muted">
+                        信頼度 {Math.round(task.extractedFrom.confidence * 100)}%
+                      </span>
+                    </div>
+                    <p className="text-xs text-g-text-secondary italic">
+                      「{task.extractedFrom.originalQuote}」
+                    </p>
+                    <div className="flex items-center gap-3 pt-1 text-[11px]">
+                      <button
+                        onClick={() => {
+                          if (task.extractedFrom) {
+                            router.push(`/${workspaceSlug}/meetings/${task.extractedFrom.meeting.id}`);
+                          }
+                        }}
+                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        {task.extractedFrom.meeting.title}
+                        {task.extractedFrom.meeting.meetingDate && (
+                          <span className="ml-1 text-g-text-muted">
+                            ({new Date(task.extractedFrom.meeting.meetingDate).toLocaleDateString('ja-JP')})
+                          </span>
+                        )}
+                      </button>
+                      {task.extractedFrom.meeting.driveWebViewLink && (
+                        <a
+                          href={task.extractedFrom.meeting.driveWebViewLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-0.5 text-g-text-muted hover:text-g-text"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          Drive
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Subtasks */}
             <div className="border-t border-g-border px-4 py-4">
