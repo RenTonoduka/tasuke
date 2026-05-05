@@ -169,12 +169,12 @@ export function QuickCaptureClient({ workspaceId, workspaceSlug }: { workspaceId
               ? '話してください...'
               : '例: 明日までに資料Aレビュー、田中さんに連絡。来週月曜にMTG設定。'}
             rows={12}
-            className="w-full rounded-md border border-g-border bg-white px-3 py-2 text-sm leading-relaxed focus:border-[#4285F4] focus:outline-none"
+            className="w-full rounded-md border border-g-border bg-g-bg px-3 py-2 text-sm leading-relaxed focus:border-[#4285F4] focus:outline-none"
             disabled={extracting}
           />
           <p className="text-xs text-g-text-muted">
             {(text + interim).length.toLocaleString()} / 50,000 字
-            {listening && <span className="ml-2 inline-flex items-center gap-1 text-red-500"><span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />録音中</span>}
+            {listening && <span className="ml-2 inline-flex items-center gap-1 text-red-500 dark:text-red-400"><span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />録音中</span>}
           </p>
         </div>
 
@@ -195,7 +195,7 @@ export function QuickCaptureClient({ workspaceId, workspaceSlug }: { workspaceId
         </div>
 
         {!supported && (
-          <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <p className="rounded-md bg-amber-50 dark:bg-amber-950 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
             このブラウザは音声入力（Web Speech API）に対応していません。テキスト入力をご利用ください。Chrome/Safari推奨。
           </p>
         )}

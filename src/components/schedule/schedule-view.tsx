@@ -44,12 +44,12 @@ function EventCreateDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" onClick={onClose}>
       <div
-        className="w-[420px] rounded-xl bg-white p-6 shadow-[0_24px_38px_3px_rgba(0,0,0,0.14),0_9px_46px_8px_rgba(0,0,0,0.12),0_11px_15px_-7px_rgba(0,0,0,0.2)]"
+        className="w-[420px] rounded-xl bg-g-bg p-6 shadow-[0_24px_38px_3px_rgba(0,0,0,0.14),0_9px_46px_8px_rgba(0,0,0,0.12),0_11px_15px_-7px_rgba(0,0,0,0.2)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-normal text-[#202124]">予定を作成</h3>
-          <button onClick={onClose} className="rounded-full p-1.5 text-[#5f6368] hover:bg-[#f1f3f4] transition-colors">
+          <h3 className="text-base font-normal text-g-text">予定を作成</h3>
+          <button onClick={onClose} className="rounded-full p-1.5 text-g-text-secondary hover:bg-g-surface-hover transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -62,12 +62,12 @@ function EventCreateDialog({
             if (e.key === 'Escape') onClose();
           }}
           placeholder="タイトルを追加"
-          className="w-full border-b-2 border-[#dadce0] bg-transparent px-0 py-2 text-[22px] font-normal text-[#202124] placeholder:text-[#70757a] focus:border-[#1a73e8] focus:outline-none transition-colors"
+          className="w-full border-b-2 border-g-border bg-transparent px-0 py-2 text-[22px] font-normal text-g-text placeholder:text-g-text-muted focus:border-[#1a73e8] focus:outline-none transition-colors"
         />
-        <div className="mt-3 flex items-center gap-2 text-sm text-[#5f6368]">
+        <div className="mt-3 flex items-center gap-2 text-sm text-g-text-secondary">
           <CalendarClock className="h-4 w-4" />
           <span>{date.replace(/-/g, '/')}</span>
-          <span className="text-[#70757a]">{minutesToTime(startMin)}〜{minutesToTime(endMin)}</span>
+          <span className="text-g-text-muted">{minutesToTime(startMin)}〜{minutesToTime(endMin)}</span>
         </div>
         <div className="mt-5 flex justify-end gap-2">
           <button
@@ -99,33 +99,33 @@ function TimelineSkeleton({ workStart, workEnd }: { workStart: number; workEnd: 
           <div className="relative" style={{ height: hours * HOUR_HEIGHT }}>
             {Array.from({ length: hours + 1 }, (_, i) => (
               <div key={i} className="absolute right-2 -translate-y-1/2" style={{ top: i * HOUR_HEIGHT }}>
-                <div className="h-2.5 w-7 rounded bg-[#e8eaed] animate-pulse" />
+                <div className="h-2.5 w-7 rounded bg-g-border animate-pulse" />
               </div>
             ))}
           </div>
         </div>
         {Array.from({ length: 5 }, (_, d) => (
-          <div key={d} className="flex-1 border-l border-[#dadce0]">
+          <div key={d} className="flex-1 border-l border-g-border">
             <div className="h-9 flex items-center justify-center gap-1">
-              <div className="h-2.5 w-6 rounded bg-[#e8eaed] animate-pulse" />
-              <div className="h-8 w-8 rounded-full bg-[#e8eaed] animate-pulse" />
+              <div className="h-2.5 w-6 rounded bg-g-border animate-pulse" />
+              <div className="h-8 w-8 rounded-full bg-g-border animate-pulse" />
             </div>
             <div className="relative" style={{ height: hours * HOUR_HEIGHT }}>
               {Array.from({ length: hours }, (_, i) => (
                 <div
                   key={i}
-                  className="absolute left-0 w-full border-t border-[#dadce0]"
+                  className="absolute left-0 w-full border-t border-g-border"
                   style={{ top: i * HOUR_HEIGHT }}
                 />
               ))}
               {d < 4 && (
                 <>
                   <div
-                    className="absolute left-1 right-1 rounded bg-[#e8eaed] animate-pulse"
+                    className="absolute left-1 right-1 rounded bg-g-border animate-pulse"
                     style={{ top: (1 + d) * HOUR_HEIGHT, height: HOUR_HEIGHT * 1.5 }}
                   />
                   <div
-                    className="absolute left-1 right-1 rounded bg-[#e8eaed]/60 animate-pulse"
+                    className="absolute left-1 right-1 rounded bg-g-border/60 animate-pulse"
                     style={{ top: (4 + d * 0.5) * HOUR_HEIGHT, height: HOUR_HEIGHT }}
                   />
                 </>
@@ -579,13 +579,13 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
         {/* 初期状態 */}
         {!data && !loading && (
           <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
-            <CalendarClock className="mb-4 h-12 w-12 text-[#dadce0]" />
-            <p className="text-sm text-[#5f6368]">
+            <CalendarClock className="mb-4 h-12 w-12 text-g-text-muted" />
+            <p className="text-sm text-g-text-secondary">
               Googleカレンダーの予定を取得し、
               <br />
               タスクの最適なスケジュールを提案します
             </p>
-            <p className="mt-2 text-xs text-[#70757a]">
+            <p className="mt-2 text-xs text-g-text-muted">
               タスクに「期限」と「見積もり時間」を設定してください
             </p>
           </div>
@@ -601,7 +601,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
           <div className="flex flex-1 overflow-hidden">
             {/* サイドバー（デスクトップ & 週ビュー） */}
             {viewMode === 'week' && (
-              <div className="hidden w-56 shrink-0 overflow-y-auto border-r border-[#dadce0] bg-white p-3 md:block">
+              <div className="hidden w-56 shrink-0 overflow-y-auto border-r border-g-border bg-g-bg p-3 md:block">
                 {data.suggestions.length > 0 && (
                   <ScheduleTaskList compact suggestions={data.suggestions} onOpenTask={openPanel} />
                 )}

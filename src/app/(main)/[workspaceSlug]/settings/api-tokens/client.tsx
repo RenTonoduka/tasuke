@@ -125,7 +125,7 @@ export function ApiTokensClient({ workspaceId }: ApiTokensClientProps) {
               トークンが発行されました（この画面を閉じると二度と表示されません）
             </p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 rounded bg-white px-3 py-2 text-xs font-mono border">
+              <code className="flex-1 rounded bg-g-bg px-3 py-2 text-xs font-mono border border-g-border">
                 {newToken}
               </code>
               <Button size="sm" variant="outline" onClick={handleCopy}>

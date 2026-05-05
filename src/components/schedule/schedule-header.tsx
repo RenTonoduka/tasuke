@@ -61,25 +61,25 @@ export function ScheduleHeader({
           onClick={onToday}
           disabled={loading}
           className={cn(
-            'rounded border border-[#dadce0] px-2.5 py-0.5 text-xs font-medium transition-colors',
+            'rounded border border-g-border px-2.5 py-0.5 text-xs font-medium transition-colors',
             weekOffset === 0
               ? 'bg-[#1a73e8] text-white border-[#1a73e8]'
-              : 'text-[#3c4043] hover:bg-[#f0f4f9]',
+              : 'text-g-text-secondary hover:bg-g-surface-hover',
           )}
         >
           今日
         </button>
-        <button onClick={onPrevWeek} disabled={loading} className="rounded-full p-1 text-[#5f6368] hover:bg-[#f0f4f9] transition-colors">
+        <button onClick={onPrevWeek} disabled={loading} className="rounded-full p-1 text-g-text-secondary hover:bg-g-surface-hover transition-colors">
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <button onClick={onNextWeek} disabled={loading} className="rounded-full p-1 text-[#5f6368] hover:bg-[#f0f4f9] transition-colors">
+        <button onClick={onNextWeek} disabled={loading} className="rounded-full p-1 text-g-text-secondary hover:bg-g-surface-hover transition-colors">
           <ChevronRight className="h-4 w-4" />
         </button>
-        <span className="text-sm font-medium text-[#3c4043]">{weekLabel}</span>
+        <span className="text-sm font-medium text-g-text-secondary">{weekLabel}</span>
 
         {/* 右側コントロール */}
         <div className="ml-auto flex items-center gap-1.5">
-          <div className="flex items-center rounded border border-[#dadce0] bg-white p-px">
+          <div className="flex items-center rounded border border-g-border bg-g-bg p-px">
             {(['day', '3day', 'week'] as ViewMode[]).map((mode) => (
               <button
                 key={mode}
@@ -88,7 +88,7 @@ export function ScheduleHeader({
                   'rounded px-2 py-0.5 text-[11px] font-medium transition-colors',
                   viewMode === mode
                     ? 'bg-[#e8f0fe] text-[#1a73e8]'
-                    : 'text-[#5f6368] hover:bg-[#f0f4f9]',
+                    : 'text-g-text-secondary hover:bg-g-surface-hover',
                 )}
               >
                 {mode === 'day' ? '日' : mode === '3day' ? '3日' : '週'}
@@ -97,7 +97,7 @@ export function ScheduleHeader({
           </div>
 
           {hasData && totalFreeHours !== undefined && (
-            <span className="text-[11px] font-medium text-[#5f6368] bg-[#f0f4f9] rounded px-2 py-0.5">
+            <span className="text-[11px] font-medium text-g-text-secondary bg-g-surface-hover rounded px-2 py-0.5">
               空き{totalFreeHours}h
             </span>
           )}
@@ -119,7 +119,7 @@ export function ScheduleHeader({
             onClick={onToggleSettings}
             className={cn(
               'rounded-full p-1 transition-colors',
-              showSettings ? 'bg-[#e8f0fe] text-[#1a73e8]' : 'text-[#5f6368] hover:bg-[#f0f4f9]',
+              showSettings ? 'bg-[#e8f0fe] text-[#1a73e8]' : 'text-g-text-secondary hover:bg-g-surface-hover',
             )}
           >
             <Settings2 className="h-4 w-4" />
@@ -128,9 +128,9 @@ export function ScheduleHeader({
       </div>
 
       {showSettings && (
-        <div className="mt-1 flex flex-wrap items-center gap-3 rounded-lg border border-[#dadce0] bg-white px-3 py-1.5">
+        <div className="mt-1 flex flex-wrap items-center gap-3 rounded-lg border border-g-border bg-g-bg px-3 py-1.5">
           <div className="flex items-center gap-1.5">
-            <label className="text-[11px] font-medium text-[#5f6368]">営業時間:</label>
+            <label className="text-[11px] font-medium text-g-text-secondary">営業時間:</label>
             <select
               value={editingSettings.workStart}
               onChange={(e) => {
@@ -138,19 +138,19 @@ export function ScheduleHeader({
                 const newEnd = editingSettings.workEnd <= v ? v + 1 : editingSettings.workEnd;
                 onSettingsChange({ ...editingSettings, workStart: v, workEnd: newEnd });
               }}
-              className="rounded border border-[#dadce0] bg-white px-1.5 py-0.5 text-[11px] text-[#202124]"
+              className="rounded border border-g-border bg-g-bg px-1.5 py-0.5 text-[11px] text-g-text"
             >
               {Array.from({ length: 17 }, (_, i) => i + 6).map((h) => (
                 <option key={h} value={h}>{h}:00</option>
               ))}
             </select>
-            <span className="text-[11px] text-[#70757a]">~</span>
+            <span className="text-[11px] text-g-text-muted">~</span>
             <select
               value={editingSettings.workEnd}
               onChange={(e) =>
                 onSettingsChange({ ...editingSettings, workEnd: Number(e.target.value) })
               }
-              className="rounded border border-[#dadce0] bg-white px-1.5 py-0.5 text-[11px] text-[#202124]"
+              className="rounded border border-g-border bg-g-bg px-1.5 py-0.5 text-[11px] text-g-text"
             >
               {Array.from({ length: 23 - editingSettings.workStart }, (_, i) => i + editingSettings.workStart + 1).map((h) => (
                 <option key={h} value={h}>{h}:00</option>
@@ -164,7 +164,7 @@ export function ScheduleHeader({
                 onSettingsChange({ ...editingSettings, skipWeekends: v })
               }
             />
-            <label className="text-[11px] text-[#5f6368]">土日除外</label>
+            <label className="text-[11px] text-g-text-secondary">土日除外</label>
           </div>
           <Button
             size="sm"
@@ -184,10 +184,10 @@ export function ScheduleHeader({
             className="flex w-full items-center gap-1.5 px-2.5 py-1 text-left"
           >
             <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-[#F6BF26]" />
-            <span className="flex-1 text-[11px] font-medium text-[#5f6368]">
+            <span className="flex-1 text-[11px] font-medium text-g-text-secondary">
               設定不足 {unestimatedTasks.length} 件
             </span>
-            <ChevronDown className={cn('h-3.5 w-3.5 text-[#70757a] transition-transform', showUnestimated && 'rotate-180')} />
+            <ChevronDown className={cn('h-3.5 w-3.5 text-g-text-muted transition-transform', showUnestimated && 'rotate-180')} />
           </button>
           {showUnestimated && (
             <div className="space-y-1.5 border-t border-[#F6BF26]/30 px-3 py-2">
@@ -199,7 +199,7 @@ export function ScheduleHeader({
                   />
                   <button
                     onClick={() => onOpenTask?.(t.id)}
-                    className="min-w-0 flex-1 truncate text-left text-xs text-[#202124] hover:underline"
+                    className="min-w-0 flex-1 truncate text-left text-xs text-g-text hover:underline"
                   >
                     {t.title}
                   </button>
@@ -212,7 +212,7 @@ export function ScheduleHeader({
                         onChange={(e) => {
                           if (e.target.value) onUpdateEstimate?.(t.id, parseFloat(e.target.value));
                         }}
-                        className="rounded-md border border-[#dadce0] bg-white px-2 py-1 text-xs"
+                        className="rounded-md border border-g-border bg-g-bg px-2 py-1 text-xs"
                         defaultValue=""
                       >
                         <option value="" disabled>見積もり</option>
