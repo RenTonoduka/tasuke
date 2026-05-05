@@ -6,6 +6,9 @@ import {
   handleMeetingGet,
   handleExtractedTaskUpdate,
   handleMeetingApprove,
+  handleMeetingExtract,
+  handleMeetingExtractFromDrive,
+  handleMeetingReExtract,
 } from '../tool-handlers.js';
 
 async function getCtx() {
@@ -66,5 +69,36 @@ export function registerMeetingTools(server: McpServer) {
         .min(1),
     },
     async (params) => handleMeetingApprove(params, await getCtx()),
+  );
+
+  server.tool(
+    'meeting_extract',
+    '議事録テキストからAIでタスクを抽出（PENDING_REVIEWのMeeting作成）',
+    {
+      title: z.string().describe('会議タイトル'),
+      transcript: z.string().min(10).describe('議事録本文（最大15万字）'),
+      meetingDate: z.string().optional().describe('YYYY-MM-DD or ISO'),
+      attendees: z
+        .array(z.object({ name: z.string().optional(), email: z.string().optional() }))
+        .optional(),
+    },
+    async (params) => handleMeetingExtract(params, await getCtx()),
+  );
+
+  server.tool(
+    'meeting_extract_from_drive',
+    'Google Drive上の議事録Doc(fileId)を取得してタスク抽出',
+    {
+      fileId: z.string().describe('Google Drive file ID'),
+      titleOverride: z.string().optional(),
+    },
+    async (params) => handleMeetingExtractFromDrive(params, await getCtx()),
+  );
+
+  server.tool(
+    'meeting_re_extract',
+    '既存Meetingを保存済みtranscriptで再抽出（パーサー改善後の救済用）',
+    { meetingId: z.string() },
+    async (params) => handleMeetingReExtract(params, await getCtx()),
   );
 }

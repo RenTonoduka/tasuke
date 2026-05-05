@@ -122,6 +122,9 @@ const COMMANDS: CmdDef[] = [
   { name: 'meeting:get',      desc: '議事録詳細＋抽出タスク', usage: '--meetingId ID', example: 'tasuke meeting:get --meetingId abc' },
   { name: 'meeting:edit',     desc: '抽出タスクのfinal*編集（承認前）', usage: '--extractedTaskId ID [--finalTitle TEXT] [--finalAssigneeId ID] [--finalProjectId ID] [--finalDueDate YYYY-MM-DD] [--finalPriority P0-P3]', example: 'tasuke meeting:edit --extractedTaskId xyz --finalProjectId abc --finalPriority P1' },
   { name: 'meeting:approve',  desc: '議事録を一括承認/却下', usage: '--meetingId ID --json \'{"items":[{"extractedTaskId":"x","action":"approve"}]}\'', example: 'tasuke meeting:approve --meetingId abc --json \'{"items":[{"extractedTaskId":"e1","action":"approve"}]}\'' },
+  { name: 'meeting:extract',         desc: '議事録テキストからタスク抽出', usage: '--title TEXT --transcript TEXT [--meetingDate YYYY-MM-DD]', example: 'tasuke meeting:extract --title "MTG 5/5" --transcript "..."' },
+  { name: 'meeting:extract-drive',   desc: 'Drive Docから取得して抽出', usage: '--fileId ID [--titleOverride TEXT]', example: 'tasuke meeting:extract-drive --fileId 1abc...xyz' },
+  { name: 'meeting:re-extract',      desc: '既存Meetingをtranscriptで再抽出', usage: '--meetingId ID', example: 'tasuke meeting:re-extract --meetingId abc' },
 ];
 
 // CLI名 → MCP名 マッピング
@@ -225,6 +228,9 @@ const CLI_TO_MCP: Record<string, string> = {
   'meeting:get': 'meeting_get',
   'meeting:edit': 'extracted_task_update',
   'meeting:approve': 'meeting_approve',
+  'meeting:extract': 'meeting_extract',
+  'meeting:extract-drive': 'meeting_extract_from_drive',
+  'meeting:re-extract': 'meeting_re_extract',
 };
 
 // ── 引数パーサー ──
