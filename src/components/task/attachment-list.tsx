@@ -113,7 +113,7 @@ export function AttachmentList({ taskId, attachments, onChanged }: AttachmentLis
       </div>
 
       {error && (
-        <div className="mb-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{error}</div>
+        <div className="mb-2 rounded-md bg-red-50 dark:bg-red-950 px-3 py-2 text-xs text-red-600 dark:text-red-300">{error}</div>
       )}
 
       {attachments.length === 0 ? (

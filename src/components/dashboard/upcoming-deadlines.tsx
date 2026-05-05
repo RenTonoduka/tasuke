@@ -4,10 +4,10 @@ import { ja } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
 const PRIORITY_STYLES: Record<string, { label: string; class: string }> = {
-  P0: { label: '緊急', class: 'bg-red-100 text-red-700' },
-  P1: { label: '高', class: 'bg-yellow-100 text-yellow-700' },
-  P2: { label: '中', class: 'bg-blue-100 text-blue-700' },
-  P3: { label: '低', class: 'bg-gray-100 text-gray-600' },
+  P0: { label: '緊急', class: 'bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300' },
+  P1: { label: '高', class: 'bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300' },
+  P2: { label: '中', class: 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' },
+  P3: { label: '低', class: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300' },
 };
 
 interface UpcomingDeadline {
@@ -62,7 +62,7 @@ export function UpcomingDeadlines({ data, workspaceSlug }: UpcomingDeadlinesProp
                     <span
                       className={cn(
                         'text-xs',
-                        daysLeft === 0 ? 'font-semibold text-red-600' : 'text-g-text-secondary'
+                        daysLeft === 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-g-text-secondary'
                       )}
                     >
                       {daysLeft === 0

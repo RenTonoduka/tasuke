@@ -121,7 +121,7 @@ export function DriveFilePicker({ open, onOpenChange, onSelect }: DriveFilePicke
             <div className="py-8 text-center text-sm text-g-text-muted">検索中...</div>
           )}
           {!loading && error && (
-            <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+            <div className="rounded-md bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-600 dark:text-red-300">{error}</div>
           )}
           {!loading && !error && files.length === 0 && (
             <div className="py-8 text-center text-sm text-g-text-muted">

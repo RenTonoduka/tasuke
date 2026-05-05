@@ -73,10 +73,10 @@ const ROLE_ICONS: Record<Role, React.ReactNode> = {
 };
 
 const ROLE_COLORS: Record<Role, string> = {
-  OWNER: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
-  ADMIN: 'bg-blue-50 text-blue-700 border border-blue-200',
-  MEMBER: 'bg-gray-50 text-gray-600 border border-gray-200',
-  VIEWER: 'bg-gray-50 text-gray-400 border border-gray-200',
+  OWNER: 'bg-yellow-50 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800',
+  ADMIN: 'bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800',
+  MEMBER: 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700',
+  VIEWER: 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700',
 };
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -365,7 +365,7 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
                         size="sm"
                         variant="outline"
                         onClick={() => setShowDeleteLogoDialog(true)}
-                        className="text-red-500 hover:bg-red-50 hover:text-red-600"
+                        className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:hover:text-red-400"
                       >
                         <Trash2 className="mr-1 h-3.5 w-3.5" />
                         削除
@@ -518,7 +518,7 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
                 {canDeleteMember(member) ? (
                   <button
                     onClick={() => setDeleteTarget(member)}
-                    className="rounded-md p-1.5 text-g-text-muted transition-colors hover:bg-red-50 hover:text-red-500"
+                    className="rounded-md p-1.5 text-g-text-muted transition-colors hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-500 dark:hover:text-red-400"
                     title="メンバーを削除"
                   >
                     <Trash2 className="h-4 w-4" />
