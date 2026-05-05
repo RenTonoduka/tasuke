@@ -1,7 +1,7 @@
 /**
  * Gemini in Meet が生成する議事録Doc (text/plain export) を構造化パース。
  *
- * 典型構造（プレーン見出し+前後空行）:
+ * 典型構造:
  *   📝 メモ
  *   YYYY/MM/DD 会議名
  *
@@ -10,102 +10,92 @@
  *
  *   次のステップ
  *   * [ユーザー名] タイトル: 詳細
- *   * [@user] ...
  *
  *   詳細
- *   ...transcript with speakers...
+ *   ...transcript...
  *
- * Markdown形式 `# ##` も対応。
- *
- * パース失敗時は format='unknown' を返し呼び出し側で全文fallback。
+ * 行ベースで判定するためCRLF/プレーン見出し/Markdown見出し全対応。
  */
 
 export interface ParsedMeetingDoc {
   format: 'gemini' | 'unknown';
   summary: string | null;
   actionItemsRaw: string | null;
-  /** 「次のステップ」セクションから直接構造化抽出したaction item群（LLM不要） */
   parsedActionItems: ParsedActionItem[];
   transcript: string | null;
-  /** LLMに渡す効率化済みテキスト（summary + actionItems）。null時は全文を渡す */
   llmInput: string | null;
 }
 
 export interface ParsedActionItem {
-  /** 担当者の生テキスト名（例: "Ren Tonozuka", "戸野塚蓮", "@user", "グループ"） */
   assigneeName: string | null;
-  /** タスクのタイトル（コロンの前） */
   title: string;
-  /** 詳細（コロンの後・複数行可） */
   description: string | null;
-  /** 元テキスト全体（traceability） */
   originalQuote: string;
 }
 
-// 見出しキーワード（順序: 後段ほど先にマッチさせるため長い表現から）
 const SECTION_KEYWORDS = {
   summary: ['会議の要点', 'TL;DR', 'Overview', 'Summary', '概要', '要約', 'サマリー'],
   actionItems: [
     '次のステップ',
     'Next Steps',
+    'Next steps',
     'Action items',
     'Action Items',
     'アクションアイテム',
     'アクション項目',
     'Action list',
     'やること',
-    'メモ',
+    'タスク',
     'Notes',
   ],
-  transcript: ['文字起こし', '逐語録', 'Transcript', '議事録', '議事', 'トランスクリプト', 'Verbatim', '詳細'],
+  transcript: [
+    '文字起こし',
+    '逐語録',
+    'Transcript',
+    'トランスクリプト',
+    'Verbatim',
+    '詳細',
+  ],
 };
 
-interface SectionMatch {
-  key: 'summary' | 'actionItems' | 'transcript';
-  start: number;
-  contentStart: number;
+type SectionKey = keyof typeof SECTION_KEYWORDS;
+
+interface HeaderMatch {
+  key: SectionKey;
+  lineIdx: number;
 }
 
-/**
- * 行頭で「キーワード単独」または `# ## ### キーワード` 形式の見出しを検出。
- * 前後に空行（または文書頭尾）があることを要求して誤検出を抑える。
- */
-function findSectionHeader(raw: string, keyword: string): { start: number; contentStart: number } | null {
-  // パターン1: Markdown見出し `# キーワード`
-  const md = new RegExp(`^#{1,4}\\s*${escapeRegex(keyword)}\\s*$`, 'im').exec(raw);
-  if (md && md.index !== undefined) {
-    const headerEnd = raw.indexOf('\n', md.index);
-    return {
-      start: md.index,
-      contentStart: headerEnd === -1 ? md.index + md[0].length : headerEnd + 1,
-    };
-  }
+function detectHeaders(lines: string[]): HeaderMatch[] {
+  const found: HeaderMatch[] = [];
+  const claimedKeys = new Set<SectionKey>();
 
-  // パターン2: プレーン見出し（前後空行で挟まれた単独行）
-  // (?:^|\n)\n?キーワード\n(?:\n|本文)
-  const plain = new RegExp(`(?:^|\\n)\\s*${escapeRegex(keyword)}\\s*\\n`, 'm').exec(raw);
-  if (plain && plain.index !== undefined) {
-    // 当該行の前1-2行が空行 or 文書頭であることを確認（false positive防御）
-    const lineStart = raw.lastIndexOf('\n', plain.index) + 1;
-    const prevLineStart = raw.lastIndexOf('\n', lineStart - 2);
-    const prevLine = prevLineStart >= 0 ? raw.slice(prevLineStart + 1, lineStart - 1) : '';
-    // 前の行が空 or 文書頭なら見出しとみなす
-    if (lineStart === 0 || prevLine.trim() === '' || prevLineStart < 0) {
-      const matchStart = raw.indexOf(keyword, plain.index);
-      if (matchStart >= 0) {
-        const headerEnd = raw.indexOf('\n', matchStart);
-        return {
-          start: matchStart,
-          contentStart: headerEnd === -1 ? matchStart + keyword.length : headerEnd + 1,
-        };
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!trimmed) continue;
+
+    // Markdown見出し `# キーワード` を抽出した上でテキスト判定
+    const md = trimmed.match(/^#{1,4}\s+(.+)$/);
+    const headingText = md ? md[1].trim() : trimmed;
+
+    let matched: SectionKey | null = null;
+    for (const [key, kws] of Object.entries(SECTION_KEYWORDS) as [SectionKey, string[]][]) {
+      if (claimedKeys.has(key)) continue;
+      if (kws.some((kw) => kw === headingText)) {
+        matched = key;
+        break;
       }
     }
-  }
-  return null;
-}
+    if (!matched) continue;
 
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // false-positive 抑制: Markdown見出し OR 前の行が空 OR 文書頭
+    const isHeading = !!md || i === 0 || (lines[i - 1] ?? '').trim() === '';
+    if (!isHeading) continue;
+
+    found.push({ key: matched, lineIdx: i });
+    claimedKeys.add(matched);
+  }
+
+  return found;
 }
 
 export function parseMeetingDoc(raw: string): ParsedMeetingDoc {
@@ -119,41 +109,31 @@ export function parseMeetingDoc(raw: string): ParsedMeetingDoc {
   };
   if (!raw || raw.length < 50) return empty;
 
-  const matches: SectionMatch[] = [];
-  for (const [key, keywords] of Object.entries(SECTION_KEYWORDS) as Array<[keyof typeof SECTION_KEYWORDS, string[]]>) {
-    for (const kw of keywords) {
-      const h = findSectionHeader(raw, kw);
-      if (h) {
-        matches.push({ key, ...h });
-        break; // セクション毎に最初の見出しを採用
-      }
-    }
-  }
+  // CRLF・LF両対応で行分割
+  const lines = raw.split(/\r\n|\r|\n/);
+  const headers = detectHeaders(lines);
 
-  if (matches.length < 1) return empty;
+  if (headers.length < 1) return empty;
 
-  matches.sort((a, b) => a.start - b.start);
-
-  const sections: Record<'summary' | 'actionItems' | 'transcript', string | null> = {
+  const sections: Record<SectionKey, string | null> = {
     summary: null,
     actionItems: null,
     transcript: null,
   };
 
-  for (let i = 0; i < matches.length; i++) {
-    const cur = matches[i];
-    const next = matches[i + 1];
-    const end = next ? next.start : raw.length;
-    const body = raw.slice(cur.contentStart, end).trim();
+  for (let i = 0; i < headers.length; i++) {
+    const cur = headers[i];
+    const next = headers[i + 1];
+    const startLine = cur.lineIdx + 1;
+    const endLine = next ? next.lineIdx : lines.length;
+    const body = lines.slice(startLine, endLine).join('\n').trim();
     if (body) sections[cur.key] = body;
   }
 
-  // アクションアイテムを構造化抽出
   const parsedActionItems = sections.actionItems
     ? parseActionItems(sections.actionItems)
     : [];
 
-  // LLM入力 = summary + actionItems（短くて構造的、コスト効率良）
   const parts: string[] = [];
   if (sections.summary) parts.push(`【会議要約】\n${sections.summary}`);
   if (sections.actionItems) parts.push(`【アクションアイテム】\n${sections.actionItems}`);
@@ -172,45 +152,70 @@ export function parseMeetingDoc(raw: string): ParsedMeetingDoc {
 }
 
 /**
- * 「次のステップ」セクションのテキストから個別アクションを抽出。
- *
- * 対応フォーマット:
- *   * [Ren Tonozuka] タイトル: 詳細
- *   * [Ren Tonozuka, Tatsuya Sakamoto] タイトル: 詳細
- *   * [@user] タイトル: 詳細
- *   * [グループ] タイトル: 詳細
- *   - [Name] Title: detail
- *   • [Name] Title
- *   1. [Name] Title: detail
+ * 「次のステップ」セクションの構造化抽出。
+ * 対応:
+ *   * [Name] タイトル: 詳細
+ *   * [Name1, Name2] タイトル
+ *   - [@user] ...
+ *   1. [Name] ...
  */
 function parseActionItems(text: string): ParsedActionItem[] {
   const items: ParsedActionItem[] = [];
-  // 行頭の bullet: *, -, •, 1. 等を許容
-  const lineRegex = /^[\s]*(?:[\*\-•・◦]|\d+[.)）])\s+(.+?)$/gm;
-  let m;
-  while ((m = lineRegex.exec(text)) !== null) {
-    const line = m[1].trim();
-    // [名前] タイトル: 詳細  形式
-    const bracketMatch = /^\[([^\]]+)\]\s*(.+?)(?::\s*(.+))?$/.exec(line);
-    if (bracketMatch) {
-      const assigneeName = bracketMatch[1].trim();
-      const titlePart = bracketMatch[2].trim();
-      const descPart = bracketMatch[3]?.trim() ?? null;
+  const lines = text.split(/\r\n|\r|\n/);
+  // 複数行の項目をマージするためのバッファ
+  let current: string | null = null;
+
+  const flush = (line: string | null) => {
+    if (!line) return;
+    const trimmed = line.trim();
+    if (!trimmed) return;
+
+    // bullet除去
+    const bulletStripped = trimmed.replace(/^(?:[\*\-•・◦]|\d+[.)）])\s+/, '');
+
+    // [Name] タイトル: 詳細
+    const bracket = /^\[([^\]]+)\]\s*(.+?)(?::\s*(.+))?$/.exec(bulletStripped);
+    if (bracket) {
+      const rawName = bracket[1].trim();
+      const titlePart = bracket[2].trim();
+      const descPart = bracket[3]?.trim() ?? null;
+      const assigneeName = rawName.startsWith('@') ? rawName.slice(1) : rawName;
       items.push({
-        assigneeName: assigneeName.startsWith('@') ? assigneeName.slice(1) : assigneeName,
-        title: titlePart,
+        assigneeName: assigneeName || null,
+        title: titlePart.slice(0, 200),
         description: descPart,
-        originalQuote: line.slice(0, 200),
+        originalQuote: trimmed.slice(0, 200),
       });
-    } else {
-      // [なし] タイトル のみ（担当者不明）
+    } else if (bulletStripped.length >= 4) {
       items.push({
         assigneeName: null,
-        title: line.slice(0, 200),
+        title: bulletStripped.slice(0, 200),
         description: null,
-        originalQuote: line.slice(0, 200),
+        originalQuote: trimmed.slice(0, 200),
       });
     }
+  };
+
+  for (const ln of lines) {
+    const trimmed = ln.trim();
+    // 空行 → 直前の項目を確定
+    if (!trimmed) {
+      flush(current);
+      current = null;
+      continue;
+    }
+    // bulletで始まる行 = 新項目開始
+    if (/^(?:[\*\-•・◦]|\d+[.)）])\s+/.test(trimmed)) {
+      flush(current);
+      current = trimmed;
+    } else if (current) {
+      // 継続行（インデント等）
+      current += ' ' + trimmed;
+    } else {
+      // bulletなし単独行も項目として扱う（条件付き）
+      flush(trimmed);
+    }
   }
+  flush(current);
   return items;
 }
