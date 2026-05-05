@@ -2414,3 +2414,216 @@ export async function handleProjectMemberList(
     return err(e instanceof Error ? e.message : String(e));
   }
 }
+
+// ==================== Meeting Tools ====================
+
+export async function handleMeetingList(
+  params: { status?: string; limit?: number },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const meetings = await prisma.meeting.findMany({
+      where: {
+        workspaceId: ctx.workspaceId,
+        ...(params.status ? { status: params.status as 'EXTRACTING' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'FAILED' } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: params.limit ?? 50,
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        source: true,
+        meetingDate: true,
+        createdAt: true,
+        approvedAt: true,
+        failureReason: true,
+        _count: { select: { extractedTasks: true } },
+      },
+    });
+    return ok(meetings);
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function handleMeetingGet(
+  params: { meetingId: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const meeting = await prisma.meeting.findFirst({
+      where: { id: params.meetingId, workspaceId: ctx.workspaceId },
+      include: {
+        extractedTasks: { orderBy: { createdAt: 'asc' } },
+      },
+    });
+    if (!meeting) return err('議事録が見つかりません');
+    return ok(meeting);
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function handleExtractedTaskUpdate(
+  params: {
+    extractedTaskId: string;
+    finalTitle?: string;
+    finalDescription?: string | null;
+    finalAssigneeId?: string | null;
+    finalProjectId?: string | null;
+    finalSectionId?: string | null;
+    finalDueDate?: string | null;
+    finalPriority?: 'P0' | 'P1' | 'P2' | 'P3';
+  },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const et = await prisma.extractedTask.findUnique({
+      where: { id: params.extractedTaskId },
+      select: { id: true, status: true, meeting: { select: { workspaceId: true } } },
+    });
+    if (!et) return err('抽出タスクが見つかりません');
+    if (et.meeting.workspaceId !== ctx.workspaceId) return err('アクセス権がありません');
+    if (et.status === 'APPROVED') return err('承認済みのため編集できません');
+
+    const updated = await prisma.extractedTask.update({
+      where: { id: params.extractedTaskId },
+      data: {
+        finalTitle: params.finalTitle ?? undefined,
+        finalDescription: params.finalDescription ?? undefined,
+        finalAssigneeId: params.finalAssigneeId ?? undefined,
+        finalProjectId: params.finalProjectId ?? undefined,
+        finalSectionId: params.finalSectionId ?? undefined,
+        finalDueDate: params.finalDueDate ? new Date(params.finalDueDate) : undefined,
+        finalPriority: params.finalPriority ?? undefined,
+      },
+    });
+    return ok(updated);
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function handleMeetingApprove(
+  params: {
+    meetingId: string;
+    items: { extractedTaskId: string; action: 'approve' | 'reject' }[];
+  },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const meeting = await prisma.meeting.findFirst({
+      where: { id: params.meetingId, workspaceId: ctx.workspaceId },
+      include: { extractedTasks: true },
+    });
+    if (!meeting) return err('議事録が見つかりません');
+    if (meeting.status === 'APPROVED') return err('既に承認済みです');
+
+    const etById = new Map(meeting.extractedTasks.map((et) => [et.id, et]));
+
+    const projectIds = new Set(
+      (
+        await prisma.project.findMany({
+          where: { workspaceId: ctx.workspaceId },
+          select: { id: true },
+        })
+      ).map((p) => p.id),
+    );
+    const memberUserIds = new Set(
+      (
+        await prisma.workspaceMember.findMany({
+          where: { workspaceId: ctx.workspaceId },
+          select: { userId: true },
+        })
+      ).map((m) => m.userId),
+    );
+
+    const approved: { extractedTaskId: string; createdTaskId: string }[] = [];
+    const rejected: string[] = [];
+    const skipped: { extractedTaskId: string; reason: string }[] = [];
+
+    await prisma.$transaction(async (tx) => {
+      for (const item of params.items) {
+        const et = etById.get(item.extractedTaskId);
+        if (!et) {
+          skipped.push({ extractedTaskId: item.extractedTaskId, reason: 'not found' });
+          continue;
+        }
+        if (et.status !== 'PENDING') {
+          skipped.push({ extractedTaskId: et.id, reason: `already ${et.status}` });
+          continue;
+        }
+
+        if (item.action === 'reject') {
+          await tx.extractedTask.update({
+            where: { id: et.id },
+            data: { status: 'REJECTED' },
+          });
+          rejected.push(et.id);
+          continue;
+        }
+
+        const finalTitle = et.finalTitle ?? et.suggestedTitle;
+        const finalProjectId = et.finalProjectId ?? et.suggestedProjectId;
+        const finalAssigneeId = et.finalAssigneeId ?? et.suggestedAssigneeId;
+        const finalDueDate = et.finalDueDate ?? et.suggestedDueDate;
+        const finalPriority = et.finalPriority ?? et.suggestedPriority;
+
+        if (!finalProjectId || !projectIds.has(finalProjectId)) {
+          skipped.push({ extractedTaskId: et.id, reason: 'projectIdが未設定または無効' });
+          continue;
+        }
+        if (finalAssigneeId && !memberUserIds.has(finalAssigneeId)) {
+          skipped.push({ extractedTaskId: et.id, reason: 'assigneeIdがworkspaceメンバーでない' });
+          continue;
+        }
+
+        const created = await tx.task.create({
+          data: {
+            title: finalTitle,
+            description: et.finalDescription ?? et.suggestedDescription ?? null,
+            priority: finalPriority,
+            projectId: finalProjectId,
+            sectionId: et.finalSectionId ?? null,
+            createdById: ctx.userId,
+            dueDate: finalDueDate ?? null,
+            assignees: finalAssigneeId
+              ? { create: [{ userId: finalAssigneeId }] }
+              : undefined,
+          },
+          select: { id: true },
+        });
+
+        await tx.extractedTask.update({
+          where: { id: et.id },
+          data: {
+            status: 'APPROVED',
+            createdTaskId: created.id,
+            finalTitle,
+            finalAssigneeId: finalAssigneeId ?? null,
+            finalProjectId,
+            finalSectionId: et.finalSectionId ?? null,
+            finalDueDate: finalDueDate ?? null,
+            finalPriority,
+          },
+        });
+        approved.push({ extractedTaskId: et.id, createdTaskId: created.id });
+      }
+
+      const remaining = await tx.extractedTask.count({
+        where: { meetingId: meeting.id, status: 'PENDING' },
+      });
+      if (remaining === 0) {
+        await tx.meeting.update({
+          where: { id: meeting.id },
+          data: { status: 'APPROVED', approvedAt: new Date() },
+        });
+      }
+    });
+
+    return ok({ approved, rejected, skipped });
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}

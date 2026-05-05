@@ -117,6 +117,11 @@ const COMMANDS: CmdDef[] = [
   { name: 'token:list',   desc: 'APIトークン一覧', usage: '(引数なし)', example: 'tasuke token:list' },
   { name: 'token:create', desc: 'APIトークン発行', usage: '--name TEXT [--scope read_only|read_write] [--expiresInDays N]', example: 'tasuke token:create --name "CI" --scope read_write' },
   { name: 'token:revoke', desc: 'APIトークン無効化', usage: '--tokenId ID', example: 'tasuke token:revoke --tokenId abc' },
+  // Meeting
+  { name: 'meeting:list',     desc: '議事録一覧', usage: '[--status PENDING_REVIEW|APPROVED|FAILED] [--limit N]', example: 'tasuke meeting:list --status PENDING_REVIEW' },
+  { name: 'meeting:get',      desc: '議事録詳細＋抽出タスク', usage: '--meetingId ID', example: 'tasuke meeting:get --meetingId abc' },
+  { name: 'meeting:edit',     desc: '抽出タスクのfinal*編集（承認前）', usage: '--extractedTaskId ID [--finalTitle TEXT] [--finalAssigneeId ID] [--finalProjectId ID] [--finalDueDate YYYY-MM-DD] [--finalPriority P0-P3]', example: 'tasuke meeting:edit --extractedTaskId xyz --finalProjectId abc --finalPriority P1' },
+  { name: 'meeting:approve',  desc: '議事録を一括承認/却下', usage: '--meetingId ID --json \'{"items":[{"extractedTaskId":"x","action":"approve"}]}\'', example: 'tasuke meeting:approve --meetingId abc --json \'{"items":[{"extractedTaskId":"e1","action":"approve"}]}\'' },
 ];
 
 // CLI名 → MCP名 マッピング
@@ -215,6 +220,11 @@ const CLI_TO_MCP: Record<string, string> = {
   'token:list': 'api_token_list',
   'token:create': 'api_token_create',
   'token:revoke': 'api_token_revoke',
+  // Meeting
+  'meeting:list': 'meeting_list',
+  'meeting:get': 'meeting_get',
+  'meeting:edit': 'extracted_task_update',
+  'meeting:approve': 'meeting_approve',
 };
 
 // ── 引数パーサー ──
