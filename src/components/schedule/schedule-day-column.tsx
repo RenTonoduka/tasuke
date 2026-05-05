@@ -158,7 +158,7 @@ function EventBlock({
         <div
           data-event-popover
           className={cn(
-            'absolute left-0 z-[60] w-[300px] rounded-xl bg-white p-4',
+            'absolute left-0 z-[60] w-[300px] rounded-xl bg-g-bg p-4',
             'shadow-[0_24px_38px_3px_rgba(0,0,0,0.14),0_9px_46px_8px_rgba(0,0,0,0.12),0_11px_15px_-7px_rgba(0,0,0,0.2)]',
             popoverDirection === 'below' ? 'top-full mt-1' : 'bottom-full mb-1',
           )}
@@ -178,7 +178,7 @@ function EventBlock({
                   }
                   if (e.key === 'Escape') setEditing(false);
                 }}
-                className="w-full border-b-2 border-[#1a73e8] bg-transparent px-1 py-1.5 text-[22px] font-normal text-[#202124] focus:outline-none"
+                className="w-full border-b-2 border-[#1a73e8] bg-transparent px-1 py-1.5 text-[22px] font-normal text-g-text focus:outline-none"
               />
               <div className="flex gap-2">
                 <button
@@ -193,7 +193,7 @@ function EventBlock({
                 </button>
                 <button
                   onClick={() => { setEditTitle(ev.summary); setEditing(false); }}
-                  className="rounded-full px-4 py-2 text-sm font-medium text-[#3c4043] hover:bg-[#f1f3f4]"
+                  className="rounded-full px-4 py-2 text-sm font-medium text-g-text-secondary hover:bg-g-surface-hover"
                 >
                   キャンセル
                 </button>
@@ -205,24 +205,24 @@ function EventBlock({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2.5 mb-3">
                     <div className="h-4 w-4 rounded shrink-0" style={{ backgroundColor: gcalColor.bg }} />
-                    <span className="text-lg font-normal text-[#3c4043] line-clamp-2">{ev.summary}</span>
+                    <span className="text-lg font-normal text-g-text-secondary line-clamp-2">{ev.summary}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-[#70757a] ml-[26px]">
+                  <div className="flex items-center gap-2 text-sm text-g-text-muted ml-[26px]">
                     <Clock className="h-4 w-4 shrink-0" />
                     <span>{minutesToTime(ev.startMin)}〜{minutesToTime(ev.endMin)}</span>
                   </div>
                 </div>
                 <button
                   onClick={() => onSelect(null)}
-                  className="ml-2 shrink-0 rounded-full p-1.5 text-[#5f6368] hover:bg-[#f1f3f4] transition-colors"
+                  className="ml-2 shrink-0 rounded-full p-1.5 text-g-text-secondary hover:bg-g-surface-hover transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <div className="mt-4 flex gap-1 border-t border-[#e8eaed] pt-3">
+              <div className="mt-4 flex gap-1 border-t border-g-border pt-3">
                 <button
                   onClick={() => { setEditTitle(ev.summary); setEditing(true); }}
-                  className="flex items-center gap-2 rounded-full px-3 py-2 text-sm text-[#3c4043] hover:bg-[#f1f3f4] transition-colors"
+                  className="flex items-center gap-2 rounded-full px-3 py-2 text-sm text-g-text-secondary hover:bg-g-surface-hover transition-colors"
                 >
                   <Pencil className="h-4 w-4" />
                   編集
@@ -232,7 +232,7 @@ function EventBlock({
                     onSelect(null);
                     onDeleteEvent(ev.id);
                   }}
-                  className="flex items-center gap-2 rounded-full px-3 py-2 text-sm text-[#3c4043] hover:bg-[#f1f3f4] transition-colors"
+                  className="flex items-center gap-2 rounded-full px-3 py-2 text-sm text-g-text-secondary hover:bg-g-surface-hover transition-colors"
                 >
                   <Trash2 className="h-4 w-4" />
                   削除
@@ -549,13 +549,13 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
   const showDropIndicator = dropIndicator && dropIndicator.date === day.date;
 
   return (
-    <div className="shrink-0 border-l border-[#dadce0]" style={{ width: dayColWidth }}>
+    <div className="shrink-0 border-l border-g-border" style={{ width: dayColWidth }}>
       {/* タイムグリッド（ヘッダーは timeline の sticky に分離済み） */}
       <div
         ref={gridRefCallback}
         className={cn(
           'relative',
-          isOver ? 'bg-[#e8f0fe]' : isWeekend ? 'bg-[#f8f9fa]' : 'bg-white',
+          isOver ? 'bg-[#e8f0fe] dark:bg-blue-950' : isWeekend ? 'bg-g-surface' : 'bg-g-bg',
         )}
         style={{ height: totalHeight }}
         onDoubleClick={handleGridDoubleClick}
@@ -564,7 +564,7 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
         {Array.from({ length: workHours }, (_, i) => (
           <div
             key={i}
-            className="absolute left-0 w-full border-b border-[#dadce0]"
+            className="absolute left-0 w-full border-b border-g-border"
             style={{ top: i * HOUR_HEIGHT }}
           />
         ))}
@@ -572,7 +572,7 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
         {Array.from({ length: workHours }, (_, i) => (
           <div
             key={`h-${i}`}
-            className="absolute left-0 w-full border-b border-dashed border-[#e8eaed]"
+            className="absolute left-0 w-full border-b border-dashed border-g-border"
             style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2 }}
           />
         ))}

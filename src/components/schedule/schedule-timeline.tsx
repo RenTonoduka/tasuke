@@ -35,14 +35,14 @@ function DayHeader({ day, width }: { day: DayData; width: number }) {
   return (
     <div
       className={cn(
-        'shrink-0 flex items-center justify-center gap-1 h-9 border-l border-[#dadce0]',
-        isWeekend && 'bg-[#f8f9fa]',
+        'shrink-0 flex items-center justify-center gap-1 h-9 border-l border-g-border',
+        isWeekend && 'bg-g-surface',
       )}
       style={{ width }}
     >
       <span className={cn(
         'text-[11px] font-medium',
-        isToday ? 'text-[#1a73e8]' : 'text-[#70757a]',
+        isToday ? 'text-[#1a73e8]' : 'text-g-text-muted',
       )}>
         {dayOfWeek}
       </span>
@@ -50,7 +50,7 @@ function DayHeader({ day, width }: { day: DayData; width: number }) {
         'leading-none',
         isToday
           ? 'bg-[#1a73e8] text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium'
-          : 'text-sm font-medium text-[#3c4043]',
+          : 'text-sm font-medium text-g-text-secondary',
       )}>
         {dateNum}
       </span>
@@ -105,7 +105,7 @@ export function ScheduleTimeline({
     <div ref={containerRef}>
       <div style={{ minWidth: TIME_LABEL_WIDTH + daysData.length * MIN_DAY_COL_WIDTH }}>
         {/* ===== Sticky ヘッダー行 ===== */}
-        <div className="sticky top-0 z-20 bg-white border-b border-[#dadce0]">
+        <div className="sticky top-0 z-20 bg-g-bg border-b border-g-border">
           <div className="flex">
             {/* 時刻ラベル列のスペーサー */}
             <div className="shrink-0 h-9" style={{ width: TIME_LABEL_WIDTH }} />
@@ -117,12 +117,12 @@ export function ScheduleTimeline({
 
           {/* 終日イベント行（ヘッダーに含める） */}
           {hasAllDay && (
-            <div className="flex border-t border-[#e8eaed]">
+            <div className="flex border-t border-g-border">
               <div className="shrink-0" style={{ width: TIME_LABEL_WIDTH }} />
               {daysData.map((day) => (
                 <div
                   key={day.date}
-                  className="shrink-0 border-l border-[#dadce0] px-0.5 py-0.5 space-y-0.5"
+                  className="shrink-0 border-l border-g-border px-0.5 py-0.5 space-y-0.5"
                   style={{ width: dayColWidth, minHeight: allDayHeight }}
                 >
                   {day.allDayEvents.slice(0, 3).map((name, i) => (
@@ -154,7 +154,7 @@ export function ScheduleTimeline({
               {Array.from({ length: workHours + 1 }, (_, i) => (
                 <span
                   key={i}
-                  className="absolute right-2 -translate-y-1/2 text-[10px] font-medium text-[#70757a] tabular-nums select-none"
+                  className="absolute right-2 -translate-y-1/2 text-[10px] font-medium text-g-text-muted tabular-nums select-none"
                   style={{ top: i * HOUR_HEIGHT }}
                 >
                   {String(workStart + i).padStart(2, '0')}:00
