@@ -80,13 +80,13 @@ export function ExtractClient({ workspaceId, workspaceSlug }: { workspaceId: str
         </p>
 
         <div className="space-y-1">
-          <label className="text-xs font-medium text-g-text">会議タイトル <span className="text-red-500">*</span></label>
+          <label className="text-xs font-medium text-g-text">会議タイトル <span className="text-red-500 dark:text-red-400">*</span></label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="例: 週次定例 2026-05-04"
-            className="w-full rounded-md border border-g-border bg-white px-3 py-2 text-sm focus:border-[#4285F4] focus:outline-none"
+            className="w-full rounded-md border border-g-border bg-g-bg px-3 py-2 text-sm focus:border-[#4285F4] focus:outline-none"
             disabled={loading}
           />
         </div>
@@ -97,7 +97,7 @@ export function ExtractClient({ workspaceId, workspaceSlug }: { workspaceId: str
             type="date"
             value={meetingDate}
             onChange={(e) => setMeetingDate(e.target.value)}
-            className="rounded-md border border-g-border bg-white px-3 py-2 text-sm focus:border-[#4285F4] focus:outline-none"
+            className="rounded-md border border-g-border bg-g-bg px-3 py-2 text-sm focus:border-[#4285F4] focus:outline-none"
             disabled={loading}
           />
           <p className="text-xs text-g-text-muted">期日表現（「来週金曜」等）の解決基準日になります</p>
@@ -105,7 +105,7 @@ export function ExtractClient({ workspaceId, workspaceSlug }: { workspaceId: str
 
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-medium text-g-text">議事録本文 <span className="text-red-500">*</span></label>
+            <label className="text-xs font-medium text-g-text">議事録本文 <span className="text-red-500 dark:text-red-400">*</span></label>
             <Button
               type="button"
               variant="outline"
@@ -131,7 +131,7 @@ export function ExtractClient({ workspaceId, workspaceSlug }: { workspaceId: str
             onChange={(e) => setTranscript(e.target.value)}
             placeholder="議事録（最大5万字）をペーストするか、右上の「Driveから取得」を使ってください..."
             rows={20}
-            className="w-full rounded-md border border-g-border bg-white px-3 py-2 font-mono text-xs leading-relaxed focus:border-[#4285F4] focus:outline-none"
+            className="w-full rounded-md border border-g-border bg-g-bg px-3 py-2 font-mono text-xs leading-relaxed focus:border-[#4285F4] focus:outline-none"
             disabled={loading}
           />
           <p className="text-xs text-g-text-muted">{transcript.length.toLocaleString()} / 50,000 字</p>

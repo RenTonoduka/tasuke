@@ -118,16 +118,16 @@ export function DriveWatchClient({ workspaceId }: { workspaceId: string; workspa
             読み込み中...
           </div>
         ) : channel?.enabled ? (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+          <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950 p-4">
             <div className="flex items-start gap-2">
-              <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
+              <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               <div className="flex-1 space-y-1">
-                <p className="text-sm font-medium text-emerald-800">有効化済み</p>
-                <p className="text-xs text-emerald-700">
+                <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">有効化済み</p>
+                <p className="text-xs text-emerald-700 dark:text-emerald-300">
                   期限: {new Date(channel.expiration).toLocaleString('ja-JP')}
                 </p>
                 {channel.lastNotifiedAt && (
-                  <p className="text-xs text-emerald-700">
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300">
                     最終通知: {new Date(channel.lastNotifiedAt).toLocaleString('ja-JP')}
                   </p>
                 )}
@@ -147,18 +147,18 @@ export function DriveWatchClient({ workspaceId }: { workspaceId: string; workspa
                 size="sm"
                 onClick={disable}
                 disabled={busy}
-                className="text-red-600 hover:bg-red-50"
+                className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950"
               >
                 <XCircle className="h-3.5 w-3.5" />
                 無効化
               </Button>
             </div>
-            <p className="mt-2 text-xs text-emerald-700">
+            <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
               ※ 15分ごとに自動ポーリング（webhook通知の取りこぼし対策）
             </p>
           </div>
         ) : (
-          <div className="rounded-lg border border-g-border bg-white p-4">
+          <div className="rounded-lg border border-g-border bg-g-surface p-4">
             <p className="text-sm text-g-text">現在無効です</p>
             <Button onClick={enable} disabled={busy} className="mt-3">
               {busy ? (

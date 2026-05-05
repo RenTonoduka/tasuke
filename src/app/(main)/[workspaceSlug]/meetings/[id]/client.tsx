@@ -259,7 +259,7 @@ export function MeetingDetailClient({ meetingId, workspaceSlug }: { meetingId: s
           </Link>
           <button
             onClick={deleteMeeting}
-            className="inline-flex items-center gap-1 text-xs text-red-600 hover:underline"
+            className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400 hover:underline"
           >
             <Trash2 className="h-3.5 w-3.5" />
             この議事録を削除
@@ -273,7 +273,7 @@ export function MeetingDetailClient({ meetingId, workspaceSlug }: { meetingId: s
             {m.extractedTasks.length}件 · 状態: {m.status}
           </p>
           {m.failureReason && (
-            <p className="mt-2 inline-flex items-center gap-1 text-xs text-red-600">
+            <p className="mt-2 inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
               <AlertTriangle className="h-3.5 w-3.5" />
               {m.failureReason}
             </p>
@@ -312,7 +312,7 @@ export function MeetingDetailClient({ meetingId, workspaceSlug }: { meetingId: s
                               onClick={() => setDecision(et.id, decision === 'approve' ? null : 'approve')}
                               className={`inline-flex items-center justify-center gap-1 rounded border px-2 py-1 text-xs ${
                                 decision === 'approve'
-                                  ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                                  ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-200'
                                   : 'border-g-border text-g-text-secondary hover:bg-g-surface'
                               }`}
                             >
@@ -323,7 +323,7 @@ export function MeetingDetailClient({ meetingId, workspaceSlug }: { meetingId: s
                               onClick={() => setDecision(et.id, decision === 'reject' ? null : 'reject')}
                               className={`inline-flex items-center justify-center gap-1 rounded border px-2 py-1 text-xs ${
                                 decision === 'reject'
-                                  ? 'border-red-500 bg-red-50 text-red-700'
+                                  ? 'border-red-500 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200'
                                   : 'border-g-border text-g-text-secondary hover:bg-g-surface'
                               }`}
                             >
@@ -337,7 +337,7 @@ export function MeetingDetailClient({ meetingId, workspaceSlug }: { meetingId: s
                             type="text"
                             value={(getEdit(et, 'finalTitle') as string) ?? ''}
                             onChange={(e) => setEdit(et.id, 'finalTitle', e.target.value)}
-                            className="w-full rounded border border-g-border bg-white px-2 py-1 text-sm"
+                            className="w-full rounded border border-g-border bg-g-bg px-2 py-1 text-sm"
                           />
                           <p className="mt-1 text-xs italic text-g-text-muted">「{et.originalQuote}」</p>
                         </td>
@@ -345,7 +345,7 @@ export function MeetingDetailClient({ meetingId, workspaceSlug }: { meetingId: s
                           <select
                             value={(getEdit(et, 'finalAssigneeId') as string | null) ?? ''}
                             onChange={(e) => setEdit(et.id, 'finalAssigneeId', e.target.value || null)}
-                            className="w-full rounded border border-g-border bg-white px-2 py-1 text-xs"
+                            className="w-full rounded border border-g-border bg-g-bg px-2 py-1 text-xs"
                           >
                             <option value="">— 未指定 —</option>
                             {members.map((mb) => (
@@ -365,7 +365,7 @@ export function MeetingDetailClient({ meetingId, workspaceSlug }: { meetingId: s
                               setEdit(et.id, 'finalProjectId', e.target.value || null);
                               setEdit(et.id, 'finalSectionId', null);
                             }}
-                            className="w-full rounded border border-g-border bg-white px-2 py-1 text-xs"
+                            className="w-full rounded border border-g-border bg-g-bg px-2 py-1 text-xs"
                           >
                             <option value="">— プロジェクト選択 —</option>
                             {projects.map((p) => (
@@ -378,7 +378,7 @@ export function MeetingDetailClient({ meetingId, workspaceSlug }: { meetingId: s
                             <select
                               value={(getEdit(et, 'finalSectionId') as string | null) ?? ''}
                               onChange={(e) => setEdit(et.id, 'finalSectionId', e.target.value || null)}
-                              className="mt-1 w-full rounded border border-g-border bg-white px-2 py-1 text-xs"
+                              className="mt-1 w-full rounded border border-g-border bg-g-bg px-2 py-1 text-xs"
                             >
                               <option value="">— セクション(任意) —</option>
                               {project.sections.map((s) => (
@@ -394,14 +394,14 @@ export function MeetingDetailClient({ meetingId, workspaceSlug }: { meetingId: s
                             type="date"
                             value={(getEdit(et, 'finalDueDate') as string) ?? ''}
                             onChange={(e) => setEdit(et.id, 'finalDueDate', e.target.value || null)}
-                            className="w-full rounded border border-g-border bg-white px-2 py-1 text-xs"
+                            className="w-full rounded border border-g-border bg-g-bg px-2 py-1 text-xs"
                           />
                         </td>
                         <td className="px-3 py-2">
                           <select
                             value={(getEdit(et, 'finalPriority') as Priority) ?? 'P3'}
                             onChange={(e) => setEdit(et.id, 'finalPriority', e.target.value as Priority)}
-                            className="w-full rounded border border-g-border bg-white px-2 py-1 text-xs"
+                            className="w-full rounded border border-g-border bg-g-bg px-2 py-1 text-xs"
                           >
                             {(['P0', 'P1', 'P2', 'P3'] as Priority[]).map((p) => (
                               <option key={p} value={p}>
@@ -420,7 +420,7 @@ export function MeetingDetailClient({ meetingId, workspaceSlug }: { meetingId: s
               </table>
             </div>
 
-            <div className="sticky bottom-0 -mx-6 flex items-center justify-between border-t border-g-border bg-white px-6 py-3">
+            <div className="sticky bottom-0 -mx-6 flex items-center justify-between border-t border-g-border bg-g-bg px-6 py-3">
               <div className="flex items-center gap-3 text-sm text-g-text-secondary">
                 <span>{approveCount}件承認 / {rejectCount}件却下</span>
                 {saveStatus === 'saving' && (
@@ -430,13 +430,13 @@ export function MeetingDetailClient({ meetingId, workspaceSlug }: { meetingId: s
                   </span>
                 )}
                 {saveStatus === 'saved' && (
-                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
                     <CloudUpload className="h-3 w-3" />
                     編集を保存しました
                   </span>
                 )}
                 {saveStatus === 'error' && (
-                  <span className="inline-flex items-center gap-1 text-xs text-red-600">
+                  <span className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
                     <AlertTriangle className="h-3 w-3" />
                     保存失敗
                   </span>
@@ -467,7 +467,7 @@ export function MeetingDetailClient({ meetingId, workspaceSlug }: { meetingId: s
                   <li key={et.id} className="text-xs text-g-text-muted">
                     [{et.status}] {et.finalTitle ?? et.suggestedTitle}
                     {et.createdTaskId && (
-                      <span className="ml-1 text-emerald-700">→ Task作成済み</span>
+                      <span className="ml-1 text-emerald-700 dark:text-emerald-300">→ Task作成済み</span>
                     )}
                   </li>
                 ))}
