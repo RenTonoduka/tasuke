@@ -20,7 +20,7 @@ import { registerSettingsTools } from './tools/settings.js';
 import { registerMeetingTools } from './tools/meetings.js';
 
 const server = new McpServer({
-  name: 'tasuke',
+  name: process.env.MCP_NAME ?? 'task-core',
   version: '1.0.0',
 });
 
