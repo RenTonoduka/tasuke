@@ -1229,7 +1229,7 @@ export async function handleScheduleBlockCreate(
     const inserted = await calendar.events.insert({
       calendarId: 'primary',
       requestBody: {
-        summary: `[tasuke] ${task.title}`,
+        summary: `[Task Core] ${task.title}`,
         description: task.description ?? undefined,
         start: { dateTime: `${params.date}T${params.start}:00`, timeZone: 'Asia/Tokyo' },
         end: { dateTime: `${params.date}T${params.end}:00`, timeZone: 'Asia/Tokyo' },

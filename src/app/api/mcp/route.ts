@@ -1181,7 +1181,7 @@ export async function POST(req: NextRequest) {
     return jsonrpcResult(id, {
       protocolVersion: '2024-11-05',
       capabilities: { tools: {} },
-      serverInfo: { name: 'tasuke', version: '1.0.0' },
+      serverInfo: { name: 'task-core', version: '1.0.0' },
     });
   }
 
