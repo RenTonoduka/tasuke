@@ -26,6 +26,7 @@ import type { FilterState } from '@/stores/filter-store';
 import { useRouter } from 'next/navigation';
 import { SearchX } from 'lucide-react';
 import { useDragToProjectStore } from '@/stores/drag-to-project-store';
+import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { toast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import type { Section, Task, TaskStatusValue } from '@/types';
@@ -469,6 +470,9 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
         onSectionsChange?.(next);
         return next;
       });
+
+      // 作成成功 → 詳細パネルを自動オープン（優先度/期限/担当者等をその場で設定可能に）
+      useTaskPanelStore.getState().open(task.id);
     } catch {
       toast({ title: 'タスクの作成に失敗', variant: 'destructive' });
     }

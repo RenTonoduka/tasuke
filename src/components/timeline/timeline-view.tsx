@@ -148,10 +148,12 @@ export function TimelineView({ sections: initialSections, projectId }: TimelineV
           s.id === sectionId ? { ...s, tasks: [...s.tasks, task] } : s,
         ),
       );
+      // 作成成功 → 詳細パネルを自動オープン
+      openPanel(task.id);
     } catch {
       toast({ title: 'タスクの作成に失敗', variant: 'destructive' });
     }
-  }, [projectId]);
+  }, [projectId, openPanel]);
 
   // D&D で範囲指定して新タスクを作成
   const [dragNewTask, setDragNewTask] = useState<{
