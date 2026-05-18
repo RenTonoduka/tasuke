@@ -48,6 +48,7 @@ async function main() {
   await server.connect(transport);
 }
 
-main().catch(() => {
+main().catch((err) => {
+  console.error('[MCP] fatal:', err);
   process.exit(1);
 });

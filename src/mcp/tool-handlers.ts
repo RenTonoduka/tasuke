@@ -179,7 +179,7 @@ export async function handleTaskUpdate(
     if (data.title !== undefined) updateData.title = data.title;
     if (data.status !== undefined) {
       updateData.status = data.status;
-      if (data.status === 'DONE') updateData.completedAt = new Date();
+      updateData.completedAt = data.status === 'DONE' ? new Date() : null;
     }
     if (data.priority !== undefined) updateData.priority = data.priority;
     if (data.startDate !== undefined) updateData.startDate = data.startDate ? new Date(data.startDate) : null;

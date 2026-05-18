@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import prisma from '@/lib/prisma';
 import { pollChangesForChannel } from '@/lib/meeting/drive-watch';
 
@@ -7,8 +8,16 @@ export const dynamic = 'force-dynamic';
 
 function isAuthorized(req: NextRequest): boolean {
   // Vercel Cronは "Authorization: Bearer $CRON_SECRET" を自動付与
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false;
   const auth = req.headers.get('authorization') || '';
-  return !!process.env.CRON_SECRET && auth === `Bearer ${process.env.CRON_SECRET}`;
+  const expected = `Bearer ${secret}`;
+  if (auth.length !== expected.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(auth), Buffer.from(expected));
+  } catch {
+    return false;
+  }
 }
 
 export async function GET(req: NextRequest) {

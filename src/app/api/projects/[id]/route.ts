@@ -49,6 +49,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (!(await canAccessProject(user.id, params.id))) {
       return errorResponse('プロジェクトへのアクセス権がありません', 403);
     }
+
+    const existing = await prisma.project.findUnique({
+      where: { id: params.id },
+      select: { workspaceId: true },
+    });
+    if (!existing) return errorResponse('プロジェクトが見つかりません', 404);
+
+    const currentMembership = await prisma.workspaceMember.findFirst({
+      where: { workspaceId: existing.workspaceId, userId: user.id },
+      select: { role: true },
+    });
+    if (currentMembership?.role === 'VIEWER') {
+      return errorResponse('閲覧者はプロジェクトを編集できません', 403);
+    }
+
     const body = await req.json();
     const data = updateProjectSchema.parse(body);
     const updateData: Record<string, unknown> = { ...data };
@@ -58,16 +73,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       updateData.groupId = data.groupId ?? null;
     }
 
-    // ワークスペース間移動
+    // ワークスペース間移動: 現 WS で OWNER/ADMIN ロール必須、移動先でも OWNER/ADMIN
     if (data.workspaceId) {
-      const existing = await prisma.project.findUnique({ where: { id: params.id } });
-      if (existing && data.workspaceId === existing.workspaceId) {
+      if (data.workspaceId === existing.workspaceId) {
         delete updateData.workspaceId;
-      } else if (existing && data.workspaceId !== existing.workspaceId) {
-        const isMember = await prisma.workspaceMember.findFirst({
+      } else {
+        if (currentMembership?.role !== 'OWNER' && currentMembership?.role !== 'ADMIN') {
+          return errorResponse('プロジェクトのワークスペース移動には現ワークスペースの管理者権限が必要です', 403);
+        }
+        const targetMember = await prisma.workspaceMember.findFirst({
           where: { workspaceId: data.workspaceId, userId: user.id },
+          select: { role: true },
         });
-        if (!isMember) return errorResponse('移動先ワークスペースへのアクセス権がありません', 403);
+        if (!targetMember) return errorResponse('移動先ワークスペースへのアクセス権がありません', 403);
+        if (targetMember.role !== 'OWNER' && targetMember.role !== 'ADMIN') {
+          return errorResponse('移動先ワークスペースで管理者権限が必要です', 403);
+        }
         const maxPos = await prisma.project.aggregate({
           where: { workspaceId: data.workspaceId },
           _max: { position: true },
@@ -92,6 +113,21 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     if (!(await canAccessProject(user.id, params.id))) {
       return errorResponse('プロジェクトへのアクセス権がありません', 403);
     }
+
+    // VIEWER は削除不可、OWNER/ADMIN または PrivateProject の ProjectMember のみ
+    const existing = await prisma.project.findUnique({
+      where: { id: params.id },
+      select: { workspaceId: true },
+    });
+    if (!existing) return errorResponse('プロジェクトが見つかりません', 404);
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { workspaceId: existing.workspaceId, userId: user.id },
+      select: { role: true },
+    });
+    if (membership?.role !== 'OWNER' && membership?.role !== 'ADMIN') {
+      return errorResponse('プロジェクトの削除には管理者権限が必要です', 403);
+    }
+
     await prisma.project.delete({ where: { id: params.id } });
     return successResponse({ success: true });
   } catch (error) {

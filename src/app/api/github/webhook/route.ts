@@ -38,10 +38,17 @@ export async function POST(req: NextRequest) {
       include: { project: { select: { workspaceId: true } } },
     });
 
-    if (mapping?.webhookSecret) {
-      if (!verifySignature(rawBody, signature, mapping.webhookSecret)) {
-        return errorResponse('Invalid signature', 401);
-      }
+    // webhookSecret 未設定の mapping は webhook 受信を拒否する
+    // (誰でもfake webhookを送れる脆弱性を防ぐ)
+    if (!mapping) {
+      return errorResponse('No mapping for this repository', 404);
+    }
+    if (!mapping.webhookSecret) {
+      console.warn('[github-webhook] webhookSecret 未設定:', repoFullName);
+      return errorResponse('Webhook secret not configured for this repository', 401);
+    }
+    if (!verifySignature(rawBody, signature, mapping.webhookSecret)) {
+      return errorResponse('Invalid signature', 401);
     }
 
     // opened: 新規タスク自動作成
