@@ -4,25 +4,30 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { subMonths, addMonths, startOfDay, addDays } from 'date-fns';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
+import { toast } from '@/hooks/use-toast';
+import { AddTaskInline } from '@/components/board/add-task-inline';
 import { TimelineHeader } from './timeline-header';
 import { TimelineRow } from './timeline-row';
-import type { Section } from '@/types';
+import type { Section, Task } from '@/types';
 
 const DAY_WIDTH = 32;
 const BEFORE_MONTHS = 2;
 const AFTER_MONTHS = 2;
+const ADD_TASK_ROW_HEIGHT = 40;
 
 interface TimelineViewProps {
   sections: Section[];
   projectId: string;
 }
 
-export function TimelineView({ sections, projectId }: TimelineViewProps) {
+export function TimelineView({ sections: initialSections, projectId }: TimelineViewProps) {
   const openPanel = useTaskPanelStore((s) => s.open);
   const scrollRef = useRef<HTMLDivElement>(null);
   const leftScrollRef = useRef<HTMLDivElement>(null);
   const isSyncingRef = useRef(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [sections, setSections] = useState<Section[]>(initialSections);
+  useEffect(() => { setSections(initialSections); }, [initialSections]);
 
   const today = useMemo(() => startOfDay(new Date()), []);
   const rangeStart = useMemo(() => startOfDay(subMonths(today, BEFORE_MONTHS)), [today]);
@@ -117,6 +122,28 @@ export function TimelineView({ sections, projectId }: TimelineViewProps) {
     }
   }, []);
 
+  const handleAddTask = useCallback(async (sectionId: string, title: string) => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, sectionId }),
+      });
+      if (!res.ok) {
+        toast({ title: 'タスクの作成に失敗', variant: 'destructive' });
+        return;
+      }
+      const task = (await res.json()) as Task;
+      setSections((prev) =>
+        prev.map((s) =>
+          s.id === sectionId ? { ...s, tasks: [...s.tasks, task] } : s,
+        ),
+      );
+    } catch {
+      toast({ title: 'タスクの作成に失敗', variant: 'destructive' });
+    }
+  }, [projectId]);
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* 今日ボタン */}
@@ -174,6 +201,16 @@ export function TimelineView({ sections, projectId }: TimelineViewProps) {
                     <span className="truncate text-sm text-g-text">{task.title}</span>
                   </div>
                 ))}
+
+              {/* タスク追加行 */}
+              {!collapsed[section.id] && (
+                <div
+                  className="flex items-center border-b border-g-border px-1"
+                  style={{ height: ADD_TASK_ROW_HEIGHT }}
+                >
+                  <AddTaskInline onAdd={(title) => handleAddTask(section.id, title)} />
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -240,6 +277,22 @@ export function TimelineView({ sections, projectId }: TimelineViewProps) {
                       onDateChange={handleDateChange}
                     />
                   ))}
+
+                {/* タスク追加行のスペーサー（左パネルと高さ合わせ）
+                    md未満では左パネルが非表示なので、ここに sticky で配置 */}
+                {!collapsed[section.id] && (
+                  <div
+                    className="border-b border-g-border"
+                    style={{ height: ADD_TASK_ROW_HEIGHT, width: totalDays * DAY_WIDTH }}
+                  >
+                    <div
+                      className="md:hidden flex h-full w-60 items-center bg-g-bg px-1"
+                      style={{ position: 'sticky', left: 0 }}
+                    >
+                      <AddTaskInline onAdd={(title) => handleAddTask(section.id, title)} />
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
