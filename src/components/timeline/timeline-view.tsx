@@ -159,6 +159,8 @@ export function TimelineView({ sections: initialSections, projectId }: TimelineV
     startPx: number;
     currentPx: number;
   } | null>(null);
+  const dragNewTaskRef = useRef<typeof dragNewTask>(null);
+  dragNewTaskRef.current = dragNewTask;
   const [pendingNewTask, setPendingNewTask] = useState<{
     sectionId: string;
     startDayIndex: number;
@@ -175,28 +177,27 @@ export function TimelineView({ sections: initialSections, projectId }: TimelineV
   }, [pendingNewTask]);
 
   const handleSpacerPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    setDragNewTask((prev) => {
-      if (!prev) return prev;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      return { ...prev, currentPx: x };
-    });
+    if (!dragNewTaskRef.current) return;
+    // React の SyntheticEvent は setState updater 内では currentTarget が null 化される
+    // ため、updater の外で getBoundingClientRect を呼ぶ
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    setDragNewTask((prev) => (prev ? { ...prev, currentPx: x } : prev));
   }, []);
 
   const handleSpacerPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
-    setDragNewTask((prev) => {
-      if (!prev) return null;
-      const minPx = Math.min(prev.startPx, prev.currentPx);
-      const maxPx = Math.max(prev.startPx, prev.currentPx);
-      // ドラッグ距離が小さすぎる場合（誤クリック）は無視
-      if (maxPx - minPx < 4) return null;
-      const startDayIndex = Math.max(0, Math.min(totalDays - 1, Math.floor(minPx / DAY_WIDTH)));
-      const endDayIndex = Math.max(startDayIndex, Math.min(totalDays - 1, Math.floor(maxPx / DAY_WIDTH)));
-      setPendingNewTask({ sectionId: prev.sectionId, startDayIndex, endDayIndex });
-      setPendingTitle('');
-      return null;
-    });
+    const drag = dragNewTaskRef.current;
+    setDragNewTask(null);
+    if (!drag) return;
+    const minPx = Math.min(drag.startPx, drag.currentPx);
+    const maxPx = Math.max(drag.startPx, drag.currentPx);
+    // ドラッグ距離が小さすぎる場合（誤クリック）は無視
+    if (maxPx - minPx < 4) return;
+    const startDayIndex = Math.max(0, Math.min(totalDays - 1, Math.floor(minPx / DAY_WIDTH)));
+    const endDayIndex = Math.max(startDayIndex, Math.min(totalDays - 1, Math.floor(maxPx / DAY_WIDTH)));
+    setPendingNewTask({ sectionId: drag.sectionId, startDayIndex, endDayIndex });
+    setPendingTitle('');
   }, [totalDays]);
 
   const cancelPendingNewTask = useCallback(() => {
