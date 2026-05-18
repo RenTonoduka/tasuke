@@ -732,18 +732,16 @@ export function TaskDetailPanel() {
                           });
                           return;
                         }
-                        const startIso = new Date(val).toISOString();
-                        const endDate =
-                          task.scheduledEnd &&
-                          new Date(val) < new Date(task.scheduledEnd)
-                            ? task.scheduledEnd
-                            : new Date(
-                                new Date(val).getTime() +
-                                  (task.estimatedHours || 1) * 60 * 60 * 1000
-                              ).toISOString();
+                        // 開始を変更したら、必ず「開始 + 見積もり時間」で終了を再計算
+                        // (estimatedHours 未設定なら 1 時間)
+                        const startDate = new Date(val);
+                        const hours = task.estimatedHours || 1;
+                        const endIso = new Date(
+                          startDate.getTime() + hours * 60 * 60 * 1000,
+                        ).toISOString();
                         updateFields({
-                          scheduledStart: startIso,
-                          scheduledEnd: endDate,
+                          scheduledStart: startDate.toISOString(),
+                          scheduledEnd: endIso,
                         });
                       }}
                       className="h-8 min-w-[160px] flex-1 rounded-md border border-g-border bg-white px-2.5 text-xs text-g-text transition-colors focus:border-[#4285F4] focus:outline-none dark:bg-transparent"
@@ -773,12 +771,22 @@ export function TaskDetailPanel() {
                   </span>
                   <Select
                     value={task.estimatedHours?.toString() ?? ''}
-                    onValueChange={(v) =>
-                      updateField(
-                        'estimatedHours',
-                        v ? parseFloat(v) : null
-                      )
-                    }
+                    onValueChange={(v) => {
+                      const hours = v ? parseFloat(v) : null;
+                      // 予定開始がある場合は終了時刻も自動再計算
+                      if (hours != null && task.scheduledStart) {
+                        const start = new Date(task.scheduledStart);
+                        const endIso = new Date(
+                          start.getTime() + hours * 60 * 60 * 1000,
+                        ).toISOString();
+                        updateFields({
+                          estimatedHours: hours,
+                          scheduledEnd: endIso,
+                        });
+                      } else {
+                        updateField('estimatedHours', hours);
+                      }
+                    }}
                   >
                     <SelectTrigger className="h-7 w-[120px] text-xs">
                       <SelectValue placeholder="未設定" />
