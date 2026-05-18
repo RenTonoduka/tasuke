@@ -12,6 +12,7 @@ import {
   UserPlus,
   Check,
   Trash2,
+  Copy,
   FolderOpen,
   ArrowRightLeft,
   Github,
@@ -53,6 +54,29 @@ import { CommentSection } from './comment-section';
 import { CalendarSyncButton } from './calendar-sync-button';
 import { GTasksSyncButton } from './gtasks-sync-button';
 import { AttachmentList } from './attachment-list';
+
+/**
+ * <input type="datetime-local"> は "YYYY-MM-DDTHH:mm" 形式 (ユーザーの local time) を期待する。
+ * サーバーが返す ISO 文字列 (UTC) をそのまま slice すると UTC 時刻が表示され、
+ * JST 16:00 が UTC 07:00 と表示されるなどのズレが発生する。
+ * Date オブジェクト経由でローカル時刻に正規化してから "YYYY-MM-DDTHH:mm" を作る。
+ */
+function isoToLocalInputValue(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** <input type="date"> 用: ISO をローカル日付の "YYYY-MM-DD" に変換 */
+function isoToLocalDateValue(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 const priorityOptions = [
   { value: 'P0', label: 'P0 - 緊急', color: '#EA4335' },
@@ -153,7 +177,7 @@ const MAX_WIDTH = 900;
 const DEFAULT_WIDTH = 480;
 
 export function TaskDetailPanel() {
-  const { activeTaskId, close } = useTaskPanelStore();
+  const { activeTaskId, close, open } = useTaskPanelStore();
   const router = useRouter();
   const pathname = usePathname();
   const workspaceSlug = pathname?.split('/')[1] ?? '';
@@ -377,6 +401,25 @@ export function TaskDetailPanel() {
     }
   };
 
+  const duplicateTask = async () => {
+    if (!task) return;
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/duplicate`, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({} as { error?: string }));
+        toast({ title: '複製に失敗しました', description: err.error, variant: 'destructive' });
+        return;
+      }
+      const created = await res.json();
+      toast({ title: 'タスクを複製しました' });
+      // 複製先タスクをパネルで開く（連続編集を素早く）
+      open(created.id);
+      router.refresh();
+    } catch {
+      toast({ title: '複製に失敗しました', variant: 'destructive' });
+    }
+  };
+
   const handleTitleBlur = () => {
     if (!task) return;
     if (!title.trim()) {
@@ -493,12 +536,22 @@ export function TaskDetailPanel() {
                 </span>
               </div>
               <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-g-text-muted hover:text-[#4285F4]"
+                  onClick={duplicateTask}
+                  title="タスクを複製"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-g-text-muted hover:text-red-500"
+                      title="タスクを削除"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -614,9 +667,7 @@ export function TaskDetailPanel() {
                     </span>
                     <input
                       type="date"
-                      value={
-                        task.startDate ? task.startDate.split('T')[0] : ''
-                      }
+                      value={isoToLocalDateValue(task.startDate)}
                       onChange={(e) =>
                         updateField(
                           'startDate',
@@ -634,7 +685,7 @@ export function TaskDetailPanel() {
                     </span>
                     <input
                       type="date"
-                      value={task.dueDate ? task.dueDate.split('T')[0] : ''}
+                      value={isoToLocalDateValue(task.dueDate)}
                       onChange={(e) =>
                         updateField(
                           'dueDate',
@@ -671,11 +722,7 @@ export function TaskDetailPanel() {
                   <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="datetime-local"
-                      value={
-                        task.scheduledStart
-                          ? task.scheduledStart.slice(0, 16)
-                          : ''
-                      }
+                      value={isoToLocalInputValue(task.scheduledStart)}
                       onChange={(e) => {
                         const val = e.target.value;
                         if (!val) {
@@ -706,11 +753,7 @@ export function TaskDetailPanel() {
                     </span>
                     <input
                       type="datetime-local"
-                      value={
-                        task.scheduledEnd
-                          ? task.scheduledEnd.slice(0, 16)
-                          : ''
-                      }
+                      value={isoToLocalInputValue(task.scheduledEnd)}
                       onChange={(e) => {
                         const val = e.target.value;
                         updateFields({
