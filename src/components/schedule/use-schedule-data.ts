@@ -14,6 +14,27 @@ import { VIEW_MODE_DAYS, timeToMinutes, isWeekendDate, formatYMD } from './sched
 
 const DEFAULT_SETTINGS: ScheduleSettings = { workStart: 9, workEnd: 18, skipWeekends: true };
 
+// Google Calendar API は dateTime をオフセット付き RFC3339 で返す
+// (例: "2026-05-18T10:00:00+09:00" や "2026-05-18T01:00:00Z")。
+// 文字列 split で取り出すと UTC ↔ JST のズレが発生するため、
+// 必ず Date でパースし JST (UTC+9) に正規化してから日付/分を取り出す。
+function parseToJST(iso: string): { date: string; min: number } {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    // フォーマット異常時はフォールバックで文字列splitを使う（旧挙動）
+    return {
+      date: iso.split('T')[0] ?? '',
+      min: timeToMinutes(iso.split('T')[1]?.substring(0, 5) ?? '09:00'),
+    };
+  }
+  const jstMs = d.getTime() + 9 * 60 * 60 * 1000;
+  const jst = new Date(jstMs);
+  return {
+    date: jst.toISOString().slice(0, 10),
+    min: jst.getUTCHours() * 60 + jst.getUTCMinutes(),
+  };
+}
+
 function loadSettings(key: string): ScheduleSettings {
   if (typeof window === 'undefined') return DEFAULT_SETTINGS;
   try {
@@ -227,17 +248,22 @@ export function useScheduleData(projectId?: string, myTasksOnly?: boolean, viewM
     for (const ev of events) {
       if (ev.summary.startsWith('[tasuke]')) continue;
 
-      const date = ev.start.split('T')[0];
-      const day = daysMap.get(date);
-      if (!day) continue;
-
       if (ev.allDay) {
+        // allDay は ev.start = "YYYY-MM-DD" (date-only)
+        const date = ev.start.split('T')[0];
+        const day = daysMap.get(date);
+        if (!day) continue;
         day.allDayEvents.push(ev.summary);
         continue;
       }
 
-      const startMin = timeToMinutes(ev.start.split('T')[1]?.substring(0, 5) ?? '09:00');
-      const endMin = timeToMinutes(ev.end.split('T')[1]?.substring(0, 5) ?? '10:00');
+      // タイムゾーンオフセットを尊重して JST に正規化
+      const { date, min: startMin } = parseToJST(ev.start);
+      const { min: endMinRaw, date: endDate } = parseToJST(ev.end);
+      // 日跨ぎイベントの終了は当日終端まで
+      const endMin = endDate !== date ? 24 * 60 : endMinRaw;
+      const day = daysMap.get(date);
+      if (!day) continue;
       if (endMin <= workStartMin || startMin >= workEndMin) continue;
       day.events.push({ id: ev.id, summary: ev.summary, startMin, endMin, colorId: ev.colorId });
     }
