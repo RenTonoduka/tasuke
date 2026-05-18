@@ -122,12 +122,21 @@ export function TimelineView({ sections: initialSections, projectId }: TimelineV
     }
   }, []);
 
-  const handleAddTask = useCallback(async (sectionId: string, title: string) => {
+  const handleAddTask = useCallback(async (
+    sectionId: string,
+    title: string,
+    dates?: { startDate: string; dueDate: string },
+  ) => {
     try {
+      const body: Record<string, unknown> = { title, sectionId };
+      if (dates) {
+        body.startDate = dates.startDate;
+        body.dueDate = dates.dueDate;
+      }
       const res = await fetch(`/api/projects/${projectId}/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, sectionId }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         toast({ title: 'タスクの作成に失敗', variant: 'destructive' });
@@ -143,6 +152,71 @@ export function TimelineView({ sections: initialSections, projectId }: TimelineV
       toast({ title: 'タスクの作成に失敗', variant: 'destructive' });
     }
   }, [projectId]);
+
+  // D&D で範囲指定して新タスクを作成
+  const [dragNewTask, setDragNewTask] = useState<{
+    sectionId: string;
+    startPx: number;
+    currentPx: number;
+  } | null>(null);
+  const [pendingNewTask, setPendingNewTask] = useState<{
+    sectionId: string;
+    startDayIndex: number;
+    endDayIndex: number;
+  } | null>(null);
+  const [pendingTitle, setPendingTitle] = useState('');
+
+  const handleSpacerPointerDown = useCallback((sectionId: string, e: React.PointerEvent<HTMLDivElement>) => {
+    if (pendingNewTask) return; // 入力中は新規ドラッグ受付しない
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    setDragNewTask({ sectionId, startPx: x, currentPx: x });
+  }, [pendingNewTask]);
+
+  const handleSpacerPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    setDragNewTask((prev) => {
+      if (!prev) return prev;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      return { ...prev, currentPx: x };
+    });
+  }, []);
+
+  const handleSpacerPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+    setDragNewTask((prev) => {
+      if (!prev) return null;
+      const minPx = Math.min(prev.startPx, prev.currentPx);
+      const maxPx = Math.max(prev.startPx, prev.currentPx);
+      // ドラッグ距離が小さすぎる場合（誤クリック）は無視
+      if (maxPx - minPx < 4) return null;
+      const startDayIndex = Math.max(0, Math.min(totalDays - 1, Math.floor(minPx / DAY_WIDTH)));
+      const endDayIndex = Math.max(startDayIndex, Math.min(totalDays - 1, Math.floor(maxPx / DAY_WIDTH)));
+      setPendingNewTask({ sectionId: prev.sectionId, startDayIndex, endDayIndex });
+      setPendingTitle('');
+      return null;
+    });
+  }, [totalDays]);
+
+  const cancelPendingNewTask = useCallback(() => {
+    setPendingNewTask(null);
+    setPendingTitle('');
+  }, []);
+
+  const submitPendingNewTask = useCallback(async () => {
+    if (!pendingNewTask) return;
+    const trimmed = pendingTitle.trim();
+    if (!trimmed) {
+      cancelPendingNewTask();
+      return;
+    }
+    const startDate = addDays(rangeStart, pendingNewTask.startDayIndex).toISOString();
+    const dueDate = addDays(rangeStart, pendingNewTask.endDayIndex).toISOString();
+    const sectionId = pendingNewTask.sectionId;
+    cancelPendingNewTask();
+    await handleAddTask(sectionId, trimmed, { startDate, dueDate });
+  }, [pendingNewTask, pendingTitle, rangeStart, handleAddTask, cancelPendingNewTask]);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -278,21 +352,75 @@ export function TimelineView({ sections: initialSections, projectId }: TimelineV
                     />
                   ))}
 
-                {/* タスク追加行のスペーサー（左パネルと高さ合わせ）
-                    md未満では左パネルが非表示なので、ここに sticky で配置 */}
-                {!collapsed[section.id] && (
-                  <div
-                    className="border-b border-g-border"
-                    style={{ height: ADD_TASK_ROW_HEIGHT, width: totalDays * DAY_WIDTH }}
-                  >
+                {/* タスク追加行のスペーサー：D&Dでタスク作成可能
+                    md未満では左パネルが非表示なので、左 sticky に AddTaskInline も配置 */}
+                {!collapsed[section.id] && (() => {
+                  const isDragging = dragNewTask?.sectionId === section.id;
+                  const isPending = pendingNewTask?.sectionId === section.id;
+                  const ghostLeft = isDragging
+                    ? Math.min(dragNewTask!.startPx, dragNewTask!.currentPx)
+                    : 0;
+                  const ghostWidth = isDragging
+                    ? Math.max(2, Math.abs(dragNewTask!.currentPx - dragNewTask!.startPx))
+                    : 0;
+                  const inputLeft = isPending ? pendingNewTask!.startDayIndex * DAY_WIDTH : 0;
+                  const inputWidth = isPending
+                    ? Math.max(120, (pendingNewTask!.endDayIndex - pendingNewTask!.startDayIndex + 1) * DAY_WIDTH)
+                    : 0;
+                  return (
                     <div
-                      className="md:hidden flex h-full w-60 items-center bg-g-bg px-1"
-                      style={{ position: 'sticky', left: 0 }}
+                      className="relative border-b border-g-border cursor-crosshair"
+                      style={{ height: ADD_TASK_ROW_HEIGHT, width: totalDays * DAY_WIDTH }}
+                      onPointerDown={(e) => handleSpacerPointerDown(section.id, e)}
+                      onPointerMove={handleSpacerPointerMove}
+                      onPointerUp={handleSpacerPointerUp}
+                      onPointerCancel={() => setDragNewTask(null)}
+                      title="ドラッグしてタスク期間を指定"
                     >
-                      <AddTaskInline onAdd={(title) => handleAddTask(section.id, title)} />
+                      {/* ゴーストバー */}
+                      {isDragging && (
+                        <div
+                          className="pointer-events-none absolute top-1/2 -translate-y-1/2 h-6 rounded bg-[#4285F4]/40 ring-2 ring-[#4285F4]"
+                          style={{ left: ghostLeft, width: ghostWidth }}
+                        />
+                      )}
+                      {/* タイトル入力 */}
+                      {isPending && (
+                        <div
+                          className="absolute top-1/2 -translate-y-1/2 h-7 rounded bg-g-bg shadow-md ring-2 ring-[#4285F4] flex items-center px-1.5"
+                          style={{ left: inputLeft, width: inputWidth }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            autoFocus
+                            value={pendingTitle}
+                            onChange={(e) => setPendingTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                submitPendingNewTask();
+                              } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                cancelPendingNewTask();
+                              }
+                            }}
+                            onBlur={submitPendingNewTask}
+                            placeholder="タスク名（Enterで作成）"
+                            className="w-full bg-transparent text-xs text-g-text outline-none placeholder:text-g-text-muted"
+                          />
+                        </div>
+                      )}
+                      {/* md未満の左 sticky 追加ボタン */}
+                      <div
+                        className="md:hidden flex h-full w-60 items-center bg-g-bg px-1"
+                        style={{ position: 'sticky', left: 0 }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                      >
+                        <AddTaskInline onAdd={(title) => handleAddTask(section.id, title)} />
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             ))}
           </div>
