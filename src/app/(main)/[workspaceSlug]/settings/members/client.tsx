@@ -344,7 +344,7 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
             >
               {/* ローディングオーバーレイ */}
               {(uploadingLogo || deletingLogo) && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/70">
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-g-bg/70">
                   <Loader2 className="h-6 w-6 animate-spin text-[#4285F4]" />
                 </div>
               )}
@@ -355,7 +355,7 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
                   <img
                     src={previewUrl}
                     alt="プレビュー"
-                    className="h-16 w-16 rounded-lg border border-g-border object-contain bg-white p-1"
+                    className="h-16 w-16 rounded-lg border border-g-border object-contain bg-g-surface p-1"
                   />
                   <div className="flex-1">
                     <p className="text-sm text-g-text truncate">{previewFile?.name}</p>
@@ -384,7 +384,7 @@ export function MembersClient({ members: initialMembers, workspaceId, myRole, cu
                   <img
                     src={logoUrl}
                     alt="ワークスペースロゴ"
-                    className="h-16 w-16 rounded-lg border border-g-border object-contain bg-white p-1"
+                    className="h-16 w-16 rounded-lg border border-g-border object-contain bg-g-surface p-1"
                   />
                   <div className="flex-1">
                     <div className="flex gap-2">

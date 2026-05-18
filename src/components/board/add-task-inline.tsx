@@ -71,7 +71,7 @@ export function AddTaskInline({ onAdd, listenNewTask }: AddTaskInlineProps) {
         }}
         onBlur={handleSubmit}
         placeholder="タスク名を入力..."
-        className="w-full bg-transparent text-sm text-g-text outline-none placeholder:text-[#DADCE0]"
+        className="w-full bg-transparent text-sm text-g-text outline-none placeholder:text-g-text-muted"
         autoFocus
       />
     </div>

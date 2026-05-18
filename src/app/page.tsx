@@ -17,11 +17,11 @@ export default async function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-g-bg">
       {/* Header */}
-      <header className="border-b border-gray-100">
+      <header className="border-b border-g-border">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <h1 className="text-xl font-bold text-gray-900">Task Core</h1>
+          <h1 className="text-xl font-bold text-g-text">Task Core</h1>
           <Link
             href="/login"
             className="rounded-lg bg-[#4285F4] px-5 py-2 text-sm font-medium text-white hover:bg-[#3367D6] transition-colors"
@@ -33,12 +33,12 @@ export default async function LandingPage() {
 
       {/* Hero */}
       <section className="mx-auto max-w-5xl px-6 py-20 text-center">
-        <h2 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
+        <h2 className="text-4xl font-bold tracking-tight text-g-text sm:text-5xl">
           チームのタスク管理を
           <br />
           シンプルに
         </h2>
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-600">
+        <p className="mx-auto mt-6 max-w-2xl text-lg text-g-text-secondary">
           Task Coreは、プロジェクト管理・タスク管理・スケジュール管理を一つにまとめたツールです。
           Googleカレンダーとの連携で、チームの生産性を最大化します。
         </p>
@@ -53,9 +53,9 @@ export default async function LandingPage() {
       </section>
 
       {/* Features */}
-      <section className="border-t border-gray-100 bg-gray-50 py-20">
+      <section className="border-t border-g-border bg-g-surface py-20">
         <div className="mx-auto max-w-5xl px-6">
-          <h3 className="mb-12 text-center text-2xl font-bold text-gray-900">主な機能</h3>
+          <h3 className="mb-12 text-center text-2xl font-bold text-g-text">主な機能</h3>
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             <FeatureCard
               title="プロジェクト管理"
@@ -86,12 +86,12 @@ export default async function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-gray-100 py-8">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 text-sm text-gray-500">
+      <footer className="border-t border-g-border py-8">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 text-sm text-g-text-secondary">
           <span>&copy; {new Date().getFullYear()} Task Core</span>
           <div className="flex gap-6">
-            <Link href="/terms" className="hover:text-gray-700">利用規約</Link>
-            <Link href="/privacy" className="hover:text-gray-700">プライバシーポリシー</Link>
+            <Link href="/terms" className="hover:text-g-text">利用規約</Link>
+            <Link href="/privacy" className="hover:text-g-text">プライバシーポリシー</Link>
           </div>
         </div>
       </footer>
@@ -101,9 +101,9 @@ export default async function LandingPage() {
 
 function FeatureCard({ title, description }: { title: string; description: string }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6">
-      <h4 className="mb-2 text-base font-semibold text-gray-900">{title}</h4>
-      <p className="text-sm leading-relaxed text-gray-600">{description}</p>
+    <div className="rounded-xl border border-g-border bg-g-bg p-6">
+      <h4 className="mb-2 text-base font-semibold text-g-text">{title}</h4>
+      <p className="text-sm leading-relaxed text-g-text-secondary">{description}</p>
     </div>
   );
 }

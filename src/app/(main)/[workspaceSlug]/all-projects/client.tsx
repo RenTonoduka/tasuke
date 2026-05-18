@@ -94,7 +94,7 @@ function MiniDashboard({ stats, color }: { stats: ProjectStats; color: string })
 
       {/* Status counts */}
       <div className="flex items-center gap-3 text-xs">
-        <span className="flex items-center gap-1 text-gray-500">
+        <span className="flex items-center gap-1 text-g-text-secondary">
           <ListTodo className="h-3.5 w-3.5" />
           {stats.todo}
         </span>

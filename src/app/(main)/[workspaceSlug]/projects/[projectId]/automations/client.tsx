@@ -287,7 +287,7 @@ export function AutomationsClient({ project, initialRules, workspaceSlug, sectio
 
         {rules.length === 0 ? (
           <div className="rounded-lg border border-dashed border-g-border p-12 text-center">
-            <Zap className="mx-auto mb-3 h-10 w-10 text-[#DADCE0]" />
+            <Zap className="mx-auto mb-3 h-10 w-10 text-g-text-muted" />
             <p className="text-sm text-g-text-secondary">自動化ルールがまだありません</p>
             <p className="mt-1 text-xs text-g-text-muted">
               ルールを追加して、タスクの更新を自動化しましょう

@@ -26,7 +26,7 @@ export interface PortfolioProject {
 
 function getHealth(p: PortfolioProject) {
   if (p.total === 0)
-    return { label: '—', dot: 'bg-gray-300', text: 'text-g-text-muted' };
+    return { label: '—', dot: 'bg-g-border', text: 'text-g-text-muted' };
   if (p.overdue >= 3 || (p.total >= 5 && p.overdue / p.total >= 0.2))
     return { label: '要対応', dot: 'bg-red-500', text: 'text-red-600 dark:text-red-400' };
   if (p.overdue > 0)

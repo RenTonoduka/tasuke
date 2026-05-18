@@ -1237,7 +1237,7 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
                 !moveToGroupProject?.groupId && 'bg-g-border font-medium',
               )}
             >
-              <div className="h-3 w-3 rounded-sm bg-gray-300" />
+              <div className="h-3 w-3 rounded-sm bg-g-border" />
               未分類
               {!moveToGroupProject?.groupId && <Check className="ml-auto h-4 w-4 text-green-500" />}
             </button>
