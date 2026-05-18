@@ -227,6 +227,11 @@ export function BoardColumn({
         </DropdownMenu>
       </div>
 
+      {/* Add task (上部固定) */}
+      <div className="px-2 pt-1 pb-2">
+        <AddTaskInline onAdd={(title) => onAddTask(section.id, title)} listenNewTask={listenNewTask} />
+      </div>
+
       {/* Tasks */}
       <ScrollArea className="flex-1 px-2">
         <div
@@ -252,11 +257,6 @@ export function BoardColumn({
           </SortableContext>
         </div>
       </ScrollArea>
-
-      {/* Add task */}
-      <div className="px-2 pb-2">
-        <AddTaskInline onAdd={(title) => onAddTask(section.id, title)} listenNewTask={listenNewTask} />
-      </div>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

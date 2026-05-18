@@ -266,6 +266,16 @@ export function TimelineView({ sections: initialSections, projectId }: TimelineV
                 </span>
               </button>
 
+              {/* タスク追加行（上部固定: セクションヘッダー直下） */}
+              {!collapsed[section.id] && (
+                <div
+                  className="flex items-center border-b border-g-border px-1"
+                  style={{ height: ADD_TASK_ROW_HEIGHT }}
+                >
+                  <AddTaskInline onAdd={(title) => handleAddTask(section.id, title)} />
+                </div>
+              )}
+
               {/* タスク行 */}
               {!collapsed[section.id] &&
                 section.tasks.map((task) => (
@@ -276,16 +286,6 @@ export function TimelineView({ sections: initialSections, projectId }: TimelineV
                     <span className="truncate text-sm text-g-text">{task.title}</span>
                   </div>
                 ))}
-
-              {/* タスク追加行 */}
-              {!collapsed[section.id] && (
-                <div
-                  className="flex items-center border-b border-g-border px-1"
-                  style={{ height: ADD_TASK_ROW_HEIGHT }}
-                >
-                  <AddTaskInline onAdd={(title) => handleAddTask(section.id, title)} />
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -339,21 +339,7 @@ export function TimelineView({ sections: initialSections, projectId }: TimelineV
                   </span>
                 </button>
 
-                {/* タスク行 */}
-                {!collapsed[section.id] &&
-                  section.tasks.map((task) => (
-                    <TimelineRow
-                      key={task.id}
-                      task={task}
-                      rangeStart={rangeStart}
-                      totalDays={totalDays}
-                      today={today}
-                      onClick={() => openPanel(task.id)}
-                      onDateChange={handleDateChange}
-                    />
-                  ))}
-
-                {/* タスク追加行のスペーサー：D&Dでタスク作成可能
+                {/* タスク追加行のスペーサー（上部固定）：D&Dでタスク作成可能
                     md未満では左パネルが非表示なので、左 sticky に AddTaskInline も配置 */}
                 {!collapsed[section.id] && (() => {
                   const isDragging = dragNewTask?.sectionId === section.id;
@@ -422,6 +408,20 @@ export function TimelineView({ sections: initialSections, projectId }: TimelineV
                     </div>
                   );
                 })()}
+
+                {/* タスク行 */}
+                {!collapsed[section.id] &&
+                  section.tasks.map((task) => (
+                    <TimelineRow
+                      key={task.id}
+                      task={task}
+                      rangeStart={rangeStart}
+                      totalDays={totalDays}
+                      today={today}
+                      onClick={() => openPanel(task.id)}
+                      onDateChange={handleDateChange}
+                    />
+                  ))}
               </div>
             ))}
           </div>
