@@ -64,7 +64,9 @@ export function CommandPalette({ workspaceSlug, projects }: CommandPaletteProps)
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchTask[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const timerRef = useRef<NodeJS.Timeout>();
+  const abortRef = useRef<AbortController | null>(null);
   const router = useRouter();
   const openPanel = useTaskPanelStore((s) => s.open);
 
@@ -75,30 +77,52 @@ export function CommandPalette({ workspaceSlug, projects }: CommandPaletteProps)
         setOpen((prev) => !prev);
       }
     };
+    const openFromEvent = () => setOpen(true);
     document.addEventListener('keydown', down);
-    return () => document.removeEventListener('keydown', down);
+    window.addEventListener('tasuke:open-search', openFromEvent);
+    return () => {
+      document.removeEventListener('keydown', down);
+      window.removeEventListener('tasuke:open-search', openFromEvent);
+    };
   }, []);
 
   const handleSearch = useCallback(
     (value: string) => {
       setQuery(value);
       clearTimeout(timerRef.current);
+      // 前回のfetchをキャンセル
+      abortRef.current?.abort();
       if (value.length < 2) {
         setSearchResults([]);
+        setSearchError(null);
+        setIsSearching(false);
         return;
       }
       setIsSearching(true);
+      setSearchError(null);
+      const controller = new AbortController();
+      abortRef.current = controller;
       timerRef.current = setTimeout(async () => {
         try {
           const res = await fetch(
-            `/api/tasks/search?q=${encodeURIComponent(value)}&workspaceSlug=${encodeURIComponent(workspaceSlug)}`
+            `/api/tasks/search?q=${encodeURIComponent(value)}&workspaceSlug=${encodeURIComponent(workspaceSlug)}`,
+            { signal: controller.signal },
           );
-          if (res.ok) {
-            const data = await res.json();
-            setSearchResults(data);
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({} as { error?: string }));
+            setSearchResults([]);
+            setSearchError(err.error ?? `検索に失敗しました (${res.status})`);
+            return;
           }
+          const data = await res.json();
+          setSearchResults(Array.isArray(data) ? data : []);
+          setSearchError(null);
+        } catch (e) {
+          if (e instanceof DOMException && e.name === 'AbortError') return;
+          setSearchResults([]);
+          setSearchError(e instanceof Error ? e.message : '検索中にエラーが発生しました');
         } finally {
-          setIsSearching(false);
+          if (!controller.signal.aborted) setIsSearching(false);
         }
       }, 300);
     },
@@ -109,6 +133,9 @@ export function CommandPalette({ workspaceSlug, projects }: CommandPaletteProps)
     setOpen(false);
     setQuery('');
     setSearchResults([]);
+    setSearchError(null);
+    setIsSearching(false);
+    abortRef.current?.abort();
   };
 
   const navigateTo = (path: string) => {
@@ -135,7 +162,13 @@ export function CommandPalette({ workspaceSlug, projects }: CommandPaletteProps)
   const showDefault = query.length < 2;
 
   return (
-    <CommandDialog open={open} onOpenChange={handleClose}>
+    <CommandDialog
+      open={open}
+      onOpenChange={handleClose}
+      // 検索モード時はサーバー側で絞り込み済みなので、cmdk の自動 filter を無効化
+      // (titleにマッチしない description ヒットなどが UI で消えるバグ防止)
+      commandProps={{ shouldFilter: !showSearch }}
+    >
       <CommandInput
         placeholder="コマンドを入力..."
         value={query}
@@ -146,6 +179,8 @@ export function CommandPalette({ workspaceSlug, projects }: CommandPaletteProps)
           <>
             {isSearching ? (
               <div className="py-6 text-center text-sm text-g-text-secondary">検索中...</div>
+            ) : searchError ? (
+              <div className="py-6 text-center text-sm text-[#EA4335]">{searchError}</div>
             ) : searchResults.length > 0 ? (
               <CommandGroup heading="タスク検索結果">
                 {searchResults.map((task) => (

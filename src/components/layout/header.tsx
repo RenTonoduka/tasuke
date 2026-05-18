@@ -320,7 +320,11 @@ export function Header({ title = '', view = 'board', onViewChange, workspaceSlug
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <button className="flex flex-shrink-0 items-center gap-2 rounded-md border border-g-border px-3 py-1 text-xs text-g-text-muted hover:bg-g-surface-hover">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('tasuke:open-search'))}
+          className="flex flex-shrink-0 items-center gap-2 rounded-md border border-g-border px-3 py-1 text-xs text-g-text-muted hover:bg-g-surface-hover"
+        >
           <Search className="h-3.5 w-3.5" />
           <span className="hidden md:inline">検索...</span>
           <kbd className="ml-1 hidden rounded bg-g-surface-hover px-1.5 py-0.5 font-mono text-[10px] font-medium text-g-text-secondary md:inline">
