@@ -406,6 +406,9 @@ interface ScheduleDayColumnProps {
   onClickCreate?: (date: string, startMin: number, endMin: number) => void;
   onResizeStart?: (id: string, type: 'event' | 'task', clientY: number, endMin: number, date: string, startMin: number) => void;
   resizingId?: string | null;
+  resizingType?: 'event' | 'task';
+  resizingDate?: string;
+  resizingStartMin?: number;
   resizePreviewEndMin?: number;
   dropIndicator: DropIndicator | null;
   dayGridRefs: React.RefObject<Map<string, HTMLElement>>;
@@ -425,6 +428,9 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
   onClickCreate,
   onResizeStart,
   resizingId,
+  resizingType,
+  resizingDate,
+  resizingStartMin,
   resizePreviewEndMin,
   dropIndicator,
   dayGridRefs,
@@ -585,7 +591,10 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
         {/* イベント */}
         {day.events.map((ev, i) => {
           const clampedStart = Math.max(ev.startMin, workStartMin);
-          const isResizingThis = resizingId === ev.id;
+          const isResizingThis =
+            resizingId === ev.id &&
+            resizingType === 'event' &&
+            (resizingDate === undefined || resizingDate === day.date);
           const effectiveEnd = isResizingThis && resizePreviewEndMin != null ? resizePreviewEndMin : ev.endMin;
           const clampedEnd = Math.min(effectiveEnd, workEndMin);
           if (clampedStart >= clampedEnd) return null;
@@ -630,7 +639,11 @@ export const ScheduleDayColumn = memo(function ScheduleDayColumn({
         {/* タスク */}
         {day.tasks.map((task, i) => {
           const clampedStart = Math.max(task.startMin, workStartMin);
-          const isResizingThis = resizingId === task.taskId;
+          const isResizingThis =
+            resizingId === task.taskId &&
+            resizingType === 'task' &&
+            resizingDate === day.date &&
+            resizingStartMin === task.startMin;
           const effectiveEnd = isResizingThis && resizePreviewEndMin != null ? resizePreviewEndMin : task.endMin;
           const clampedEnd = Math.min(effectiveEnd, workEndMin);
           if (clampedStart >= clampedEnd) return null;

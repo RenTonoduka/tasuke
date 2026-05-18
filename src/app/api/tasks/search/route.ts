@@ -2,6 +2,15 @@ import { NextRequest } from 'next/server';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import type { TaskStatus, Priority } from '@prisma/client';
+
+const VALID_STATUS: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE', 'ARCHIVED'];
+const VALID_PRIORITY: Priority[] = ['P0', 'P1', 'P2', 'P3'];
+
+function isValidDate(s: string): boolean {
+  const t = Date.parse(s);
+  return !Number.isNaN(t);
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -33,15 +42,25 @@ export async function GET(req: NextRequest) {
     };
 
     if (status) {
-      where.status = { in: status.split(',') };
+      const statuses = status.split(',').map((s) => s.trim()).filter((s): s is TaskStatus =>
+        (VALID_STATUS as string[]).includes(s),
+      );
+      if (statuses.length === 0) return errorResponse('status の値が不正です', 400);
+      where.status = { in: statuses };
     }
     if (priority) {
-      where.priority = { in: priority.split(',') };
+      const priorities = priority.split(',').map((s) => s.trim()).filter((s): s is Priority =>
+        (VALID_PRIORITY as string[]).includes(s),
+      );
+      if (priorities.length === 0) return errorResponse('priority の値が不正です', 400);
+      where.priority = { in: priorities };
     }
     if (assigneeId) {
       where.assignees = { some: { userId: assigneeId } };
     }
     if (dueBefore || dueAfter) {
+      if (dueBefore && !isValidDate(dueBefore)) return errorResponse('dueBefore の値が不正です', 400);
+      if (dueAfter && !isValidDate(dueAfter)) return errorResponse('dueAfter の値が不正です', 400);
       const dueDateFilter: Record<string, Date> = {};
       if (dueBefore) dueDateFilter.lte = new Date(dueBefore);
       if (dueAfter) dueDateFilter.gte = new Date(dueAfter);

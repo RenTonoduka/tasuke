@@ -73,8 +73,7 @@ export function useScheduleDnd({
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const data = event.active.data.current as ScheduleDragData;
     setActiveDragData(data);
-
-  }, [registeredBlocks]);
+  }, []);
 
   const handleDragMove = useCallback(
     (event: DragMoveEvent) => {
@@ -94,8 +93,20 @@ export function useScheduleDnd({
         return;
       }
 
-      const initialEvent = event.activatorEvent as PointerEvent;
-      const clientY = initialEvent.clientY + event.delta.y;
+      // PointerEvent/MouseEvent/TouchEvent から clientY を安全に取り出す
+      // (KeyboardSensor の場合は clientY を取れないので drop indicator は出さない)
+      const activatorEvent = event.activatorEvent as Event;
+      let initialY: number | undefined;
+      if ('clientY' in activatorEvent && typeof (activatorEvent as MouseEvent).clientY === 'number') {
+        initialY = (activatorEvent as MouseEvent).clientY;
+      } else if ('touches' in activatorEvent) {
+        initialY = (activatorEvent as TouchEvent).touches?.[0]?.clientY;
+      }
+      if (initialY == null || Number.isNaN(initialY)) {
+        setDropIndicator(null);
+        return;
+      }
+      const clientY = initialY + event.delta.y;
       const startMin = calcDropMinute(clientY, gridEl);
 
       const data = event.active.data.current as ScheduleDragData;

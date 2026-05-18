@@ -328,13 +328,19 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
         }),
       });
 
-      if (res.ok && movedAcrossSections && draggedTask) {
+      if (!res.ok) {
+        setSections(snapshot);
+        toast({ title: 'タスクの移動に失敗', variant: 'destructive' });
+        return;
+      }
+
+      if (movedAcrossSections && draggedTask && dragSource) {
         const destSectionName = updatedSection.name;
         toast({
           title: `「${draggedTask.title}」を「${destSectionName}」に移動`,
           action: (
             <ToastAction altText="元に戻す" onClick={async () => {
-              await fetch(`/api/tasks/${activeId}/move`, {
+              const undoRes = await fetch(`/api/tasks/${activeId}/move`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -342,8 +348,12 @@ export function BoardView({ initialSections, projectId, onSectionsChange, logoUr
                   position: dragSource.taskIndex * 1000,
                 }),
               });
-              setSections(snapshot);
-              router.refresh();
+              if (undoRes.ok) {
+                setSections(snapshot);
+                router.refresh();
+              } else {
+                toast({ title: '元に戻すのに失敗', variant: 'destructive' });
+              }
             }}>
               元に戻す
             </ToastAction>

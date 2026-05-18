@@ -185,6 +185,7 @@ export function TimelineView({ sections, projectId }: TimelineViewProps) {
           className="flex-1 overflow-auto"
         >
           <div
+            className="relative"
             style={{
               width: totalDays * DAY_WIDTH,
               minWidth: '100%',

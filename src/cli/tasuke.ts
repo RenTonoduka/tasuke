@@ -245,12 +245,36 @@ function parseArgs(argv: string[]): { command: string; flags: Record<string, str
     const arg = argv[i];
     if (arg === '--help' || arg === '-h') {
       help = true;
-    } else if (arg === '--json') {
-      json = argv[++i] || '{}';
+    } else if (arg === '--json' || arg.startsWith('--json=')) {
+      if (arg.startsWith('--json=')) {
+        json = arg.slice('--json='.length);
+      } else {
+        const next = argv[++i];
+        if (next === undefined) {
+          console.error('Error: --json には値が必要です');
+          process.exit(1);
+        }
+        json = next;
+      }
     } else if (arg.startsWith('--')) {
-      const key = arg.slice(2);
-      const val = argv[++i] || '';
-      flags[key] = val;
+      // --flag=value と --flag value の両対応
+      const eqIdx = arg.indexOf('=');
+      if (eqIdx > -1) {
+        const key = arg.slice(2, eqIdx);
+        flags[key] = arg.slice(eqIdx + 1);
+      } else {
+        const key = arg.slice(2);
+        const next = argv[i + 1];
+        if (next === undefined || next.startsWith('--')) {
+          console.error(`Error: --${key} には値が必要です`);
+          process.exit(1);
+        }
+        flags[key] = next;
+        i++;
+      }
+    } else {
+      console.error(`Error: 不明な引数 "${arg}" (オプションは --key value 形式で指定)`);
+      process.exit(1);
     }
   }
 
@@ -272,7 +296,7 @@ function flagsToArgs(flags: Record<string, string>): Record<string, unknown> {
     } else if (/^\d+\.\d+$/.test(val)) {
       args[key] = parseFloat(val);
     } else if (['labelIds', 'taskIds', 'userIds', 'projectIds'].includes(key)) {
-      args[key] = val.split(',');
+      args[key] = val.split(',').map((s) => s.trim()).filter(Boolean);
     } else {
       args[key] = val;
     }
@@ -304,11 +328,24 @@ async function callMcp(toolName: string, args: Record<string, unknown>): Promise
   });
 
   if (!res.ok) {
+    const detail = await res.text().catch(() => '');
     console.error(`HTTP Error: ${res.status} ${res.statusText}`);
+    if (detail) {
+      try {
+        const parsed = JSON.parse(detail);
+        console.error(parsed.error ?? parsed.message ?? detail);
+      } catch {
+        console.error(detail.slice(0, 500));
+      }
+    }
+    if (res.status === 401) console.error('TASUKE_API_TOKEN が無効、または期限切れの可能性があります');
     process.exit(1);
   }
 
-  const data = await res.json() as {
+  const data = await res.json().catch((e) => {
+    console.error(`Invalid JSON response: ${e}`);
+    process.exit(1);
+  }) as {
     result?: { content?: { text: string }[]; isError?: boolean };
     error?: { message: string };
   };
@@ -374,9 +411,23 @@ async function main() {
     process.exit(1);
   }
 
-  const args = json ? JSON.parse(json) : flagsToArgs(flags);
+  let args: Record<string, unknown>;
+  if (json) {
+    try {
+      args = JSON.parse(json);
+    } catch (e) {
+      console.error(`Error: --json の値がJSONとしてパースできません: ${e instanceof Error ? e.message : String(e)}`);
+      process.exit(1);
+    }
+    if (typeof args !== 'object' || args === null || Array.isArray(args)) {
+      console.error('Error: --json はオブジェクト形式である必要があります');
+      process.exit(1);
+    }
+  } else {
+    args = flagsToArgs(flags);
+  }
   const result = await callMcp(mcpName, args);
-  console.log(JSON.stringify(result, null, 2));
+  console.log(typeof result === 'string' ? result : JSON.stringify(result, null, 2));
 }
 
 main().catch((e) => {

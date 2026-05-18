@@ -3,13 +3,16 @@ import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { z } from 'zod';
-import type { Priority } from '@prisma/client';
+import type { Priority, TaskStatus } from '@prisma/client';
 
 const bulkSchema = z.object({
   taskIds: z.array(z.string()).min(1).max(100),
   action: z.enum(['status', 'priority', 'delete']),
   value: z.string().optional(),
 });
+
+const VALID_STATUS: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE', 'ARCHIVED'];
+const VALID_PRIORITY: Priority[] = ['P0', 'P1', 'P2', 'P3'];
 
 export async function PATCH(req: NextRequest) {
   try {

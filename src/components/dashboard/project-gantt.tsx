@@ -210,6 +210,7 @@ export function ProjectGantt({ projects }: ProjectGanttProps) {
           className="flex-1 overflow-auto"
         >
           <div
+            className="relative"
             style={{
               width: totalDays * DAY_WIDTH,
               minWidth: '100%',

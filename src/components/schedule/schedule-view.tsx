@@ -217,6 +217,10 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
   const [resizePreviewEndMin, setResizePreviewEndMin] = useState<number | undefined>();
   const resizeEndMinRef = useRef<number | undefined>();
 
+  // リサイズ中の handler 再bindを防ぐため、ref経由で最新値を参照
+  const registeredBlocksRef = useRef(registeredBlocks);
+  registeredBlocksRef.current = registeredBlocks;
+
   const workEndMin = savedSettings.workEnd * 60;
   const timelineContainerRef = useRef<HTMLDivElement>(null);
 
@@ -271,7 +275,7 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
           }
         } else {
           const slotKey = `${resizing.id}|${date}|${minutesToTime(startMin)}`;
-          const block = registeredBlocks.get(slotKey);
+          const block = registeredBlocksRef.current.get(slotKey);
           if (block) {
             try {
               const deleteRes = await fetch('/api/calendar/schedule-block', {
@@ -343,7 +347,9 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
       document.removeEventListener('mouseup', handleMouseUp);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [resizing, workEndMin, fetchSchedule, registeredBlocks, setRegisteredBlocks]);
+    // registeredBlocks は ref経由で参照するため依存配列から除外（リサイズ中に handler が再bindされるのを防ぐ）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resizing, workEndMin, fetchSchedule, setRegisteredBlocks]);
 
   const handleResizeStart = useCallback(
     (id: string, type: 'event' | 'task', clientY: number, endMin: number, date: string, startMin: number) => {
@@ -638,6 +644,9 @@ export function ScheduleView({ projectId, myTasksOnly }: ScheduleViewProps) {
                 onClickCreate={handleClickCreate}
                 onResizeStart={handleResizeStart}
                 resizingId={resizing?.id}
+                resizingType={resizing?.type}
+                resizingDate={resizing?.date}
+                resizingStartMin={resizing?.startMin}
                 resizePreviewEndMin={resizePreviewEndMin}
                 dropIndicator={dropIndicator}
                 dayGridRefs={dayGridRefs}

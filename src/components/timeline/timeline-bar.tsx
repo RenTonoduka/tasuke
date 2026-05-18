@@ -53,11 +53,13 @@ export function TimelineBar({ task, rangeStart, today, onDateChange }: TimelineB
     };
   }, [task, rangeStart, today]);
 
+  const suppressClickRef = useRef(false);
+
   const handlePointerDown = useCallback((e: React.PointerEvent, type: 'move' | 'resize') => {
     if (hasNoDates || !onDateChange) return;
     e.preventDefault();
     e.stopPropagation();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     dragStartRef.current = { x: e.clientX, type };
     if (type === 'move') setIsDragging(true);
     else setIsResizing(true);
@@ -67,6 +69,7 @@ export function TimelineBar({ task, rangeStart, today, onDateChange }: TimelineB
     if (!dragStartRef.current) return;
     e.preventDefault();
     const dx = e.clientX - dragStartRef.current.x;
+    if (Math.abs(dx) > 3) suppressClickRef.current = true;
     if (dragStartRef.current.type === 'move') {
       setDragOffset(dx);
     } else {
@@ -75,8 +78,9 @@ export function TimelineBar({ task, rangeStart, today, onDateChange }: TimelineB
   }, []);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    if (!dragStartRef.current || !effectiveStartDate || !effectiveEndDate || !onDateChange) return;
+    if (!dragStartRef.current) return;
     e.preventDefault();
+    try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
     const dx = e.clientX - dragStartRef.current.x;
     const daysDelta = Math.round(dx / DAY_WIDTH);
     const type = dragStartRef.current.type;
@@ -87,6 +91,7 @@ export function TimelineBar({ task, rangeStart, today, onDateChange }: TimelineB
     setIsDragging(false);
     setIsResizing(false);
 
+    if (!effectiveStartDate || !effectiveEndDate || !onDateChange) return;
     if (daysDelta === 0) return;
 
     if (type === 'move') {
@@ -100,6 +105,22 @@ export function TimelineBar({ task, rangeStart, today, onDateChange }: TimelineB
       }
     }
   }, [effectiveStartDate, effectiveEndDate, onDateChange, task.id]);
+
+  const handlePointerCancel = useCallback(() => {
+    dragStartRef.current = null;
+    setDragOffset(0);
+    setResizeOffset(0);
+    setIsDragging(false);
+    setIsResizing(false);
+  }, []);
+
+  const handleClickCapture = useCallback((e: React.MouseEvent) => {
+    if (suppressClickRef.current) {
+      e.stopPropagation();
+      e.preventDefault();
+      suppressClickRef.current = false;
+    }
+  }, []);
 
   if (hasNoDates) {
     return (
@@ -125,6 +146,8 @@ export function TimelineBar({ task, rangeStart, today, onDateChange }: TimelineB
       onPointerDown={(e) => handlePointerDown(e, 'move')}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onClickCapture={handleClickCapture}
     >
       <div
         className="relative h-6 rounded select-none"

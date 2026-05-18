@@ -80,6 +80,8 @@ export function TaskCard({
         <button
           className="mt-0.5 cursor-grab text-[#DADCE0] opacity-60 sm:opacity-0 sm:group-hover:opacity-100"
           aria-label="ドラッグして移動"
+          type="button"
+          onClick={(e) => e.stopPropagation()}
           {...attributes}
           {...listeners}
         >

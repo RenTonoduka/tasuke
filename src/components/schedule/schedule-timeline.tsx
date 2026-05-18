@@ -19,6 +19,9 @@ interface ScheduleTimelineProps {
   onClickCreate?: (date: string, startMin: number, endMin: number) => void;
   onResizeStart?: (id: string, type: 'event' | 'task', clientY: number, endMin: number, date: string, startMin: number) => void;
   resizingId?: string | null;
+  resizingType?: 'event' | 'task';
+  resizingDate?: string;
+  resizingStartMin?: number;
   resizePreviewEndMin?: number;
   dropIndicator: DropIndicator | null;
   dayGridRefs: React.RefObject<Map<string, HTMLElement>>;
@@ -71,6 +74,9 @@ export function ScheduleTimeline({
   onClickCreate,
   onResizeStart,
   resizingId,
+  resizingType,
+  resizingDate,
+  resizingStartMin,
   resizePreviewEndMin,
   dropIndicator,
   dayGridRefs,
@@ -180,6 +186,9 @@ export function ScheduleTimeline({
               onClickCreate={onClickCreate}
               onResizeStart={onResizeStart}
               resizingId={resizingId}
+              resizingType={resizingType}
+              resizingDate={resizingDate}
+              resizingStartMin={resizingStartMin}
               resizePreviewEndMin={resizePreviewEndMin}
               dropIndicator={dropIndicator}
               dayGridRefs={dayGridRefs}
