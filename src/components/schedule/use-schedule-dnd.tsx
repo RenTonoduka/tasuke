@@ -200,10 +200,60 @@ export function useScheduleDnd({
           const newSlotKey = `${data.taskId}|${indicator.date}|${start}`;
 
           if (data.fromSlotKey && data.fromSlotKey === newSlotKey) return;
-          if (!data.fromSlotKey) return;
+
+          // 未登録（AI 提案配置のみ）タスクをドラッグした場合 → 新規 schedule_block 登録扱い
+          if (!data.fromSlotKey) {
+            if (registeredBlocks.has(newSlotKey)) return;
+            setRegisteringSlot(newSlotKey);
+            try {
+              const res = await fetch('/api/calendar/schedule-block', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ taskId: data.taskId, date: indicator.date, start, end }),
+              });
+              if (res.ok) {
+                const block = await res.json();
+                setRegisteredBlocks((prev) =>
+                  new Map(prev).set(newSlotKey, { id: block.id, endTime: end }),
+                );
+                fetchSchedule();
+                toast({ title: `「${data.taskTitle}」を移動しました` });
+              } else {
+                const err = await res.json().catch(() => ({}));
+                toast({ title: 'タスクの移動に失敗', description: err.error, variant: 'destructive' });
+              }
+            } finally {
+              setRegisteringSlot(null);
+            }
+            return;
+          }
 
           const oldBlock = registeredBlocks.get(data.fromSlotKey);
-          if (!oldBlock) return;
+          if (!oldBlock) {
+            // fromSlotKey はあるが registeredBlocks に存在しない → 不整合
+            // 念のため新規登録扱いで救済
+            setRegisteringSlot(newSlotKey);
+            try {
+              const res = await fetch('/api/calendar/schedule-block', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ taskId: data.taskId, date: indicator.date, start, end }),
+              });
+              if (res.ok) {
+                const block = await res.json();
+                setRegisteredBlocks((prev) =>
+                  new Map(prev).set(newSlotKey, { id: block.id, endTime: end }),
+                );
+                fetchSchedule();
+                toast({ title: `「${data.taskTitle}」を移動しました` });
+              } else {
+                toast({ title: 'タスクの移動に失敗', variant: 'destructive' });
+              }
+            } finally {
+              setRegisteringSlot(null);
+            }
+            return;
+          }
 
           // Capture undo info before operations
           const [, oldDate, oldStart] = data.fromSlotKey.split('|');
