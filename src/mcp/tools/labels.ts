@@ -4,6 +4,8 @@ import { getDefaultUser, getDefaultWorkspace } from '../context.js';
 import {
   handleLabelList,
   handleLabelCreate,
+  handleLabelUpdate,
+  handleLabelDelete,
   handleTaskLabelSet,
 } from '../tool-handlers.js';
 
@@ -28,6 +30,26 @@ export function registerLabelTools(server: McpServer) {
       color: z.string().optional().describe('色（HEX, デフォルト #4285F4）'),
     },
     async (params) => handleLabelCreate(params, await getCtx()),
+  );
+
+  server.tool(
+    'label_update',
+    'ラベルの名前や色を更新します',
+    {
+      labelId: z.string().describe('ラベルID'),
+      name: z.string().optional().describe('新しいラベル名'),
+      color: z.string().optional().describe('新しい色（HEX）'),
+    },
+    async (params) => handleLabelUpdate(params, await getCtx()),
+  );
+
+  server.tool(
+    'label_delete',
+    'ラベルを削除します（関連 TaskLabel は自動削除）',
+    {
+      labelId: z.string().describe('削除するラベルID'),
+    },
+    async (params) => handleLabelDelete(params, await getCtx()),
   );
 
   server.tool(

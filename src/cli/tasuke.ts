@@ -53,6 +53,8 @@ const COMMANDS: CmdDef[] = [
   // Label
   { name: 'label:list',   desc: 'ラベル一覧', usage: '(引数なし)', example: 'tasuke label:list' },
   { name: 'label:create', desc: 'ラベル作成', usage: '--name TEXT [--color HEX]', example: 'tasuke label:create --name "urgent" --color "#EA4335"' },
+  { name: 'label:update', desc: 'ラベル更新', usage: '--labelId ID [--name TEXT] [--color HEX]', example: 'tasuke label:update --labelId abc --name "重要" --color "#EA4335"' },
+  { name: 'label:delete', desc: 'ラベル削除', usage: '--labelId ID', example: 'tasuke label:delete --labelId abc' },
   { name: 'label:set',    desc: 'タスクにラベル設定', usage: '--taskId ID --labelIds ID1,ID2', example: 'tasuke label:set --taskId abc --labelIds id1,id2' },
   // Comment
   { name: 'comment:list',   desc: 'コメント一覧', usage: '--taskId ID [--limit N]', example: 'tasuke comment:list --taskId abc' },
@@ -159,6 +161,8 @@ const CLI_TO_MCP: Record<string, string> = {
   // Label
   'label:list': 'label_list',
   'label:create': 'label_create',
+  'label:update': 'label_update',
+  'label:delete': 'label_delete',
   'label:set': 'task_label_set',
   // Comment
   'comment:list': 'comment_list',

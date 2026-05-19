@@ -246,6 +246,32 @@ const TOOLS: ToolDef[] = [
     readOnly: false,
   },
   {
+    name: 'label_update',
+    description: 'ラベルの名前や色を更新します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        labelId: { type: 'string' },
+        name: { type: 'string' },
+        color: { type: 'string' },
+      },
+      required: ['labelId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'label_delete',
+    description: 'ラベルを削除します（関連 TaskLabel は自動削除）',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        labelId: { type: 'string' },
+      },
+      required: ['labelId'],
+    },
+    readOnly: false,
+  },
+  {
     name: 'task_label_set',
     description: 'タスクのラベルを設定します',
     inputSchema: {
@@ -1078,6 +1104,8 @@ const TOOL_HANDLERS: Record<string, (params: any, ctx: ToolContext) => Promise<h
   subtask_toggle: handlers.handleSubtaskToggle,
   label_list: handlers.handleLabelList,
   label_create: handlers.handleLabelCreate,
+  label_update: handlers.handleLabelUpdate,
+  label_delete: handlers.handleLabelDelete,
   task_label_set: handlers.handleTaskLabelSet,
   comment_list: handlers.handleCommentList,
   comment_add: handlers.handleCommentAdd,

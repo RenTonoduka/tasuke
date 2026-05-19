@@ -622,6 +622,45 @@ export async function handleLabelCreate(
   }
 }
 
+export async function handleLabelUpdate(
+  params: { labelId: string; name?: string; color?: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const label = await prisma.label.findFirst({
+      where: { id: params.labelId, workspaceId: ctx.workspaceId },
+    });
+    if (!label) return err('ラベルが見つかりません');
+    const updated = await prisma.label.update({
+      where: { id: params.labelId },
+      data: {
+        ...(params.name !== undefined ? { name: params.name } : {}),
+        ...(params.color !== undefined ? { color: params.color } : {}),
+      },
+    });
+    return ok(updated);
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function handleLabelDelete(
+  params: { labelId: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const label = await prisma.label.findFirst({
+      where: { id: params.labelId, workspaceId: ctx.workspaceId },
+    });
+    if (!label) return err('ラベルが見つかりません');
+    // TaskLabel は onDelete: Cascade で自動削除される
+    await prisma.label.delete({ where: { id: params.labelId } });
+    return ok({ success: true, deletedId: params.labelId });
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
 export async function handleTaskLabelSet(
   params: { taskId: string; labelIds: string[] },
   ctx: ToolContext,
