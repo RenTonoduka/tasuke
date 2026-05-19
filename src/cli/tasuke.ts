@@ -425,16 +425,20 @@ async function main() {
 
   let args: Record<string, unknown>;
   if (json) {
+    let fromJson: unknown;
     try {
-      args = JSON.parse(json);
+      fromJson = JSON.parse(json);
     } catch (e) {
       console.error(`Error: --json の値がJSONとしてパースできません: ${e instanceof Error ? e.message : String(e)}`);
       process.exit(1);
     }
-    if (typeof args !== 'object' || args === null || Array.isArray(args)) {
+    if (typeof fromJson !== 'object' || fromJson === null || Array.isArray(fromJson)) {
       console.error('Error: --json はオブジェクト形式である必要があります');
       process.exit(1);
     }
+    // --json で配列など複雑な構造を渡しつつ、--flag も併用できるよう merge。
+    // 明示的に指定された --flag を優先 (上書き)。
+    args = { ...(fromJson as Record<string, unknown>), ...flagsToArgs(flags) };
   } else {
     args = flagsToArgs(flags);
   }
