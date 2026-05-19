@@ -33,6 +33,7 @@ const COMMANDS: CmdDef[] = [
   { name: 'task:bulk',     desc: 'タスク一括操作', usage: '--taskIds ID1,ID2 --action status|priority|delete [--value TEXT]', example: 'tasuke task:bulk --taskIds id1,id2 --action status --value DONE' },
   { name: 'task:assignee', desc: 'タスク担当者設定', usage: '--taskId ID --userIds ID1,ID2', example: 'tasuke task:assignee --taskId abc --userIds user1,user2' },
   { name: 'task:activity', desc: 'タスクのアクティビティ履歴', usage: '--taskId ID [--limit N]', example: 'tasuke task:activity --taskId abc' },
+  { name: 'task:duplicate', desc: 'タスクを複製', usage: '--taskId ID', example: 'tasuke task:duplicate --taskId abc' },
   // Project
   { name: 'project:list',    desc: 'プロジェクト一覧', usage: '(引数なし)', example: 'tasuke project:list' },
   { name: 'project:create',  desc: 'プロジェクト作成', usage: '--name TEXT [--color HEX] [--description TEXT]', example: 'tasuke project:create --name "開発"' },
@@ -46,10 +47,13 @@ const COMMANDS: CmdDef[] = [
   { name: 'section:create', desc: 'セクション作成', usage: '--projectId ID --name TEXT', example: 'tasuke section:create --projectId abc --name "レビュー"' },
   { name: 'section:update', desc: 'セクション名更新', usage: '--sectionId ID --name TEXT', example: 'tasuke section:update --sectionId abc --name "新名前"' },
   { name: 'section:delete', desc: 'セクション削除', usage: '--sectionId ID', example: 'tasuke section:delete --sectionId abc' },
+  { name: 'section:reorder', desc: 'セクション並び順を一括更新', usage: '--projectId ID --json \'{"sections":[{"id":"x","position":0}]}\'', example: 'tasuke section:reorder --projectId abc --json \'{"sections":[{"id":"s1","position":0},{"id":"s2","position":1}]}\'' },
   // Subtask
   { name: 'subtask:list',   desc: 'サブタスク一覧', usage: '--taskId ID', example: 'tasuke subtask:list --taskId abc' },
   { name: 'subtask:create', desc: 'サブタスク作成', usage: '--parentId ID --title TEXT [--priority P0-P3]', example: 'tasuke subtask:create --parentId abc --title "子タスク"' },
   { name: 'subtask:toggle', desc: 'サブタスク完了切替', usage: '--subtaskId ID', example: 'tasuke subtask:toggle --subtaskId abc' },
+  { name: 'subtask:update', desc: 'サブタスク更新', usage: '--subtaskId ID [--title TEXT] [--status TODO|IN_PROGRESS|DONE] [--priority P0-P3] [--dueDate ISO]', example: 'tasuke subtask:update --subtaskId abc --title "新タイトル"' },
+  { name: 'subtask:delete', desc: 'サブタスク削除', usage: '--subtaskId ID', example: 'tasuke subtask:delete --subtaskId abc' },
   // Label
   { name: 'label:list',   desc: 'ラベル一覧', usage: '(引数なし)', example: 'tasuke label:list' },
   { name: 'label:create', desc: 'ラベル作成', usage: '--name TEXT [--color HEX]', example: 'tasuke label:create --name "urgent" --color "#EA4335"' },
@@ -141,6 +145,7 @@ const CLI_TO_MCP: Record<string, string> = {
   'task:bulk': 'task_bulk_update',
   'task:assignee': 'task_assignee_set',
   'task:activity': 'activity_list',
+  'task:duplicate': 'task_duplicate',
   // Project
   'project:list': 'project_list',
   'project:create': 'project_create',
@@ -154,10 +159,13 @@ const CLI_TO_MCP: Record<string, string> = {
   'section:create': 'section_create',
   'section:update': 'section_update',
   'section:delete': 'section_delete',
+  'section:reorder': 'section_reorder',
   // Subtask
   'subtask:list': 'subtask_list',
   'subtask:create': 'subtask_create',
   'subtask:toggle': 'subtask_toggle',
+  'subtask:update': 'subtask_update',
+  'subtask:delete': 'subtask_delete',
   // Label
   'label:list': 'label_list',
   'label:create': 'label_create',

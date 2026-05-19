@@ -70,6 +70,16 @@ const TOOLS: ToolDef[] = [
     readOnly: false,
   },
   {
+    name: 'task_duplicate',
+    description: 'タスクを複製します（タイトル末尾に「(コピー)」、同セクション末尾配置、assignees/labelsもコピー）',
+    inputSchema: {
+      type: 'object',
+      properties: { taskId: { type: 'string' } },
+      required: ['taskId'],
+    },
+    readOnly: false,
+  },
+  {
     name: 'task_delete',
     description: 'タスクを削除します',
     inputSchema: {
@@ -218,6 +228,32 @@ const TOOLS: ToolDef[] = [
   {
     name: 'subtask_toggle',
     description: 'サブタスクの完了/未完了を切り替えます',
+    inputSchema: {
+      type: 'object',
+      properties: { subtaskId: { type: 'string' } },
+      required: ['subtaskId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'subtask_update',
+    description: 'サブタスクのフィールドを更新します（title/status/priority/dueDate）',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        subtaskId: { type: 'string' },
+        title: { type: 'string' },
+        status: { type: 'string', enum: ['TODO', 'IN_PROGRESS', 'DONE', 'ARCHIVED'] },
+        priority: { type: 'string', enum: ['P0', 'P1', 'P2', 'P3'] },
+        dueDate: { type: ['string', 'null'] },
+      },
+      required: ['subtaskId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'subtask_delete',
+    description: 'サブタスクを削除します',
     inputSchema: {
       type: 'object',
       properties: { subtaskId: { type: 'string' } },
@@ -385,6 +421,29 @@ const TOOLS: ToolDef[] = [
       type: 'object',
       properties: { sectionId: { type: 'string' } },
       required: ['sectionId'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'section_reorder',
+    description: 'セクションの並び順を一括更新します',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string' },
+        sections: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              position: { type: 'number' },
+            },
+            required: ['id', 'position'],
+          },
+        },
+      },
+      required: ['projectId', 'sections'],
     },
     readOnly: false,
   },
@@ -1090,6 +1149,7 @@ const TOOL_HANDLERS: Record<string, (params: any, ctx: ToolContext) => Promise<h
   task_create: handlers.handleTaskCreate,
   task_update: handlers.handleTaskUpdate,
   task_delete: handlers.handleTaskDelete,
+  task_duplicate: handlers.handleTaskDuplicate,
   task_move: handlers.handleTaskMove,
   task_search: handlers.handleTaskSearch,
   project_list: handlers.handleProjectList,
@@ -1102,6 +1162,8 @@ const TOOL_HANDLERS: Record<string, (params: any, ctx: ToolContext) => Promise<h
   subtask_list: handlers.handleSubtaskList,
   subtask_create: handlers.handleSubtaskCreate,
   subtask_toggle: handlers.handleSubtaskToggle,
+  subtask_update: handlers.handleSubtaskUpdate,
+  subtask_delete: handlers.handleSubtaskDelete,
   label_list: handlers.handleLabelList,
   label_create: handlers.handleLabelCreate,
   label_update: handlers.handleLabelUpdate,
@@ -1112,6 +1174,7 @@ const TOOL_HANDLERS: Record<string, (params: any, ctx: ToolContext) => Promise<h
   comment_update: handlers.handleCommentUpdate,
   comment_delete: handlers.handleCommentDelete,
   section_delete: handlers.handleSectionDelete,
+  section_reorder: handlers.handleSectionReorder,
   task_bulk_update: handlers.handleTaskBulkUpdate,
   task_assignee_set: handlers.handleTaskAssigneeSet,
   activity_list: handlers.handleActivityList,

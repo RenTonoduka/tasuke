@@ -225,6 +225,59 @@ export async function handleTaskDelete(
   }
 }
 
+export async function handleTaskDuplicate(
+  params: { taskId: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const source = await prisma.task.findUnique({
+      where: { id: params.taskId },
+      include: {
+        assignees: { select: { userId: true } },
+        labels: { select: { labelId: true } },
+      },
+    });
+    if (!source) return err('タスクが見つかりません');
+
+    const accessibleIds = await getAccessibleProjectIds(ctx.userId, ctx.workspaceId);
+    if (!accessibleIds.includes(source.projectId)) {
+      return err('プロジェクトへのアクセス権がありません');
+    }
+
+    const maxPos = await prisma.task.aggregate({
+      where: { projectId: source.projectId, sectionId: source.sectionId },
+      _max: { position: true },
+    });
+
+    const created = await prisma.task.create({
+      data: {
+        title: `${source.title} (コピー)`,
+        description: source.description,
+        priority: source.priority,
+        status: source.status,
+        startDate: source.startDate,
+        dueDate: source.dueDate,
+        scheduledStart: source.scheduledStart,
+        scheduledEnd: source.scheduledEnd,
+        estimatedHours: source.estimatedHours,
+        projectId: source.projectId,
+        sectionId: source.sectionId,
+        createdById: ctx.userId,
+        position: (maxPos._max.position ?? 0) + 1,
+        assignees: source.assignees.length
+          ? { create: source.assignees.map((a) => ({ userId: a.userId })) }
+          : undefined,
+        labels: source.labels.length
+          ? { create: source.labels.map((l) => ({ labelId: l.labelId })) }
+          : undefined,
+      },
+    });
+    return ok(created);
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
 export async function handleTaskMove(
   params: { taskId: string; sectionId: string | null; projectId?: string; position?: number },
   ctx: ToolContext,
@@ -582,6 +635,48 @@ export async function handleSubtaskToggle(
       data: { status: newStatus, completedAt: newStatus === 'DONE' ? new Date() : null },
     });
     return ok(updated);
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+/** Subtask は parentId 付きの Task。task_update に委譲しつつ parentId 検証で誤操作を防ぐ */
+export async function handleSubtaskUpdate(
+  params: {
+    subtaskId: string;
+    title?: string;
+    status?: string;
+    priority?: string;
+    dueDate?: string | null;
+  },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const task = await prisma.task.findUnique({
+      where: { id: params.subtaskId },
+      select: { parentId: true },
+    });
+    if (!task) return err('サブタスクが見つかりません');
+    if (!task.parentId) return err('指定IDはサブタスクではありません (parentId なし)');
+    const { subtaskId, ...rest } = params;
+    return handleTaskUpdate({ taskId: subtaskId, ...rest }, ctx);
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function handleSubtaskDelete(
+  params: { subtaskId: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const task = await prisma.task.findUnique({
+      where: { id: params.subtaskId },
+      select: { parentId: true },
+    });
+    if (!task) return err('サブタスクが見つかりません');
+    if (!task.parentId) return err('指定IDはサブタスクではありません (parentId なし)');
+    return handleTaskDelete({ taskId: params.subtaskId }, ctx);
   } catch (e: unknown) {
     return err(e instanceof Error ? e.message : String(e));
   }
@@ -1017,6 +1112,37 @@ export async function handleSectionDelete(
 
     await prisma.section.delete({ where: { id: params.sectionId } });
     return ok({ success: true, deletedId: params.sectionId });
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function handleSectionReorder(
+  params: { projectId: string; sections: { id: string; position: number }[] },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const accessibleIds = await getAccessibleProjectIds(ctx.userId, ctx.workspaceId);
+    if (!accessibleIds.includes(params.projectId)) {
+      return err('プロジェクトへのアクセス権がありません');
+    }
+    // 指定された全 section が指定プロジェクトに所属しているか確認
+    const ids = params.sections.map((s) => s.id);
+    const found = await prisma.section.findMany({
+      where: { id: { in: ids }, projectId: params.projectId },
+      select: { id: true },
+    });
+    if (found.length !== ids.length) return err('指定されたセクションの一部が見つかりません');
+
+    await prisma.$transaction(
+      params.sections.map((s) =>
+        prisma.section.update({
+          where: { id: s.id },
+          data: { position: s.position },
+        }),
+      ),
+    );
+    return ok({ success: true, reordered: ids.length });
   } catch (e: unknown) {
     return err(e instanceof Error ? e.message : String(e));
   }

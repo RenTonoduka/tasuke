@@ -6,6 +6,7 @@ import {
   handleTaskCreate,
   handleTaskUpdate,
   handleTaskDelete,
+  handleTaskDuplicate,
   handleTaskMove,
   handleTaskSearch,
   handleTaskBulkUpdate,
@@ -72,6 +73,13 @@ export function registerTaskTools(server: McpServer) {
     'タスクを削除します',
     { taskId: z.string().describe('タスクID') },
     async (params) => handleTaskDelete(params, await getCtx()),
+  );
+
+  server.tool(
+    'task_duplicate',
+    'タスクを複製します（タイトル末尾に「(コピー)」付与、同セクション末尾配置、assignees/labelsもコピー）',
+    { taskId: z.string().describe('複製元タスクID') },
+    async (params) => handleTaskDuplicate(params, await getCtx()),
   );
 
   server.tool(

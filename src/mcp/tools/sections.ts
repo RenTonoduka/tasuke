@@ -6,6 +6,7 @@ import {
   handleSectionCreate,
   handleSectionUpdate,
   handleSectionDelete,
+  handleSectionReorder,
 } from '../tool-handlers.js';
 
 async function getCtx() {
@@ -48,5 +49,18 @@ export function registerSectionTools(server: McpServer) {
       sectionId: z.string().describe('セクションID'),
     },
     async (params) => handleSectionDelete(params, await getCtx()),
+  );
+
+  server.tool(
+    'section_reorder',
+    'セクションの並び順を一括更新します',
+    {
+      projectId: z.string().describe('プロジェクトID'),
+      sections: z.array(z.object({
+        id: z.string(),
+        position: z.number(),
+      })).describe('セクションIDと新しい position の配列'),
+    },
+    async (params) => handleSectionReorder(params, await getCtx()),
   );
 }

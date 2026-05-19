@@ -5,6 +5,8 @@ import {
   handleSubtaskList,
   handleSubtaskCreate,
   handleSubtaskToggle,
+  handleSubtaskUpdate,
+  handleSubtaskDelete,
 } from '../tool-handlers.js';
 
 async function getCtx() {
@@ -37,5 +39,25 @@ export function registerSubtaskTools(server: McpServer) {
     'サブタスクの完了/未完了を切り替えます',
     { subtaskId: z.string().describe('サブタスクID') },
     async (params) => handleSubtaskToggle(params, await getCtx()),
+  );
+
+  server.tool(
+    'subtask_update',
+    'サブタスクのフィールドを更新します（title/status/priority/dueDate）',
+    {
+      subtaskId: z.string().describe('サブタスクID'),
+      title: z.string().optional(),
+      status: z.enum(['TODO', 'IN_PROGRESS', 'DONE', 'ARCHIVED']).optional(),
+      priority: z.enum(['P0', 'P1', 'P2', 'P3']).optional(),
+      dueDate: z.string().nullable().optional(),
+    },
+    async (params) => handleSubtaskUpdate(params, await getCtx()),
+  );
+
+  server.tool(
+    'subtask_delete',
+    'サブタスクを削除します',
+    { subtaskId: z.string().describe('サブタスクID') },
+    async (params) => handleSubtaskDelete(params, await getCtx()),
   );
 }
