@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/drive-poll",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 * * * *"
     }
   ]
 }
