@@ -6,6 +6,8 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { toast } from '@/hooks/use-toast';
 import { AddTaskInline } from '@/components/board/add-task-inline';
+import { PRIORITY_COLORS } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 import { TimelineHeader } from './timeline-header';
 import { TimelineRow } from './timeline-row';
 import type { Section, Task } from '@/types';
@@ -111,14 +113,28 @@ export function TimelineView({ sections: initialSections, projectId }: TimelineV
   }, []);
 
   const handleDateChange = useCallback(async (taskId: string, startDate: string | null, dueDate: string | null) => {
+    // 楽観的更新: ドラッグ結果を即座にバー位置へ反映（再読込なしで見える）
+    let snapshot: Section[] | null = null;
+    setSections((prev) => {
+      snapshot = prev;
+      return prev.map((s) => ({
+        ...s,
+        tasks: s.tasks.map((t) =>
+          t.id === taskId ? { ...t, startDate, dueDate } : t,
+        ),
+      }));
+    });
     try {
-      await fetch(`/api/tasks/${taskId}`, {
+      const res = await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ startDate, dueDate }),
       });
+      if (!res.ok) throw new Error('PATCH failed');
     } catch (err) {
       console.error('日付更新エラー:', err);
+      if (snapshot) setSections(snapshot); // 失敗時はロールバック
+      toast({ title: '日付の更新に失敗', variant: 'destructive' });
     }
   }, []);
 
@@ -281,12 +297,25 @@ export function TimelineView({ sections: initialSections, projectId }: TimelineV
               {/* タスク行 */}
               {!collapsed[section.id] &&
                 section.tasks.map((task) => (
-                  <div
+                  <button
                     key={task.id}
-                    className="flex items-center h-10 border-b border-g-border px-3"
+                    onClick={() => openPanel(task.id)}
+                    className="flex w-full items-center gap-2 h-10 border-b border-g-border px-3 text-left hover:bg-g-surface-hover"
                   >
-                    <span className="truncate text-sm text-g-text">{task.title}</span>
-                  </div>
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: PRIORITY_COLORS[task.priority] ?? '#80868B' }}
+                      title={task.priority}
+                    />
+                    <span
+                      className={cn(
+                        'flex-1 truncate text-sm text-g-text',
+                        task.status === 'DONE' && 'line-through text-g-text-muted',
+                      )}
+                    >
+                      {task.title}
+                    </span>
+                  </button>
                 ))}
             </div>
           ))}
