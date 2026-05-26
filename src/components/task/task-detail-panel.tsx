@@ -18,6 +18,7 @@ import {
   Github,
   ExternalLink,
   FileText,
+  Maximize2,
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -33,6 +34,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   AlertDialog,
@@ -184,6 +192,7 @@ export function TaskDetailPanel() {
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [descExpanded, setDescExpanded] = useState(false);
   const [newSubtask, setNewSubtask] = useState('');
   const isUpdatingRef = useRef(false);
   const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH);
@@ -507,6 +516,7 @@ export function TaskDetailPanel() {
   const totalSubtasks = task?.subtasks.length ?? 0;
 
   return (
+    <>
     <Sheet open={!!activeTaskId} onOpenChange={(open) => !open && close()}>
       <SheetContent
         className="overflow-y-auto p-0 !w-full"
@@ -1077,9 +1087,20 @@ export function TaskDetailPanel() {
 
             {/* Description */}
             <div className="border-t border-g-border px-4 py-4">
-              <label className="mb-2 block text-xs font-medium text-g-text-secondary">
-                説明
-              </label>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="block text-xs font-medium text-g-text-secondary">
+                  説明
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setDescExpanded(true)}
+                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-g-text-muted hover:bg-g-surface-hover hover:text-g-text"
+                  title="全画面で編集"
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                  拡大
+                </button>
+              </div>
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -1242,5 +1263,38 @@ export function TaskDetailPanel() {
         )}
       </SheetContent>
     </Sheet>
+
+    {/* 説明の全画面編集モーダル */}
+    <Dialog
+      open={descExpanded}
+      onOpenChange={(open) => {
+        if (!open) handleDescBlur();
+        setDescExpanded(open);
+      }}
+    >
+      <DialogContent className="flex h-[85vh] max-w-3xl flex-col">
+        <DialogHeader>
+          <DialogTitle>説明</DialogTitle>
+        </DialogHeader>
+        <Textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="説明を追加..."
+          autoFocus
+          className="flex-1 resize-none border-g-border text-sm"
+        />
+        <DialogFooter>
+          <Button
+            onClick={() => {
+              handleDescBlur();
+              setDescExpanded(false);
+            }}
+          >
+            保存して閉じる
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
