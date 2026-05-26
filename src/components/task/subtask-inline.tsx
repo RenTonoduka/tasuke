@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, ChevronDown, X, Loader2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, X, Loader2, ListChecks } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +18,8 @@ interface SubtaskToggleProps {
 }
 
 export function SubtaskToggle({ count, doneCount, expanded, onToggle }: SubtaskToggleProps) {
+  const allDone = count > 0 && doneCount === count;
+  const pct = count > 0 ? Math.round((doneCount / count) * 100) : 0;
   return (
     <button
       onClick={(e) => {
@@ -26,15 +28,28 @@ export function SubtaskToggle({ count, doneCount, expanded, onToggle }: SubtaskT
       }}
       aria-expanded={expanded}
       aria-label={`サブタスク ${doneCount}/${count} 完了`}
-      className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[11px] text-g-text-secondary hover:bg-g-surface-hover focus:outline-none focus:ring-1 focus:ring-g-border"
+      className={cn(
+        'flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium hover:bg-g-surface-hover focus:outline-none focus:ring-1 focus:ring-g-border',
+        allDone ? 'text-green-600 dark:text-green-400' : 'text-g-text-secondary'
+      )}
     >
       {expanded ? (
-        <ChevronDown className="h-3 w-3" />
+        <ChevronDown className="h-3 w-3 shrink-0" />
       ) : (
-        <ChevronRight className="h-3 w-3" />
+        <ChevronRight className="h-3 w-3 shrink-0" />
       )}
-      <span>
+      <ListChecks className="h-3.5 w-3.5 shrink-0" />
+      <span className="tabular-nums">
         {doneCount}/{count}
+      </span>
+      <span className="relative h-1.5 w-10 overflow-hidden rounded-full bg-g-border">
+        <span
+          className={cn(
+            'absolute inset-y-0 left-0 rounded-full transition-all',
+            allDone ? 'bg-green-500' : 'bg-blue-500'
+          )}
+          style={{ width: `${pct}%` }}
+        />
       </span>
     </button>
   );
