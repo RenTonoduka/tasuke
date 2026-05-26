@@ -41,6 +41,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { MarkdownView } from '@/components/ui/markdown-view';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   AlertDialog,
@@ -193,6 +194,8 @@ export function TaskDetailPanel() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [descExpanded, setDescExpanded] = useState(false);
+  const [descPreview, setDescPreview] = useState(false);
+  const [modalPreview, setModalPreview] = useState(false);
   const [newSubtask, setNewSubtask] = useState('');
   const isUpdatingRef = useRef(false);
   const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH);
@@ -1091,23 +1094,64 @@ export function TaskDetailPanel() {
                 <label className="block text-xs font-medium text-g-text-secondary">
                   説明
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setDescExpanded(true)}
-                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-g-text-muted hover:bg-g-surface-hover hover:text-g-text"
-                  title="全画面で編集"
-                >
-                  <Maximize2 className="h-3.5 w-3.5" />
-                  拡大
-                </button>
+                <div className="flex items-center gap-1">
+                  <div className="flex overflow-hidden rounded border border-g-border text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setDescPreview(false)}
+                      className={cn(
+                        'px-2 py-0.5',
+                        !descPreview
+                          ? 'bg-g-surface-hover text-g-text'
+                          : 'text-g-text-muted hover:text-g-text'
+                      )}
+                    >
+                      編集
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleDescBlur();
+                        setDescPreview(true);
+                      }}
+                      className={cn(
+                        'border-l border-g-border px-2 py-0.5',
+                        descPreview
+                          ? 'bg-g-surface-hover text-g-text'
+                          : 'text-g-text-muted hover:text-g-text'
+                      )}
+                    >
+                      プレビュー
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDescExpanded(true)}
+                    className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-g-text-muted hover:bg-g-surface-hover hover:text-g-text"
+                    title="全画面で編集"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                    拡大
+                  </button>
+                </div>
               </div>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                onBlur={handleDescBlur}
-                placeholder="説明を追加..."
-                className="min-h-[80px] resize-none border-g-border text-sm"
-              />
+              {descPreview ? (
+                <div className="min-h-[80px] rounded border border-g-border px-3 py-2">
+                  {description ? (
+                    <MarkdownView>{description}</MarkdownView>
+                  ) : (
+                    <p className="text-sm text-g-text-muted">説明はまだありません</p>
+                  )}
+                </div>
+              ) : (
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  onBlur={handleDescBlur}
+                  placeholder="説明を追加...（Markdown対応：# 見出し、- リスト、**太字** など）"
+                  className="min-h-[80px] resize-none border-g-border text-sm"
+                />
+              )}
             </div>
 
             {/* 議事録由来（あれば表示） */}
@@ -1274,15 +1318,58 @@ export function TaskDetailPanel() {
     >
       <DialogContent className="flex h-[85vh] max-w-3xl flex-col">
         <DialogHeader>
-          <DialogTitle>説明</DialogTitle>
+          <DialogTitle className="flex items-baseline gap-2">
+            <span>説明</span>
+            {task && (
+              <span className="truncate text-sm font-normal text-g-text-secondary">
+                ─ {task.title}
+              </span>
+            )}
+          </DialogTitle>
         </DialogHeader>
-        <Textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="説明を追加..."
-          autoFocus
-          className="flex-1 resize-none border-g-border text-sm"
-        />
+        <div className="flex overflow-hidden self-start rounded border border-g-border text-xs">
+          <button
+            type="button"
+            onClick={() => setModalPreview(false)}
+            className={cn(
+              'px-3 py-1',
+              !modalPreview
+                ? 'bg-g-surface-hover text-g-text'
+                : 'text-g-text-muted hover:text-g-text'
+            )}
+          >
+            編集
+          </button>
+          <button
+            type="button"
+            onClick={() => setModalPreview(true)}
+            className={cn(
+              'border-l border-g-border px-3 py-1',
+              modalPreview
+                ? 'bg-g-surface-hover text-g-text'
+                : 'text-g-text-muted hover:text-g-text'
+            )}
+          >
+            プレビュー
+          </button>
+        </div>
+        {modalPreview ? (
+          <div className="flex-1 overflow-y-auto rounded border border-g-border px-4 py-3">
+            {description ? (
+              <MarkdownView>{description}</MarkdownView>
+            ) : (
+              <p className="text-sm text-g-text-muted">説明はまだありません</p>
+            )}
+          </div>
+        ) : (
+          <Textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="説明を追加...（Markdown対応：# 見出し、- リスト、**太字** など）"
+            autoFocus
+            className="flex-1 resize-none border-g-border text-sm"
+          />
+        )}
         <DialogFooter>
           <Button
             onClick={() => {
