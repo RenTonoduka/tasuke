@@ -14,6 +14,7 @@ import {
   ChevronRight,
   LayoutDashboard,
   Inbox,
+  ClipboardCheck,
   Trash2,
   MoreHorizontal,
   Sun,
@@ -414,6 +415,19 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
   // マウント時にワークスペース一覧をプリロード
   useEffect(() => { fetchWorkspaces(); }, [fetchWorkspaces]);
 
+  // 承認待ち件数（ナビのバッジ用）
+  const [approvalCount, setApprovalCount] = useState(0);
+  useEffect(() => {
+    if (!workspaceId) return;
+    fetch(`/api/approvals?workspaceId=${workspaceId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const d = j?.data ?? j;
+        if (d) setApprovalCount((d.toApprove?.length ?? 0) + (d.toAccept?.length ?? 0));
+      })
+      .catch(() => {});
+  }, [workspaceId]);
+
   const handleWsRename = async () => {
     if (!wsRenameTarget || !wsRenameName.trim()) return;
     try {
@@ -671,6 +685,12 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
       icon: Inbox,
     },
     {
+      label: '承認待ち',
+      href: `/${currentWorkspaceSlug}/approvals`,
+      icon: ClipboardCheck,
+      badge: approvalCount,
+    },
+    {
       label: 'クイックメモ',
       href: `/${currentWorkspaceSlug}/quick-capture`,
       icon: Mic,
@@ -831,6 +851,11 @@ export function Sidebar({ projects: initialProjects = [], projectGroups: initial
               >
                 <item.icon className="h-4 w-4" />
                 {item.label}
+                {'badge' in item && (item.badge ?? 0) > 0 && (
+                  <span className="ml-auto rounded-full bg-blue-500 px-1.5 text-[10px] font-medium text-white">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             ))}
           </nav>

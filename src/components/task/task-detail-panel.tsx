@@ -19,8 +19,12 @@ import {
   ExternalLink,
   FileText,
   Maximize2,
+  Send,
+  RotateCcw,
+  Ban,
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -118,6 +122,9 @@ interface TaskDetail {
   description: string | null;
   priority: string;
   status: string;
+  assignmentState: string | null;
+  requesterId: string | null;
+  requester: { id: string; name: string | null; image: string | null } | null;
   startDate: string | null;
   dueDate: string | null;
   scheduledStart: string | null;
@@ -190,6 +197,10 @@ export function TaskDetailPanel() {
   const router = useRouter();
   const pathname = usePathname();
   const workspaceSlug = pathname?.split('/')[1] ?? '';
+  const { data: session } = useSession();
+  const currentUserId = (session?.user as { id?: string })?.id;
+  const [wfComment, setWfComment] = useState('');
+  const [wfCommentFor, setWfCommentFor] = useState<'decline' | 'send_back' | null>(null);
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -251,6 +262,28 @@ export function TaskDetailPanel() {
     setTitle(data.title);
     setDescription(data.description ?? '');
   }, []);
+
+  const runWorkflow = useCallback(
+    async (action: string, body?: Record<string, unknown>) => {
+      if (!task) return;
+      const res = await fetch(`/api/tasks/${task.id}/workflow`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...body }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        toast({ title: '操作に失敗', description: j.error, variant: 'destructive' });
+        return;
+      }
+      toast({ title: '更新しました' });
+      setWfCommentFor(null);
+      setWfComment('');
+      await fetchTask(task.id);
+      eventBus.emit(EVENTS.TASK_UPDATED, task.id);
+    },
+    [task, fetchTask],
+  );
 
   useEffect(() => {
     if (activeTaskId) fetchTask(activeTaskId);
@@ -1153,6 +1186,104 @@ export function TaskDetailPanel() {
                 />
               )}
             </div>
+
+            {/* 依頼→承認ワークフロー */}
+            {(() => {
+              const aState = task.assignmentState;
+              const isRequester = !!task.requesterId && task.requesterId === currentUserId;
+              const isAssignee = task.assignees.some((a) => a.user.id === currentUserId);
+              const STATE: Record<string, { label: string; cls: string }> = {
+                PENDING_ACCEPT: { label: '受諾待ち', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300' },
+                IN_PROGRESS: { label: '対応中', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' },
+                SUBMITTED: { label: '承認待ち', cls: 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' },
+                APPROVED: { label: '承認済み', cls: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300' },
+                DECLINED: { label: '辞退', cls: 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-300' },
+                SENT_BACK: { label: '差し戻し', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' },
+              };
+              // 依頼ワークフロー外で、担当者1人なら「依頼する」入口を出す
+              const canStart = !aState && task.assignees.length === 1;
+              if (!aState && !canStart) return null;
+              return (
+                <div className="border-t border-g-border px-4 py-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <label className="text-xs font-medium text-g-text-secondary">依頼ワークフロー</label>
+                    {aState && STATE[aState] && (
+                      <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium', STATE[aState].cls)}>
+                        {STATE[aState].label}
+                      </span>
+                    )}
+                  </div>
+                  {task.requester && (
+                    <p className="mb-2 text-xs text-g-text-secondary">依頼者: {task.requester.name ?? '—'}</p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {canStart && (
+                      <Button size="sm" className="h-7 gap-1 px-2 text-xs"
+                        onClick={() => runWorkflow('request', { assigneeId: task.assignees[0].user.id })}>
+                        <Send className="h-3.5 w-3.5" /> このタスクを依頼する
+                      </Button>
+                    )}
+                    {aState === 'PENDING_ACCEPT' && isAssignee && (
+                      <>
+                        <Button size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => runWorkflow('accept')}>
+                          <Check className="h-3.5 w-3.5" /> 受諾
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs"
+                          onClick={() => setWfCommentFor('decline')}>
+                          <X className="h-3.5 w-3.5" /> 辞退
+                        </Button>
+                      </>
+                    )}
+                    {(aState === 'IN_PROGRESS' || aState === 'SENT_BACK') && isAssignee && (
+                      <Button size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => runWorkflow('submit')}>
+                        <Send className="h-3.5 w-3.5" /> 完了報告
+                      </Button>
+                    )}
+                    {aState === 'SUBMITTED' && isRequester && (
+                      <>
+                        <Button size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => runWorkflow('approve')}>
+                          <Check className="h-3.5 w-3.5" /> 承認
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs"
+                          onClick={() => setWfCommentFor('send_back')}>
+                          <RotateCcw className="h-3.5 w-3.5" /> 差し戻し
+                        </Button>
+                      </>
+                    )}
+                    {aState && aState !== 'APPROVED' && aState !== 'DECLINED' && isRequester && (
+                      <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs text-g-text-muted"
+                        onClick={() => runWorkflow('cancel')}>
+                        <Ban className="h-3.5 w-3.5" /> 依頼取消
+                      </Button>
+                    )}
+                  </div>
+                  {wfCommentFor && (
+                    <div className="mt-2">
+                      <Textarea
+                        value={wfComment}
+                        onChange={(e) => setWfComment(e.target.value)}
+                        placeholder={wfCommentFor === 'decline' ? '辞退理由（必須）' : '差し戻し理由（必須）'}
+                        className="min-h-[60px] resize-none border-g-border text-sm"
+                        autoFocus
+                      />
+                      <div className="mt-2 flex justify-end gap-2">
+                        <Button size="sm" variant="ghost" className="h-7 text-xs"
+                          onClick={() => { setWfCommentFor(null); setWfComment(''); }}>
+                          キャンセル
+                        </Button>
+                        <Button size="sm" className="h-7 text-xs"
+                          onClick={() => {
+                            if (!wfComment.trim()) { toast({ title: 'コメントは必須です', variant: 'destructive' }); return; }
+                            runWorkflow(wfCommentFor, { comment: wfComment });
+                          }}>
+                          送信
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* 議事録由来（あれば表示） */}
             {task.extractedFrom && (

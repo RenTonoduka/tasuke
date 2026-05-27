@@ -25,6 +25,7 @@ model User {
   taskAssignments        TaskAssignment[]
   comments               Comment[]
   createdTasks           Task[]                  @relation("CreatedBy")
+  requestedTasks         Task[]                  @relation("RequestedTasks")
   activities             Activity[]
   notifications          Notification[]
   googleTaskListMappings GoogleTaskListMapping[]
@@ -192,6 +193,16 @@ enum TaskStatus {
   ARCHIVED
 }
 
+// 依頼→承認ワークフローの状態（通常タスクは null）
+enum AssignmentState {
+  PENDING_ACCEPT // 受諾待ち（依頼が届いた）
+  IN_PROGRESS // 受諾済み・対応中
+  SUBMITTED // 完了報告済み・承認待ち
+  APPROVED // 承認済み（完了）
+  DECLINED // 辞退
+  SENT_BACK // 差し戻し（担当者が再対応）
+}
+
 model Task {
   id             String     @id @default(cuid())
   title          String
@@ -207,6 +218,10 @@ model Task {
   completedAt    DateTime?
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
+
+  // 依頼→承認ワークフロー（通常タスクは null）
+  requesterId     String?
+  assignmentState AssignmentState?
 
   // Relations
   sectionId   String?
@@ -235,6 +250,7 @@ model Task {
   parent    Task?    @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
   subtasks  Task[]   @relation("Subtasks")
   createdBy User     @relation("CreatedBy", fields: [createdById], references: [id])
+  requester User?    @relation("RequestedTasks", fields: [requesterId], references: [id])
 
   assignees      TaskAssignment[]
   labels         TaskLabel[]
@@ -248,6 +264,8 @@ model Task {
   @@index([dueDate])
   @@index([completedAt])
   @@index([githubIssueNodeId])
+  @@index([requesterId, assignmentState])
+  @@index([assignmentState])
 }
 
 model TaskAssignment {

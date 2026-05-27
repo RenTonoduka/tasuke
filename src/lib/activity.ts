@@ -13,7 +13,14 @@ type ActivityType =
   | 'LABEL_ADDED'
   | 'LABEL_REMOVED'
   | 'PRIORITY_CHANGED'
-  | 'DUE_DATE_CHANGED';
+  | 'DUE_DATE_CHANGED'
+  | 'TASK_REQUESTED'
+  | 'TASK_ACCEPTED'
+  | 'TASK_DECLINED'
+  | 'TASK_SUBMITTED'
+  | 'TASK_APPROVED'
+  | 'TASK_SENT_BACK'
+  | 'REQUEST_CANCELLED';
 
 export async function logActivity(params: {
   type: ActivityType;

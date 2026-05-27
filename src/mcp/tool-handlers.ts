@@ -22,6 +22,17 @@ import type { CalendarEvent, SchedulableTask } from '@/lib/schedule';
 import { getGitHubToken, githubApi } from '@/lib/github';
 import { parseChecklistItems } from '@/lib/github-checklist';
 import { generateApiToken, hashToken } from '@/lib/api-token';
+import {
+  WorkflowError,
+  requestTask,
+  acceptTask,
+  declineTask,
+  submitTask,
+  approveTask,
+  sendBackTask,
+  cancelRequest,
+  listPending,
+} from '@/lib/task-workflow';
 
 export interface ToolContext {
   userId: string;
@@ -2958,5 +2969,105 @@ export async function handleMeetingReExtract(
     });
   } catch (e: unknown) {
     return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+// ==================== Task Workflow (依頼→承認) ====================
+
+function wfErr(e: unknown): ToolResult {
+  if (e instanceof WorkflowError) return err(e.message);
+  return err(e instanceof Error ? e.message : String(e));
+}
+
+export async function handleTaskRequest(
+  params: { taskId: string; assigneeId: string; dueDate?: string | null; comment?: string | null },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    const r = await requestTask(ctx.userId, params.taskId, {
+      assigneeId: params.assigneeId,
+      dueDate: params.dueDate ?? undefined,
+      comment: params.comment ?? undefined,
+    });
+    return ok(r);
+  } catch (e) {
+    return wfErr(e);
+  }
+}
+
+export async function handleTaskAccept(
+  params: { taskId: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    return ok(await acceptTask(ctx.userId, params.taskId));
+  } catch (e) {
+    return wfErr(e);
+  }
+}
+
+export async function handleTaskDecline(
+  params: { taskId: string; comment: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    return ok(await declineTask(ctx.userId, params.taskId, params.comment));
+  } catch (e) {
+    return wfErr(e);
+  }
+}
+
+export async function handleTaskSubmit(
+  params: { taskId: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    return ok(await submitTask(ctx.userId, params.taskId));
+  } catch (e) {
+    return wfErr(e);
+  }
+}
+
+export async function handleTaskApprove(
+  params: { taskId: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    return ok(await approveTask(ctx.userId, params.taskId));
+  } catch (e) {
+    return wfErr(e);
+  }
+}
+
+export async function handleTaskSendBack(
+  params: { taskId: string; comment: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    return ok(await sendBackTask(ctx.userId, params.taskId, params.comment));
+  } catch (e) {
+    return wfErr(e);
+  }
+}
+
+export async function handleTaskCancelRequest(
+  params: { taskId: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    return ok(await cancelRequest(ctx.userId, params.taskId));
+  } catch (e) {
+    return wfErr(e);
+  }
+}
+
+export async function handleApprovalsList(
+  _params: Record<string, never>,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    return ok(await listPending(ctx.userId, ctx.workspaceId));
+  } catch (e) {
+    return wfErr(e);
   }
 }

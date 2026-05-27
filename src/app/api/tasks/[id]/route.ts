@@ -39,6 +39,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         section: true,
         project: { select: { id: true, name: true, color: true, workspaceId: true } },
         createdBy: { select: { id: true, name: true, image: true } },
+        requester: { select: { id: true, name: true, image: true } },
       },
     });
 

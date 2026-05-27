@@ -5,6 +5,10 @@
       "schedule": "0 0 * * *"
     },
     {
+      "path": "/api/cron/due-reminders",
+      "schedule": "0 0 * * *"
+    },
+    {
       "path": "/api/cron/drive-watch-renew",
       "schedule": "0 */6 * * *"
     },

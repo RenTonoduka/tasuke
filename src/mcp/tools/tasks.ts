@@ -12,6 +12,14 @@ import {
   handleTaskBulkUpdate,
   handleTaskAssigneeSet,
   handleActivityList,
+  handleTaskRequest,
+  handleTaskAccept,
+  handleTaskDecline,
+  handleTaskSubmit,
+  handleTaskApprove,
+  handleTaskSendBack,
+  handleTaskCancelRequest,
+  handleApprovalsList,
 } from '../tool-handlers.js';
 
 async function getCtx() {
@@ -133,5 +141,66 @@ export function registerTaskTools(server: McpServer) {
       limit: z.number().optional().describe('取得件数（デフォルト30）'),
     },
     async (params) => handleActivityList(params, await getCtx()),
+  );
+
+  // ===== 依頼→承認ワークフロー =====
+  server.tool(
+    'task_request',
+    'タスクを担当者に依頼し受諾待ちにします（依頼→承認ワークフロー開始）',
+    {
+      taskId: z.string().describe('タスクID'),
+      assigneeId: z.string().describe('担当者のユーザーID'),
+      dueDate: z.string().nullable().optional().describe('期日(ISO文字列)'),
+      comment: z.string().optional().describe('依頼コメント'),
+    },
+    async (params) => handleTaskRequest(params, await getCtx()),
+  );
+  server.tool(
+    'task_accept',
+    '依頼を受諾し対応中にします（担当者のみ）',
+    { taskId: z.string().describe('タスクID') },
+    async (params) => handleTaskAccept(params, await getCtx()),
+  );
+  server.tool(
+    'task_decline',
+    '依頼を辞退します（担当者のみ・コメント必須）',
+    {
+      taskId: z.string().describe('タスクID'),
+      comment: z.string().describe('辞退理由（必須）'),
+    },
+    async (params) => handleTaskDecline(params, await getCtx()),
+  );
+  server.tool(
+    'task_submit',
+    '完了報告を出し承認待ちにします（担当者のみ）',
+    { taskId: z.string().describe('タスクID') },
+    async (params) => handleTaskSubmit(params, await getCtx()),
+  );
+  server.tool(
+    'task_approve',
+    '完了報告を承認し完了にします（依頼者のみ）',
+    { taskId: z.string().describe('タスクID') },
+    async (params) => handleTaskApprove(params, await getCtx()),
+  );
+  server.tool(
+    'task_send_back',
+    '完了報告を差し戻します（依頼者のみ・コメント必須）',
+    {
+      taskId: z.string().describe('タスクID'),
+      comment: z.string().describe('差し戻し理由（必須）'),
+    },
+    async (params) => handleTaskSendBack(params, await getCtx()),
+  );
+  server.tool(
+    'task_cancel_request',
+    '依頼を取り消し通常タスクに戻します（依頼者のみ）',
+    { taskId: z.string().describe('タスクID') },
+    async (params) => handleTaskCancelRequest(params, await getCtx()),
+  );
+  server.tool(
+    'approvals_list',
+    '自分の「承認する番(toApprove)」と「受諾/対応する番(toAccept)」を一覧取得します',
+    {},
+    async (params) => handleApprovalsList(params, await getCtx()),
   );
 }
