@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Check, RotateCcw, X, Send, Inbox } from 'lucide-react';
+import { Check, RotateCcw, X, Send, Inbox, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { MarkdownView } from '@/components/ui/markdown-view';
 import { toast } from '@/hooks/use-toast';
 import { useTaskPanelStore } from '@/stores/task-panel-store';
 import { cn } from '@/lib/utils';
@@ -11,11 +12,19 @@ import { cn } from '@/lib/utils';
 interface WfTask {
   id: string;
   title: string;
+  description: string | null;
+  priority: string;
   dueDate: string | null;
   assignmentState: string | null;
   project: { id: string; name: string; color: string } | null;
   requester: { id: string; name: string | null; image: string | null } | null;
   assignees: { user: { id: string; name: string | null; image: string | null } }[];
+  comments: {
+    id: string;
+    content: string;
+    createdAt: string;
+    user: { id: string; name: string | null; image: string | null };
+  }[];
 }
 
 interface Props {
@@ -36,6 +45,14 @@ export function ApprovalsClient({ initial, workspaceId }: Props) {
   const [data, setData] = useState(initial);
   const [commentFor, setCommentFor] = useState<{ taskId: string; action: 'decline' | 'send_back' | 'return' } | null>(null);
   const [comment, setComment] = useState('');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpand = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const openPanel = useTaskPanelStore((s) => s.open);
 
   const refetch = useCallback(async () => {
@@ -99,6 +116,18 @@ export function ApprovalsClient({ initial, workspaceId }: Props) {
           {list.map((t) => (
             <li key={t.id} className="rounded-lg border border-g-border bg-g-surface p-3">
               <div className="flex items-start justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => toggleExpand(t.id)}
+                  className="mt-0.5 rounded p-0.5 text-g-text-secondary hover:bg-g-surface-hover"
+                  aria-label="詳細を表示"
+                >
+                  {expanded.has(t.id) ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </button>
                 <button onClick={() => openPanel(t.id)} className="min-w-0 flex-1 text-left">
                   <div className="flex items-center gap-2">
                     {t.assignmentState && STATE_LABEL[t.assignmentState] && (
@@ -213,6 +242,38 @@ export function ApprovalsClient({ initial, workspaceId }: Props) {
                       送信
                     </Button>
                   </div>
+                </div>
+              )}
+
+              {/* 展開: 依頼内容の詳細（説明＋直近コメント） */}
+              {expanded.has(t.id) && (
+                <div className="mt-2 space-y-3 border-t border-g-border pt-2 pl-6">
+                  <div>
+                    <div className="mb-1 text-[10px] font-semibold uppercase text-g-text-muted">説明</div>
+                    {t.description ? (
+                      <MarkdownView className="text-sm">{t.description}</MarkdownView>
+                    ) : (
+                      <p className="text-xs text-g-text-muted">説明は未入力です</p>
+                    )}
+                  </div>
+                  {t.comments.length > 0 && (
+                    <div>
+                      <div className="mb-1 text-[10px] font-semibold uppercase text-g-text-muted">
+                        最近のコメント
+                      </div>
+                      <ul className="space-y-1.5">
+                        {[...t.comments].reverse().map((c) => (
+                          <li key={c.id} className="rounded border border-g-border bg-g-bg px-2 py-1.5">
+                            <div className="flex items-center gap-2 text-[10px] text-g-text-muted">
+                              <span className="font-medium text-g-text-secondary">{c.user.name ?? '—'}</span>
+                              <span>{new Date(c.createdAt).toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            <p className="whitespace-pre-wrap break-words text-xs text-g-text">{c.content}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
             </li>

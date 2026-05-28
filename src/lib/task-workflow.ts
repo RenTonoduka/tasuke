@@ -25,12 +25,18 @@ export class WorkflowError extends Error {
   }
 }
 
-// UI へ返す標準 include
+// UI へ返す標準 include（description 等のスカラーは自動で含まれる）
 export const workflowTaskInclude = {
   assignees: { include: { user: { select: { id: true, name: true, image: true } } } },
   requester: { select: { id: true, name: true, image: true } },
   labels: { include: { label: true } },
   project: { select: { id: true, name: true, color: true } },
+  // 依頼コメントや差し戻し理由を一覧で展開表示するため最新3件
+  comments: {
+    orderBy: { createdAt: 'desc' as const },
+    take: 3,
+    include: { user: { select: { id: true, name: true, image: true } } },
+  },
   _count: { select: { subtasks: true } },
 } as const;
 
