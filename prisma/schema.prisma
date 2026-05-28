@@ -200,7 +200,8 @@ enum AssignmentState {
   SUBMITTED // 完了報告済み・承認待ち
   APPROVED // 承認済み（完了）
   DECLINED // 辞退
-  SENT_BACK // 差し戻し（担当者が再対応）
+  SENT_BACK // 差し戻し（依頼者→担当者・再対応）
+  RETURNED // 招待差し戻し（担当者→依頼者・要相談）
 }
 
 model Task {

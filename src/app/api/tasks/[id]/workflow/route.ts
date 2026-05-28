@@ -10,6 +10,8 @@ import {
   approveTask,
   sendBackTask,
   cancelRequest,
+  returnInvite,
+  resendRequest,
 } from '@/lib/task-workflow';
 
 /**
@@ -51,6 +53,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         break;
       case 'cancel':
         result = await cancelRequest(user.id, taskId);
+        break;
+      case 'return':
+        result = await returnInvite(user.id, taskId, body.comment ?? '');
+        break;
+      case 'resend':
+        result = await resendRequest(user.id, taskId, body.comment ?? undefined);
         break;
       default:
         return errorResponse(`不明な action: ${action}`, 400);

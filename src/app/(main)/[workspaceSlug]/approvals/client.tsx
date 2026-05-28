@@ -28,12 +28,13 @@ const STATE_LABEL: Record<string, string> = {
   PENDING_ACCEPT: '受諾待ち',
   SENT_BACK: '差し戻し',
   SUBMITTED: '承認待ち',
+  RETURNED: '要相談',
 };
 
 export function ApprovalsClient({ initial, workspaceId }: Props) {
   const [tab, setTab] = useState<'approve' | 'accept'>('approve');
   const [data, setData] = useState(initial);
-  const [commentFor, setCommentFor] = useState<{ taskId: string; action: 'decline' | 'send_back' } | null>(null);
+  const [commentFor, setCommentFor] = useState<{ taskId: string; action: 'decline' | 'send_back' | 'return' } | null>(null);
   const [comment, setComment] = useState('');
   const openPanel = useTaskPanelStore((s) => s.open);
 
@@ -106,7 +107,9 @@ export function ApprovalsClient({ initial, workspaceId }: Props) {
                           'rounded px-1.5 py-0.5 text-[10px] font-medium',
                           t.assignmentState === 'SENT_BACK'
                             ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
-                            : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+                            : t.assignmentState === 'RETURNED'
+                              ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'
+                              : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
                         )}
                       >
                         {STATE_LABEL[t.assignmentState]}
@@ -129,23 +132,37 @@ export function ApprovalsClient({ initial, workspaceId }: Props) {
                 {/* アクションボタン */}
                 <div className="flex shrink-0 gap-1">
                   {tab === 'approve' ? (
+                    t.assignmentState === 'RETURNED' ? (
+                      <Button size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => act(t.id, 'resend')}>
+                        <Send className="h-3.5 w-3.5" /> 再依頼
+                      </Button>
+                    ) : (
+                      <>
+                        <Button size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => act(t.id, 'approve')}>
+                          <Check className="h-3.5 w-3.5" /> 承認
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 gap-1 px-2 text-xs"
+                          onClick={() => setCommentFor({ taskId: t.id, action: 'send_back' })}
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" /> 差し戻し
+                        </Button>
+                      </>
+                    )
+                  ) : t.assignmentState === 'PENDING_ACCEPT' ? (
                     <>
-                      <Button size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => act(t.id, 'approve')}>
-                        <Check className="h-3.5 w-3.5" /> 承認
+                      <Button size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => act(t.id, 'accept')}>
+                        <Check className="h-3.5 w-3.5" /> 受諾
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         className="h-7 gap-1 px-2 text-xs"
-                        onClick={() => setCommentFor({ taskId: t.id, action: 'send_back' })}
+                        onClick={() => setCommentFor({ taskId: t.id, action: 'return' })}
                       >
                         <RotateCcw className="h-3.5 w-3.5" /> 差し戻し
-                      </Button>
-                    </>
-                  ) : t.assignmentState === 'PENDING_ACCEPT' ? (
-                    <>
-                      <Button size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => act(t.id, 'accept')}>
-                        <Check className="h-3.5 w-3.5" /> 受諾
                       </Button>
                       <Button
                         size="sm"
@@ -170,7 +187,13 @@ export function ApprovalsClient({ initial, workspaceId }: Props) {
                   <Textarea
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
-                    placeholder={commentFor.action === 'decline' ? '辞退理由（必須）' : '差し戻し理由（必須）'}
+                    placeholder={
+                      commentFor.action === 'decline'
+                        ? '辞退理由（必須）'
+                        : commentFor.action === 'return'
+                          ? '差し戻し理由・希望条件（必須）'
+                          : '差し戻し理由（必須）'
+                    }
                     className="min-h-[60px] resize-none border-g-border text-sm"
                     autoFocus
                   />

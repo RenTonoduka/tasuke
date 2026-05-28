@@ -20,6 +20,7 @@ type ActivityType =
   | 'TASK_SUBMITTED'
   | 'TASK_APPROVED'
   | 'TASK_SENT_BACK'
+  | 'TASK_RETURNED'
   | 'REQUEST_CANCELLED';
 
 export async function logActivity(params: {

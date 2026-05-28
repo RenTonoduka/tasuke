@@ -31,6 +31,8 @@ import {
   approveTask,
   sendBackTask,
   cancelRequest,
+  returnInvite,
+  resendRequest,
   listPending,
 } from '@/lib/task-workflow';
 
@@ -3067,6 +3069,28 @@ export async function handleApprovalsList(
 ): Promise<ToolResult> {
   try {
     return ok(await listPending(ctx.userId, ctx.workspaceId));
+  } catch (e) {
+    return wfErr(e);
+  }
+}
+
+export async function handleTaskReturn(
+  params: { taskId: string; comment: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    return ok(await returnInvite(ctx.userId, params.taskId, params.comment));
+  } catch (e) {
+    return wfErr(e);
+  }
+}
+
+export async function handleTaskResend(
+  params: { taskId: string; comment?: string },
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  try {
+    return ok(await resendRequest(ctx.userId, params.taskId, params.comment));
   } catch (e) {
     return wfErr(e);
   }

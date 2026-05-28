@@ -212,6 +212,54 @@ export async function sendBackTask(actorId: string, taskId: string, comment: str
   return returnTask(taskId);
 }
 
+/** 招待差し戻し(担当者→依頼者・要相談): PENDING_ACCEPT → RETURNED（コメント必須） */
+export async function returnInvite(actorId: string, taskId: string, comment: string) {
+  if (!comment?.trim()) throw new WorkflowError('差し戻し理由（コメント）は必須です', 400);
+  const task = await loadTask(taskId);
+  if (assigneeId(task) !== actorId) throw new WorkflowError('担当者のみ差し戻しできます', 403);
+  if (task.assignmentState !== 'PENDING_ACCEPT') {
+    throw new WorkflowError('受諾待ちのタスクではありません', 400);
+  }
+  await prisma.task.update({ where: { id: taskId }, data: { assignmentState: 'RETURNED' } });
+  await prisma.comment.create({ data: { taskId, userId: actorId, content: `【招待差し戻し】${comment}` } });
+  const name = await userName(actorId);
+  if (task.requesterId) {
+    await createNotification({
+      userId: task.requesterId,
+      type: 'TASK_RETURNED',
+      message: `${name} さんから条件変更の依頼があります: ${task.title}（${comment}）`,
+      taskId,
+    });
+  }
+  await logActivity({ type: 'TASK_RETURNED', userId: actorId, taskId, metadata: { comment } });
+  return returnTask(taskId);
+}
+
+/** 再依頼(依頼者→担当者): RETURNED → PENDING_ACCEPT */
+export async function resendRequest(actorId: string, taskId: string, comment?: string) {
+  const task = await loadTask(taskId);
+  if (task.requesterId !== actorId) throw new WorkflowError('依頼者のみ再依頼できます', 403);
+  if (task.assignmentState !== 'RETURNED') {
+    throw new WorkflowError('差し戻し中のタスクではありません', 400);
+  }
+  await prisma.task.update({ where: { id: taskId }, data: { assignmentState: 'PENDING_ACCEPT' } });
+  if (comment) {
+    await prisma.comment.create({ data: { taskId, userId: actorId, content: `【再依頼】${comment}` } });
+  }
+  const target = assigneeId(task);
+  const name = await userName(actorId);
+  if (target) {
+    await createNotification({
+      userId: target,
+      type: 'TASK_REQUESTED',
+      message: `${name} さんが条件を修正して再依頼しました: ${task.title}`,
+      taskId,
+    });
+  }
+  await logActivity({ type: 'TASK_REQUESTED', userId: actorId, taskId, metadata: { resend: true } });
+  return returnTask(taskId);
+}
+
 /** 依頼取り消し: APPROVED以外 → 通常タスクに戻す */
 export async function cancelRequest(actorId: string, taskId: string) {
   const task = await loadTask(taskId);
@@ -240,7 +288,11 @@ export async function listPending(userId: string, workspaceId?: string) {
   const projectFilter = workspaceId ? { project: { workspaceId } } : {};
   const [toApprove, toAccept] = await Promise.all([
     prisma.task.findMany({
-      where: { requesterId: userId, assignmentState: 'SUBMITTED', ...projectFilter },
+      where: {
+        requesterId: userId,
+        assignmentState: { in: ['SUBMITTED', 'RETURNED'] },
+        ...projectFilter,
+      },
       include: workflowTaskInclude,
       orderBy: { updatedAt: 'desc' },
     }),

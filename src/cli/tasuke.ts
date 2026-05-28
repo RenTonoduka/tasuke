@@ -41,6 +41,8 @@ const COMMANDS: CmdDef[] = [
   { name: 'task:approve',   desc: '完了報告を承認', usage: '--taskId ID', example: 'tasuke task:approve --taskId abc' },
   { name: 'task:send-back', desc: '完了報告を差し戻し(コメント必須)', usage: '--taskId ID --comment TEXT', example: 'tasuke task:send-back --taskId abc --comment "ここ直して"' },
   { name: 'task:cancel',    desc: '依頼を取り消し', usage: '--taskId ID', example: 'tasuke task:cancel --taskId abc' },
+  { name: 'task:return',    desc: '招待を依頼者に差し戻し(担当者のみ・コメント必須)', usage: '--taskId ID --comment TEXT', example: 'tasuke task:return --taskId abc --comment "期日を伸ばせれば受けます"' },
+  { name: 'task:resend',    desc: '差し戻された依頼を再送(依頼者のみ)', usage: '--taskId ID [--comment TEXT]', example: 'tasuke task:resend --taskId abc' },
   { name: 'approvals',      desc: '承認する番/受諾する番を一覧', usage: '', example: 'tasuke approvals' },
   // Project
   { name: 'project:list',    desc: 'プロジェクト一覧', usage: '(引数なし)', example: 'tasuke project:list' },
@@ -161,6 +163,8 @@ const CLI_TO_MCP: Record<string, string> = {
   'task:approve': 'task_approve',
   'task:send-back': 'task_send_back',
   'task:cancel': 'task_cancel_request',
+  'task:return': 'task_return',
+  'task:resend': 'task_resend',
   'approvals': 'approvals_list',
   // Project
   'project:list': 'project_list',

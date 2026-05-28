@@ -200,7 +200,7 @@ export function TaskDetailPanel() {
   const { data: session } = useSession();
   const currentUserId = (session?.user as { id?: string })?.id;
   const [wfComment, setWfComment] = useState('');
-  const [wfCommentFor, setWfCommentFor] = useState<'decline' | 'send_back' | null>(null);
+  const [wfCommentFor, setWfCommentFor] = useState<'decline' | 'send_back' | 'return' | null>(null);
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -1199,6 +1199,7 @@ export function TaskDetailPanel() {
                 APPROVED: { label: '承認済み', cls: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300' },
                 DECLINED: { label: '辞退', cls: 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-300' },
                 SENT_BACK: { label: '差し戻し', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' },
+                RETURNED: { label: '要相談(差し戻し)', cls: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300' },
               };
               // 依頼ワークフロー外で、担当者1人なら「依頼する」入口を出す
               const canStart = !aState && task.assignees.length === 1;
@@ -1229,10 +1230,19 @@ export function TaskDetailPanel() {
                           <Check className="h-3.5 w-3.5" /> 受諾
                         </Button>
                         <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs"
+                          onClick={() => setWfCommentFor('return')}>
+                          <RotateCcw className="h-3.5 w-3.5" /> 差し戻し
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs"
                           onClick={() => setWfCommentFor('decline')}>
                           <X className="h-3.5 w-3.5" /> 辞退
                         </Button>
                       </>
+                    )}
+                    {aState === 'RETURNED' && isRequester && (
+                      <Button size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => runWorkflow('resend')}>
+                        <Send className="h-3.5 w-3.5" /> 再依頼
+                      </Button>
                     )}
                     {(aState === 'IN_PROGRESS' || aState === 'SENT_BACK') && isAssignee && (
                       <Button size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => runWorkflow('submit')}>
@@ -1262,7 +1272,13 @@ export function TaskDetailPanel() {
                       <Textarea
                         value={wfComment}
                         onChange={(e) => setWfComment(e.target.value)}
-                        placeholder={wfCommentFor === 'decline' ? '辞退理由（必須）' : '差し戻し理由（必須）'}
+                        placeholder={
+                          wfCommentFor === 'decline'
+                            ? '辞退理由（必須）'
+                            : wfCommentFor === 'return'
+                              ? '差し戻し理由・希望条件（必須）'
+                              : '差し戻し理由（必須）'
+                        }
                         className="min-h-[60px] resize-none border-g-border text-sm"
                         autoFocus
                       />

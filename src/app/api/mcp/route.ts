@@ -139,6 +139,26 @@ const TOOLS: ToolDef[] = [
     readOnly: false,
   },
   {
+    name: 'task_return',
+    description: '招待を依頼者に差し戻し条件変更を要請します（担当者のみ・コメント必須）',
+    inputSchema: {
+      type: 'object',
+      properties: { taskId: { type: 'string' }, comment: { type: 'string', description: '差し戻し理由・希望条件（必須）' } },
+      required: ['taskId', 'comment'],
+    },
+    readOnly: false,
+  },
+  {
+    name: 'task_resend',
+    description: '差し戻された依頼を条件修正後に再送します（依頼者のみ）',
+    inputSchema: {
+      type: 'object',
+      properties: { taskId: { type: 'string' }, comment: { type: 'string' } },
+      required: ['taskId'],
+    },
+    readOnly: false,
+  },
+  {
     name: 'approvals_list',
     description: '自分の「承認する番(toApprove)」と「受諾/対応する番(toAccept)」を一覧取得します',
     inputSchema: { type: 'object', properties: {} },
@@ -1224,6 +1244,8 @@ const TOOL_HANDLERS: Record<string, (params: any, ctx: ToolContext) => Promise<h
   task_approve: handlers.handleTaskApprove,
   task_send_back: handlers.handleTaskSendBack,
   task_cancel_request: handlers.handleTaskCancelRequest,
+  task_return: handlers.handleTaskReturn,
+  task_resend: handlers.handleTaskResend,
   approvals_list: handlers.handleApprovalsList,
   project_list: handlers.handleProjectList,
   project_create: handlers.handleProjectCreate,

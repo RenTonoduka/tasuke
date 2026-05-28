@@ -19,6 +19,8 @@ import {
   handleTaskApprove,
   handleTaskSendBack,
   handleTaskCancelRequest,
+  handleTaskReturn,
+  handleTaskResend,
   handleApprovalsList,
 } from '../tool-handlers.js';
 
@@ -196,6 +198,24 @@ export function registerTaskTools(server: McpServer) {
     '依頼を取り消し通常タスクに戻します（依頼者のみ）',
     { taskId: z.string().describe('タスクID') },
     async (params) => handleTaskCancelRequest(params, await getCtx()),
+  );
+  server.tool(
+    'task_return',
+    '招待を依頼者に差し戻し条件変更を要請します（担当者のみ・コメント必須）',
+    {
+      taskId: z.string().describe('タスクID'),
+      comment: z.string().describe('差し戻し理由・希望条件（必須）'),
+    },
+    async (params) => handleTaskReturn(params, await getCtx()),
+  );
+  server.tool(
+    'task_resend',
+    '差し戻された依頼を条件修正後に再送します（依頼者のみ）',
+    {
+      taskId: z.string().describe('タスクID'),
+      comment: z.string().optional().describe('再依頼コメント'),
+    },
+    async (params) => handleTaskResend(params, await getCtx()),
   );
   server.tool(
     'approvals_list',
