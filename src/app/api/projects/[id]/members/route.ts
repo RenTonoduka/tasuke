@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { canAccessProject } from '@/lib/project-access';
 import { z } from 'zod';
 
 const addMemberByUserIdSchema = z.object({ userId: z.string() });
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       select: { id: true, isPrivate: true, workspaceId: true },
     });
     if (!project) return errorResponse('プロジェクトが見つかりません', 404);
+    if (!(await canAccessProject(user.id, params.id))) return errorResponse('プロジェクトが見つかりません', 404);
 
     const members = await prisma.projectMember.findMany({
       where: { projectId: params.id },

@@ -3,6 +3,7 @@ import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { updateTaskSchema } from '@/lib/validations/task';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { canAccessProject } from '@/lib/project-access';
 import { logActivity } from '@/lib/activity';
 import { executeAutomationRules } from '@/lib/automation';
 import { getGoogleClient, getCalendarClient } from '@/lib/google';
@@ -43,6 +44,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     });
 
     if (!task) return errorResponse('タスクが見つかりません', 404);
+    if (!(await canAccessProject(user.id, task.projectId))) return errorResponse('タスクが見つかりません', 404);
     return successResponse(task);
   } catch (error) {
     return handleApiError(error);
@@ -64,6 +66,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       include: { project: { select: { workspaceId: true } } },
     });
     if (!existing) return errorResponse('タスクが見つかりません', 404);
+    if (!(await canAccessProject(user.id, existing.projectId))) return errorResponse('タスクが見つかりません', 404);
 
     const member = await prisma.workspaceMember.findFirst({
       where: { workspaceId: existing.project.workspaceId, userId: user.id },
@@ -214,6 +217,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       include: { project: { select: { workspaceId: true } } },
     });
     if (!existing) return errorResponse('タスクが見つかりません', 404);
+    if (!(await canAccessProject(user.id, existing.projectId))) return errorResponse('タスクが見つかりません', 404);
 
     const member = await prisma.workspaceMember.findFirst({
       where: { workspaceId: existing.project.workspaceId, userId: user.id },

@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { z } from 'zod';
 import { TaskStatus } from '@prisma/client';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { canAccessProject } from '@/lib/project-access';
 
 const updateSectionSchema = z.object({
   name: z.string().min(1).max(50).optional(),
@@ -24,6 +25,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       include: { project: { select: { workspaceId: true } } },
     });
     if (!existing) return errorResponse('セクションが見つかりません', 404);
+    if (!(await canAccessProject(user.id, existing.projectId))) return errorResponse('セクションが見つかりません', 404);
     const member = await prisma.workspaceMember.findFirst({
       where: { workspaceId: existing.project.workspaceId, userId: user.id },
     });
@@ -49,6 +51,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       include: { project: { select: { workspaceId: true } } },
     });
     if (!existing) return errorResponse('セクションが見つかりません', 404);
+    if (!(await canAccessProject(user.id, existing.projectId))) return errorResponse('セクションが見つかりません', 404);
     const member = await prisma.workspaceMember.findFirst({
       where: { workspaceId: existing.project.workspaceId, userId: user.id },
     });

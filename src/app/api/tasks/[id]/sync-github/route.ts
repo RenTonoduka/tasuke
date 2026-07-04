@@ -3,6 +3,7 @@ import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { getGitHubToken, githubApi } from '@/lib/github';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { canAccessProject } from '@/lib/project-access';
 
 export async function POST(
   _req: NextRequest,
@@ -18,6 +19,7 @@ export async function POST(
       },
     });
     if (!task) return errorResponse('タスクが見つかりません', 404);
+    if (!(await canAccessProject(user.id, task.projectId))) return errorResponse('タスクが見つかりません', 404);
     if (!task.githubIssueId || !task.githubRepoFullName) {
       return errorResponse('このタスクはGitHub Issueと連携されていません', 400);
     }

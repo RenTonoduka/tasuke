@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { canAccessProject } from '@/lib/project-access';
 import { z } from 'zod';
 import type { Priority, TaskStatus } from '@prisma/client';
 
@@ -26,15 +27,26 @@ export async function PATCH(req: NextRequest) {
         id: { in: taskIds },
         project: { workspace: { members: { some: { userId: user.id } } } },
       },
-      select: { id: true, project: { select: { workspaceId: true } } },
+      select: { id: true, projectId: true, project: { select: { workspaceId: true } } },
     });
 
     if (tasks.length === 0) {
       return errorResponse('対象タスクが見つかりません', 404);
     }
 
+    // 非公開プロジェクトの漏洩防止: アクセス可能なプロジェクトのタスクのみに絞る
+    const uniqueProjectIds = Array.from(new Set(tasks.map((t) => t.projectId)));
+    const accessResults = await Promise.all(
+      uniqueProjectIds.map(async (pid) => [pid, await canAccessProject(user.id, pid)] as const),
+    );
+    const accessibleProjectIds = new Set(accessResults.filter(([, ok]) => ok).map(([pid]) => pid));
+    const accessibleTasks = tasks.filter((t) => accessibleProjectIds.has(t.projectId));
+    if (accessibleTasks.length === 0) {
+      return errorResponse('対象タスクが見つかりません', 404);
+    }
+
     // Check VIEWER role
-    const workspaceIds = Array.from(new Set(tasks.map((t) => t.project.workspaceId)));
+    const workspaceIds = Array.from(new Set(accessibleTasks.map((t) => t.project.workspaceId)));
     const memberships = await prisma.workspaceMember.findMany({
       where: { userId: user.id, workspaceId: { in: workspaceIds } },
     });
@@ -42,7 +54,7 @@ export async function PATCH(req: NextRequest) {
       return errorResponse('閲覧者はタスクを編集できません', 403);
     }
 
-    const validIds = tasks.map((t) => t.id);
+    const validIds = accessibleTasks.map((t) => t.id);
 
     switch (action) {
       case 'status': {

@@ -3,6 +3,7 @@ import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { canAccessProject } from '@/lib/project-access';
 
 const createSubtaskSchema = z.object({
   title: z.string().min(1).max(200),
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       },
     });
     if (!parentTask) return errorResponse('タスクが見つかりません', 404);
+    if (!(await canAccessProject(user.id, parentTask.projectId))) return errorResponse('タスクが見つかりません', 404);
     const subtasks = await prisma.task.findMany({
       where: { parentId: params.id },
       orderBy: { position: 'asc' },
@@ -44,6 +46,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     });
 
     if (!parentTask) {
+      return errorResponse('親タスクが見つかりません', 404);
+    }
+    if (!(await canAccessProject(user.id, parentTask.projectId))) {
       return errorResponse('親タスクが見つかりません', 404);
     }
 
