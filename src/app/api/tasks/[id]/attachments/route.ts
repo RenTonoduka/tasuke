@@ -4,6 +4,7 @@ import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { getGoogleClient, getDriveClient } from '@/lib/google';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { canAccessProject } from '@/lib/project-access';
 
 const attachSchema = z.object({
   driveFileId: z.string().min(10).max(100).regex(/^[a-zA-Z0-9_-]+$/),
@@ -15,7 +16,7 @@ async function getTaskWithAuth(taskId: string, userId: string) {
       id: taskId,
       project: { workspace: { members: { some: { userId } } } },
     },
-    select: { id: true },
+    select: { id: true, projectId: true },
   });
 }
 
@@ -37,6 +38,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const user = await requireAuthUser();
     const task = await getTaskWithAuth(params.id, user.id);
     if (!task) return errorResponse('タスクが見つかりません', 404);
+    if (!(await canAccessProject(user.id, task.projectId))) return errorResponse('タスクが見つかりません', 404);
 
     const attachments = await prisma.taskAttachment.findMany({
       where: { taskId: params.id },
@@ -53,6 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const user = await requireAuthUser();
     const task = await getTaskWithWriteAuth(params.id, user.id);
     if (!task) return errorResponse('タスクが見つかりません', 404);
+    if (!(await canAccessProject(user.id, task.projectId))) return errorResponse('タスクが見つかりません', 404);
 
     const body = await req.json();
     const parsed = attachSchema.safeParse(body);

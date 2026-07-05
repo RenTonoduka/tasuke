@@ -3,6 +3,7 @@ import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { moveTaskSchema } from '@/lib/validations/task';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { canAccessProject } from '@/lib/project-access';
 import { logActivity } from '@/lib/activity';
 import type { TaskStatus } from '@prisma/client';
 
@@ -35,6 +36,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       include: { project: { select: { workspaceId: true } } },
     });
     if (!existing) return errorResponse('タスクが見つかりません', 404);
+    if (!(await canAccessProject(user.id, existing.projectId))) return errorResponse('タスクが見つかりません', 404);
     const member = await prisma.workspaceMember.findFirst({
       where: { workspaceId: existing.project.workspaceId, userId: user.id },
     });

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>タス助 レビューレポート 2026-07-05</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  body { font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; }
+  .glass { background: rgba(255,255,255,0.04); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); }
+  .card-hi { border-left: 4px solid #ef4444; }
+  .card-mid { border-left: 4px solid #f59e0b; }
+  .card-low { border-left: 4px solid #64748b; }
+  .card-good { border-left: 4px solid #22c55e; }
+  code { background: rgba(148,163,184,0.15); padding: 1px 6px; border-radius: 4px; font-size: 0.8em; color: #cbd5e1; font-family: ui-monospace, monospace; }
+  .sev-badge { font-size: 0.68rem; font-weight: 700; padding: 2px 9px; border-radius: 9999px; letter-spacing: 0.03em; }
+  .fade { animation: fade 0.6s ease both; }
+  @keyframes fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .tab-btn.active { background: rgba(99,102,241,0.25); color: #fff; border-color: rgba(129,140,248,0.6); }
+  html { scroll-behavior: smooth; }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen">
+
+<div class="max-w-6xl mx-auto px-5 py-10">
+
+  <!-- Header -->
+  <header class="fade mb-10">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="text-xs font-semibold tracking-widest text-indigo-400 uppercase">Code Review Report</span>
+      <span class="text-xs text-slate-500">2026-07-05</span>
+    </div>
+    <h1 class="text-4xl md:text-5xl font-bold text-white mb-3">タス助 <span class="text-slate-500 text-2xl">(Tasuke)</span> 総合レビュー</h1>
+    <p class="text-slate-400 max-w-3xl leading-relaxed">機能面・技術面・セキュリティの3観点で、Web REST API / MCPサーバー / CLI / 議事録AI抽出パイプラインを横断監査。対象コミット <code>8396919</code> (main)。全項目、推測ではなく実コードを読んで確認。</p>
+  </header>
+
+  <!-- KPI Row -->
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+    <div class="glass rounded-2xl p-5 fade">
+      <div class="text-4xl font-bold text-red-400">8</div>
+      <div class="text-sm text-slate-400 mt-1">重大 <span class="text-slate-600">Critical / High</span></div>
+    </div>
+    <div class="glass rounded-2xl p-5 fade">
+      <div class="text-4xl font-bold text-amber-400">17</div>
+      <div class="text-sm text-slate-400 mt-1">中 <span class="text-slate-600">Medium</span></div>
+    </div>
+    <div class="glass rounded-2xl p-5 fade">
+      <div class="text-4xl font-bold text-slate-400">10<span class="text-xl">+</span></div>
+      <div class="text-sm text-slate-400 mt-1">低 <span class="text-slate-600">Low</span></div>
+    </div>
+    <div class="glass rounded-2xl p-5 fade">
+      <div class="text-4xl font-bold text-emerald-400">8</div>
+      <div class="text-sm text-slate-400 mt-1">良い設計 <span class="text-slate-600">壊さない</span></div>
+    </div>
+  </section>
+
+  <!-- Charts -->
+  <section class="grid md:grid-cols-2 gap-5 mb-12">
+    <div class="glass rounded-2xl p-6">
+      <h3 class="text-sm font-semibold text-slate-300 mb-4"><i class="fa-solid fa-layer-group text-indigo-400 mr-2"></i>観点別の検出数</h3>
+      <canvas id="barChart" height="150"></canvas>
+    </div>
+    <div class="glass rounded-2xl p-6">
+      <h3 class="text-sm font-semibold text-slate-300 mb-4"><i class="fa-solid fa-triangle-exclamation text-amber-400 mr-2"></i>重大度分布</h3>
+      <canvas id="donutChart" height="150"></canvas>
+    </div>
+  </section>
+
+  <!-- Top 3 Critical -->
+  <section class="mb-12">
+    <h2 class="text-2xl font-bold text-white mb-1"><i class="fa-solid fa-fire text-red-500 mr-2"></i>最優先の3件</h2>
+    <p class="text-slate-500 text-sm mb-5">実害の大きい順。着手はこの3つから。</p>
+    <div class="space-y-4">
+
+      <div class="glass card-hi rounded-xl p-5 fade">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <span class="sev-badge bg-red-500/20 text-red-300">DATA LEAK</span>
+            <h3 class="text-lg font-bold text-white mt-2">① 非公開プロジェクトのタスクがREST層で閲覧・改変・削除できる (IDOR)</h3>
+          </div>
+          <span class="text-xs text-slate-500 whitespace-nowrap">SEC-H1 / FUNC-H1</span>
+        </div>
+        <p class="text-slate-300 text-sm mt-3 leading-relaxed">MCP層は <code>getAccessibleProjectIds</code> で守っているのに、REST個別ルート(<code>tasks/[id]</code>・<code>search</code>・<code>comments</code> など10ルート)は「ワークスペース所属」しか見ていない。同一WSの一般メンバーが非公開案件(評価・給与等)のタスクを閲覧・改変・削除できる。<code>GET /api/tasks/search</code> がタスクIDまで返すのでID推測も不要。</p>
+        <div class="mt-3 text-sm bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-4 py-2 text-emerald-300"><i class="fa-solid fa-wrench mr-2"></i>既存の <code>canAccessProject</code> を各ルートに1行追加するだけの外科的修正。</div>
+      </div>
+
+      <div class="glass card-hi rounded-xl p-5 fade">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <span class="sev-badge bg-red-500/20 text-red-300">BROKEN FEATURE</span>
+            <h3 class="text-lg font-bold text-white mt-2">② 自動化ルールが主要経路で発火しない</h3>
+          </div>
+          <span class="text-xs text-slate-500 whitespace-nowrap">FUNC-H2 / FUNC-H3</span>
+        </div>
+        <p class="text-slate-300 text-sm mt-3 leading-relaxed"><code>executeAutomationRules</code> の呼び出しがPATCH 1箇所のみ。カンバンD&D・一括更新・MCP/CLI経由のステータス変更では発火しない。<code>DUE_DATE_APPROACHING</code> は評価cron自体が存在せず、UIで作れても永遠に動かない。ユーザーは「設定したのに動かない」状態。</p>
+        <div class="mt-3 text-sm bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-4 py-2 text-emerald-300"><i class="fa-solid fa-wrench mr-2"></i>move / bulk / MCP handler に配線。DUE_DATE系はcron評価を追加 or UIから外す。</div>
+      </div>
+
+      <div class="glass card-hi rounded-xl p-5 fade">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <span class="sev-badge bg-red-500/20 text-red-300">STRUCTURAL DEBT</span>
+            <h3 class="text-lg font-bold text-white mt-2">③ テストゼロ + タイムゾーン処理が3方式併存</h3>
+          </div>
+          <span class="text-xs text-slate-500 whitespace-nowrap">TECH-H4 / TECH-H2</span>
+        </div>
+        <p class="text-slate-300 text-sm mt-3 leading-relaxed">テストファイル0件。「今日」の境界がコード内で3方式併存し、うち2つがVercel上でUTC境界のまま。JST朝9時までダッシュボードとLINEリマインダーが別の答えを返す。TZ修正コミットが繰り返される根本原因で、テスト基盤なしに直すとまた回帰する。</p>
+        <div class="mt-3 text-sm bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-4 py-2 text-emerald-300"><i class="fa-solid fa-wrench mr-2"></i>先にvitest導入 + <code>date-jst.ts</code> 集約。以降の修正の回帰防止装置にする。</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Tabs -->
+  <section class="mb-12">
+    <h2 class="text-2xl font-bold text-white mb-5"><i class="fa-solid fa-list-check text-indigo-400 mr-2"></i>全指摘一覧</h2>
+    <div class="flex gap-2 mb-6 flex-wrap">
+      <button class="tab-btn active glass px-4 py-2 rounded-lg text-sm font-medium transition" data-tab="sec"><i class="fa-solid fa-shield-halved mr-1"></i>セキュリティ <span class="text-slate-500">7</span></button>
+      <button class="tab-btn glass px-4 py-2 rounded-lg text-sm font-medium transition" data-tab="tech"><i class="fa-solid fa-gears mr-1"></i>技術 <span class="text-slate-500">11+</span></button>
+      <button class="tab-btn glass px-4 py-2 rounded-lg text-sm font-medium transition" data-tab="func"><i class="fa-solid fa-diagram-project mr-1"></i>機能 <span class="text-slate-500">10+</span></button>
+    </div>
+
+    <!-- SECURITY -->
+    <div class="tab-panel space-y-3" data-panel="sec">
+      <!-- cards injected by template below -->
+    </div>
+    <div class="tab-panel space-y-3 hidden" data-panel="tech"></div>
+    <div class="tab-panel space-y-3 hidden" data-panel="func"></div>
+  </section>
+
+  <!-- Good designs -->
+  <section class="mb-12">
+    <h2 class="text-2xl font-bold text-white mb-1"><i class="fa-solid fa-circle-check text-emerald-500 mr-2"></i>既に堅牢な設計 (デグレさせない)</h2>
+    <p class="text-slate-500 text-sm mb-5">リファクタ時に壊さないよう注意する既存の良い設計。</p>
+    <div class="grid md:grid-cols-2 gap-3">
+      <div class="glass card-good rounded-lg p-4 text-sm"><b class="text-emerald-300">APIトークン</b> <span class="text-slate-400">SHA-256ハッシュ保存・平文なし・発行時1回のみ返却</span></div>
+      <div class="glass card-good rounded-lg p-4 text-sm"><b class="text-emerald-300">Webhook署名検証</b> <span class="text-slate-400">LINE/GitHub/Drive/Cron 全て <code>timingSafeEqual</code></span></div>
+      <div class="glass card-good rounded-lg p-4 text-sm"><b class="text-emerald-300">MCP認可</b> <span class="text-slate-400">read_only スコープで書込ツールを list/call 両方で拒否</span></div>
+      <div class="glass card-good rounded-lg p-4 text-sm"><b class="text-emerald-300">AI出力の再検証</b> <span class="text-slate-400">LLMが返すID群をDB実在+WS所属でサーバー側再検証、承認は人手ゲート</span></div>
+      <div class="glass card-good rounded-lg p-4 text-sm"><b class="text-emerald-300">SQLi耐性</b> <span class="text-slate-400"><code>queryRawUnsafe</code>/<code>eval</code>/<code>child_process</code> 使用0件</span></div>
+      <div class="glass card-good rounded-lg p-4 text-sm"><b class="text-emerald-300">タスク削除の掃除</b> <span class="text-slate-400">DBカスケード + Google Calendarイベントまで削除</span></div>
+      <div class="glass card-good rounded-lg p-4 text-sm"><b class="text-emerald-300">3層アーキテクチャ</b> <span class="text-slate-400">stdio MCP 18ファイルが全て tool-handlers に委譲、CLIは薄クライアント</span></div>
+      <div class="glass card-good rounded-lg p-4 text-sm"><b class="text-emerald-300">型規律</b> <span class="text-slate-400"><code>: any</code> 2件のみ・<code>as any</code> 0件・<code>tsc</code> エラー0</span></div>
+    </div>
+  </section>
+
+  <!-- Roadmap -->
+  <section class="mb-12">
+    <h2 class="text-2xl font-bold text-white mb-1"><i class="fa-solid fa-route text-indigo-400 mr-2"></i>修正ロードマップ</h2>
+    <p class="text-slate-500 text-sm mb-5">場当たり修正の連鎖を避ける依存順。詳細は <code>docs/2026-07-05-修正実装計画.md</code> (Opus実装用)。</p>
+    <div class="space-y-3">
+      <div class="glass rounded-xl p-4 flex items-start gap-4"><span class="sev-badge bg-indigo-500/20 text-indigo-300 mt-1 whitespace-nowrap">P0</span><div><b class="text-white">テスト基盤 + TZユーティリティの土台</b><p class="text-slate-400 text-sm mt-1">vitest導入・<code>date-jst.ts</code> をテスト先行で新設。以降の修正の足場。<span class="text-slate-600">目安: 半日</span></p></div></div>
+      <div class="glass rounded-xl p-4 flex items-start gap-4"><span class="sev-badge bg-red-500/20 text-red-300 mt-1 whitespace-nowrap">P1</span><div><b class="text-white">セキュリティ緊急 (IDOR / メンバー漏洩)</b><p class="text-slate-400 text-sm mt-1"><code>canAccessProject</code> を各ルートに追加。本番稼働中なら即日。<span class="text-slate-600">目安: 半日</span></p></div></div>
+      <div class="glass rounded-xl p-4 flex items-start gap-4"><span class="sev-badge bg-amber-500/20 text-amber-300 mt-1 whitespace-nowrap">P2</span><div><b class="text-white">機能不全の修正 (自動化発火 / 通知欠落)</b><p class="text-slate-400 text-sm mt-1">「動くはずが動かない」を潰す。ユーザー体感に直結。<span class="text-slate-600">目安: 1〜2日</span></p></div></div>
+      <div class="glass rounded-xl p-4 flex items-start gap-4"><span class="sev-badge bg-amber-500/20 text-amber-300 mt-1 whitespace-nowrap">P3</span><div><b class="text-white">構造リファクタ (TZ集約 / コアmutation共通化)</b><p class="text-slate-400 text-sm mt-1">P0のテストで担保しながら。MCPのVIEWER書込穴も同時に塞ぐ。<span class="text-slate-600">目安: 2〜3日</span></p></div></div>
+      <div class="glass rounded-xl p-4 flex items-start gap-4"><span class="sev-badge bg-slate-500/20 text-slate-300 mt-1 whitespace-nowrap">P4</span><div><b class="text-white">堅牢化 (ヘッダー / エラー分類 / index / migration)</b><p class="text-slate-400 text-sm mt-1">品質底上げ。<span class="text-slate-600">目安: 1〜2日</span></p></div></div>
+      <div class="glass rounded-xl p-4 flex items-start gap-4"><span class="sev-badge bg-slate-500/20 text-slate-300 mt-1 whitespace-nowrap">P5</span><div><b class="text-white">バックログ (機能拡張・DX)</b><p class="text-slate-400 text-sm mt-1">再抽出方式・アーカイブ・ラベルUI等。プロダクト判断。</p></div></div>
+    </div>
+  </section>
+
+  <footer class="text-center text-slate-600 text-xs pt-8 border-t border-slate-800">
+    <p>タス助 総合レビュー / 生成: 2026-07-05 / 修正実装は Opus が担当</p>
+    <p class="mt-1">実装計画書: <code>docs/2026-07-05-修正実装計画.md</code></p>
+  </footer>
+
+</div>
+
+<script>
+// ---- Findings data ----
+const findings = {
+  sec: [
+    {sev:'M', id:'SEC-M1', t:'非公開プロジェクトのメンバー一覧漏洩', loc:'projects/[id]/members/route.ts:13-30', d:'GETがWS所属のみで isPrivate を見ず ProjectMember 全件返却。非公開案件の参加者構成が非メンバーに漏れる。', fix:'GETに canAccessProject を追加。'},
+    {sev:'M', id:'SEC-M2', t:'セキュリティヘッダー / CSP が一切未設定', loc:'next.config.mjs / middleware.ts', d:'CSP・X-Frame-Options・X-Content-Type-Options・Referrer-Policy が全て無い。クリックジャッキング/XSS多層防御なし。', fix:'next.config.mjs の headers() で全パスに付与。'},
+    {sev:'M', id:'SEC-M3', t:'allowDangerousEmailAccountLinking × 3プロバイダ', loc:'src/lib/auth.ts:32,52,58', d:'同一メールで別プロバイダを自動リンク。Google/GitHubは検証済メールのため実害限定だが、リスク面積が広い。', fix:'可能なら外す。残すなら検証済プロバイダ限定+所有者通知。'},
+    {sev:'L', id:'SEC-L1', t:'AI抽出のレート制限なし (Denial-of-Wallet)', loc:'meetings/extract, extractor.ts', d:'LINEは50回/日制限があるがWeb/MCPの抽出は無制限。最大15万字をAnthropicへ。漏洩トークンで課金増幅可。', fix:'WS単位の日次/分次レート制限を追加。'},
+    {sev:'L', id:'SEC-L2', t:'ビルド時ESLint無効', loc:'next.config.mjs:3-5', d:'ignoreDuringBuilds:true でセキュリティ系lintがCIで強制されない。', fix:'CIで lint を別必須ステップ化。'},
+    {sev:'L', id:'SEC-L3', t:'phantom ユーザー生成が可能', loc:'tool-handlers.ts:1667 / members POST', d:'OWNER/ADMIN権限で任意メールに user.create。空アカウント大量生成の余地(悪用範囲は限定的)。', fix:'招待レコード(pending)方式にし実User生成は初回ログイン時に。'},
+  ],
+  tech: [
+    {sev:'H', id:'TECH-H1', t:'REST/MCPロジック二重実装 → 挙動が乖離', loc:'tasks/[id]/route.ts vs tool-handlers.ts:151-208', d:'MCP handleTaskUpdate は activity/automation/GitHub同期を呼ばず、ロールも見ない → VIEWERでもトークン経由で書込可能(権限昇格)。services/ は空ディレクトリ。', fix:'task-service.ts にコアmutation+副作用+ロールを集約し両層から呼ぶ。'},
+    {sev:'H', id:'TECH-H2', t:'タイムゾーン処理が3方式併存・サーバー側UTC境界', loc:'tool-handlers.ts:1159 / page.tsx:28 / cron', d:'「今日」の境界が最低6実装に分散。dashboard 2箇所がVercel上でUTC境界のまま。TZ修正コミット4件が場当たり。', fix:'date-jst.ts に集約し全実装を置換。dashboard 2箇所のJST境界統一が即効性最大。'},
+    {sev:'H', id:'TECH-H(mig)', t:'Prisma migration履歴が存在しない', loc:'prisma/ (migrations無し)', d:'db push 運用。ロールバック・本番差分検証手段なし。カラム削除pushでデータ喪失に気づけない。', fix:'prisma migrate へ移行しmigrationsをgit管理。'},
+    {sev:'H', id:'TECH-H4', t:'テストが1件も存在しない', loc:'(全体)', d:'*.test.* 0件、test script無し。tool-handlers 2,962行・REST 8,433行が手動検証頼み。TZ回帰の一因。', fix:'vitest導入。JST境界と副作用から回帰テスト化。'},
+    {sev:'M', id:'TECH-M2', t:'HTTP MCP経路の入力バリデーション無し', loc:'api/mcp/route.ts:1147 (params:any)', d:'zod検証はstdioのみ。HTTP MCP/CLIでは未検証の値が new Date() 等へ流れる。', fix:'dispatch直前に共通zodで parse を1箇所挟む。'},
+    {sev:'M', id:'TECH-M3', t:'FKインデックス不足 + ApiToken重複index', loc:'prisma/schema.prisma', d:'Task.parentId/createdById, TaskAssignment.userId, Comment.taskId 等が未index。ApiTokenは @unique と @@index が重複。', fix:'該当列に @@index 追加、重複index削除(migration経由)。'},
+    {sev:'M', id:'TECH-M4', t:'FK制約のない裸のID列 (孤児レコード源)', loc:'Notification.taskId 他', d:'タスク削除後もNotification.taskIdが宙ぶらりん(インボックスのリンク切れ)。参照整合性がアプリ任せ。', fix:'必要なものをrelation化(SetNull/Cascade)。'},
+    {sev:'M', id:'TECH-M5', t:'Prismaエラーが未分類', loc:'api-utils.ts:28-57 / err(e.message)', d:'一意制約違反がRESTでは一律500、MCPではPrisma内部メッセージ(テーブル/制約名)が漏出。', fix:'P2002→409 / P2025→404 マッピング。未知エラーは丸める。'},
+    {sev:'M', id:'TECH-M6', t:'ESLintエラー24件を握りつぶし', loc:'next.config.mjs', d:'ignoreDuringBuilds:true。主にno-unused-vars。1セッションで消せる規模。', fix:'解消してフラグを外す。'},
+    {sev:'M', id:'TECH-M7', t:'巨大コンポーネント + サーバー状態管理レイヤー不在', loc:'sidebar.tsx 1,252行 / task-detail-panel.tsx 1,246行', d:'生fetch 147箇所、SWR/React Query不使用、自作event-bus。手動キャッシュ無効化がバグ源。', fix:'タスク取得系だけでもSWR等へ寄せる。'},
+    {sev:'M', id:'TECH-M1', t:'ツール定義の3〜4重管理', loc:'api/mcp/route.ts / mcp/tools/* / cli/tasuke.ts', d:'1ツール追加に4〜5ファイル編集。', fix:'zod-to-json-schema で単一ソース化。'},
+    {sev:'L', id:'TECH-L', t:'ページネーション皆無 / enum 4重 / 依存の中期負債', loc:'各所', d:'一覧系にtake無し全件fetch。同じenumが4箇所。next14/next-auth4/eslint8(EOL)。', fix:'take導入、z.nativeEnum(Priority)、段階的アップグレード。'},
+  ],
+  func: [
+    {sev:'H', id:'FUNC-H2', t:'STATUS_CHANGE自動化がカンバンD&D/bulk/MCPで発火しない', loc:'move/route.ts:44-60, bulk, handleTaskUpdate', d:'executeAutomationRules がPATCH 1箇所のみ。最高頻度のステータス変更経路で自動化が無効。', fix:'move/bulk/MCP handlerに配線(変化時のみ)。'},
+    {sev:'H', id:'FUNC-H3', t:'DUE_DATE_APPROACHING が永遠に発火しない', loc:'automations/client.tsx:97', d:'UIで作れるが評価cronが存在しない。「期限3日前通知」を設定しても何も起きず期限超過。', fix:'line-reminders cronに評価を追加 or UIから選択肢を外す。'},
+    {sev:'M', id:'FUNC-M1', t:'手動/LINE議事録の重複抽出ガードなし', loc:'MANUAL_PASTE / LINE_QUICK / meeting:extract', d:'Drive経由はunique防御済みだが手動経路は同じ議事録2回で重複Meeting→重複タスク。', fix:'transcriptハッシュで警告 or 承認画面で同名チェック。'},
+    {sev:'M', id:'FUNC-M2', t:'再抽出がMeeting削除方式で副作用3つ', loc:'handleMeetingReExtract (「簡易版」自認)', d:'レビューURL失効 / 承認済みETのトレーサビリティ消失 / DB保存transcript再利用でDrive最新内容の再抽出不可。', fix:'Meetingレコードを保持しETだけ再生成。Drive由来はtranscript再フェッチ。'},
+    {sev:'M', id:'FUNC-M3', t:'議事録 抽出完了・失敗が誰にも通知されない', loc:'drive-poll cron / meetings/client.tsx:109', d:'PENDING_REVIEWでも通知ゼロ、FAILEDも画面表示のみ。承認待ちが放置され期限切れに。', fix:'extractMeeting完了時にcreateNotification + LINE push。'},
+    {sev:'M', id:'FUNC-M4', t:'リマインドがLINE連携者限定・毎朝9時1回のみ', loc:'cron/line-reminders', d:'LINE未連携メンバーへのリマインド手段ゼロ(メール送信機構が存在しない)。', fix:'メール等の代替チャネル検討(バックログ)。'},
+    {sev:'M', id:'FUNC-M5', t:'メンバー招待が無通知・無承諾フロー', loc:'workspaces/[id]/members POST', d:'User即作成でメール・通知・承諾なし。招待された側は気づけない。', fix:'既存ユーザーにcreateNotification。理想は招待URL方式。'},
+    {sev:'M', id:'FUNC-M6', t:'アサイン通知が主要経路で飛ばない', loc:'assignees/route.ts:72 のみ', d:'MCP/CLI task_assignee_set・議事録承認アサイン・GitHub同期で通知なし。AI経由運用が主用途なのに実質無通知。', fix:'handleTaskAssigneeSet と meeting approve にcreateNotification。'},
+    {sev:'M', id:'FUNC-M7', t:'アーカイブがタスクのみ', loc:'schema.prisma', d:'プロジェクト/WSは削除一択、ソフトデリート無し。終了案件を消さず退避できない。', fix:'プロジェクトのアーカイブ状態を追加(バックログ)。'},
+    {sev:'L', id:'FUNC-L', t:'メンション全ユーザー対象 / LINE操作の粗さ / ラベルUI欠落 他', loc:'comments/route.ts, message-handler.ts, task-detail-panel.tsx', d:'メンション通知がWS非スコープ。LINE「追加」先頭固定・「完了」無確認。Web UIにラベル管理UIなし。template/schedule_block update欠如。検索範囲狭・削除Undoなし・エクスポート弱。', fix:'各項目はバックログで個別対応。'},
+  ]
+};
+
+const sevMap = { H:{cls:'card-hi', badge:'bg-red-500/20 text-red-300', label:'High'}, M:{cls:'card-mid', badge:'bg-amber-500/20 text-amber-300', label:'Medium'}, L:{cls:'card-low', badge:'bg-slate-500/20 text-slate-300', label:'Low'} };
+
+function renderPanel(key){
+  const panel = document.querySelector(`[data-panel="${key}"]`);
+  panel.innerHTML = findings[key].map(f=>{
+    const s = sevMap[f.sev];
+    return `<div class="glass ${s.cls} rounded-xl p-4 fade">
+      <div class="flex items-start justify-between gap-3 flex-wrap">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="sev-badge ${s.badge}">${s.label}</span>
+          <h4 class="font-semibold text-white">${f.t}</h4>
+        </div>
+        <span class="text-xs text-slate-500 whitespace-nowrap">${f.id}</span>
+      </div>
+      <div class="text-xs text-slate-500 mt-2"><i class="fa-regular fa-file-code mr-1"></i><code>${f.loc}</code></div>
+      <p class="text-sm text-slate-300 mt-2 leading-relaxed">${f.d}</p>
+      <div class="text-sm text-emerald-300/90 mt-2"><i class="fa-solid fa-wrench mr-1 text-emerald-400"></i>${f.fix}</div>
+    </div>`;
+  }).join('');
+}
+['sec','tech','func'].forEach(renderPanel);
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.add('hidden'));
+    document.querySelector(`[data-panel="${btn.dataset.tab}"]`).classList.remove('hidden');
+  });
+});
+
+// ---- Charts ----
+const gridColor = 'rgba(148,163,184,0.1)';
+new Chart(document.getElementById('barChart'), {
+  type:'bar',
+  data:{ labels:['セキュリティ','技術','機能'], datasets:[
+    {label:'High', data:[1,4,3], backgroundColor:'#ef4444'},
+    {label:'Medium', data:[3,7,7], backgroundColor:'#f59e0b'},
+    {label:'Low', data:[3,3,4], backgroundColor:'#64748b'},
+  ]},
+  options:{ responsive:true, plugins:{legend:{labels:{color:'#cbd5e1', font:{size:11}}}},
+    scales:{ x:{stacked:true, ticks:{color:'#94a3b8'}, grid:{color:gridColor}}, y:{stacked:true, ticks:{color:'#94a3b8'}, grid:{color:gridColor}} } }
+});
+new Chart(document.getElementById('donutChart'), {
+  type:'doughnut',
+  data:{ labels:['High (8)','Medium (17)','Low (10+)'], datasets:[{ data:[8,17,10], backgroundColor:['#ef4444','#f59e0b','#64748b'], borderColor:'#0f172a', borderWidth:3 }]},
+  options:{ responsive:true, cutout:'62%', plugins:{legend:{position:'bottom', labels:{color:'#cbd5e1', font:{size:11}, padding:14}}} }
+});
+</script>
+</body>
+</html>

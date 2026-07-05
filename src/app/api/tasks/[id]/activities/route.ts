@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { canAccessProject } from '@/lib/project-access';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -14,6 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       },
     });
     if (!task) return errorResponse('タスクが見つかりません', 404);
+    if (!(await canAccessProject(user.id, task.projectId))) return errorResponse('タスクが見つかりません', 404);
 
     const activities = await prisma.activity.findMany({
       where: { taskId: params.id },

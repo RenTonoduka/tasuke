@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireAuthUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { getAccessibleProjectIds } from '@/lib/project-access';
 import type { TaskStatus, Priority } from '@prisma/client';
 
 const VALID_STATUS: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE', 'ARCHIVED'];
@@ -28,17 +29,21 @@ export async function GET(req: NextRequest) {
     if (!q || q.length < 2) return successResponse([]);
     if (!workspaceSlug) return errorResponse('workspaceSlug is required', 400);
 
+    // ワークスペース所属を確認し、アクセス可能なプロジェクトのみに絞る（非公開プロジェクトの漏洩防止）
+    const workspace = await prisma.workspace.findFirst({
+      where: { slug: workspaceSlug, members: { some: { userId: user.id } } },
+      select: { id: true },
+    });
+    if (!workspace) return successResponse([]);
+    const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspace.id);
+    if (accessibleProjectIds.length === 0) return successResponse([]);
+
     const where: Record<string, unknown> = {
       OR: [
         { title: { contains: q, mode: 'insensitive' } },
         { description: { contains: q, mode: 'insensitive' } },
       ],
-      project: {
-        workspace: {
-          slug: workspaceSlug,
-          members: { some: { userId: user.id } },
-        },
-      },
+      projectId: { in: accessibleProjectIds },
     };
 
     if (status) {
